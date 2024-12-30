@@ -13,6 +13,7 @@ A sophisticated multi-agent reasoning system powered by Google's Gemini Pro 1.5 
 - Structured analysis framework
 - Comprehensive final report generation
 - Real-time streaming of model responses
+- Web interface using Streamlit
 
 ## Requirements
 
@@ -42,10 +43,19 @@ pip install -r requirements.txt
 
 ## Usage
 
-Run the main script:
+You can run the application in two ways:
+
+### Command Line Interface
 ```bash
 python main.py
 ```
+
+### Web Interface (Recommended)
+```bash
+streamlit run streamlit_app.py
+```
+
+Then open your browser to the URL shown in the terminal (usually http://localhost:8501).
 
 Follow the prompts to:
 1. Enter your topic of interest
