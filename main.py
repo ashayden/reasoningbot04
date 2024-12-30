@@ -19,33 +19,17 @@ st.markdown("""
 .block-container { max-width: 800px; padding: 2rem 1rem; }
 .main-title { font-size: 2.5rem; text-align: center; margin-bottom: 2rem; font-weight: 700; }
 .stButton > button { width: 100%; }
-.prompt-box { 
-    background-color: #f0f2f6;
-    border-radius: 0.5rem;
-    padding: 1.5rem;
-    margin: 1rem 0;
-    border-left: 5px solid #1f77b4;
-}
-.framework-box {
+.output-box { 
     background-color: #f8f9fa;
     border-radius: 0.5rem;
     padding: 1.5rem;
-    margin: 1rem 0;
-    border-left: 5px solid #2ca02c;
+    margin: 0.5rem 0;
+    border-left: 5px solid #1f77b4;
 }
-.analysis-box {
-    background-color: #fff;
-    border-radius: 0.5rem;
-    padding: 1.5rem;
-    margin: 1rem 0;
-    border: 1px solid #ddd;
-}
-.section-header {
-    font-size: 1.5rem;
-    font-weight: 600;
-    margin: 2rem 0 1rem 0;
-    padding-bottom: 0.5rem;
-    border-bottom: 2px solid #eee;
+.agent-status {
+    font-size: 1.1rem;
+    color: #666;
+    margin-bottom: 1rem;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -64,9 +48,12 @@ def initialize_gemini():
 def analyze_topic(model, topic, iterations=1):
     """Perform multi-agent analysis of a topic."""
     try:
+        results = {}
+        
         # Agent 1: Prompt Engineer & Framework Designer
-        with st.status("🎯 Agent 1: Designing analysis approach..."):
+        with st.status("🎯 Agent 1: Designing analysis approach...") as status:
             # First, create an optimized prompt as an AI prompt engineer
+            status.write("Creating optimized analysis prompt...")
             prompt_design = model.generate_content(
                 f"""As an expert AI Prompt Engineer, create a comprehensive and detailed prompt to analyze '{topic}'.
                 
@@ -91,12 +78,10 @@ def analyze_topic(model, topic, iterations=1):
                     top_k=40
                 )
             ).text
-            
-            # Display prompt
-            st.markdown('<div class="section-header">📝 Optimized Analysis Prompt</div>', unsafe_allow_html=True)
-            st.markdown('<div class="prompt-box">' + prompt_design + '</div>', unsafe_allow_html=True)
+            results['prompt'] = prompt_design
             
             # Then, create the analysis framework based on the optimized prompt
+            status.write("Developing analysis framework...")
             framework = model.generate_content(
                 f"""Using the following prompt as a foundation:
                 {prompt_design}
@@ -114,16 +99,14 @@ def analyze_topic(model, topic, iterations=1):
                     top_k=40
                 )
             ).text
-            
-            # Display framework
-            st.markdown('<div class="section-header">🔍 Analysis Framework</div>', unsafe_allow_html=True)
-            st.markdown('<div class="framework-box">' + framework + '</div>', unsafe_allow_html=True)
+            results['framework'] = framework
+            status.update(label="✅ Agent 1: Analysis approach designed", state="complete")
         
         # Agent 2: Analysis (Higher temperature for creative insights)
         analysis = []
-        with st.status("🔄 Agent 2: Performing analysis..."):
+        with st.status("🔄 Agent 2: Performing analysis...") as status:
             for i in range(iterations):
-                st.write(f"Iteration {i+1}/{iterations}")
+                status.write(f"Conducting analysis iteration {i+1}/{iterations}...")
                 result = model.generate_content(
                     f"""{prompt_design}\n\n{framework}\n\nAnalyze '{topic}' as a Nobel laureate, following the framework above. 
                     Previous context: {analysis[-1] if analysis else topic}
@@ -140,11 +123,12 @@ def analyze_topic(model, topic, iterations=1):
                     )
                 ).text
                 analysis.append(result)
-                st.markdown(f'<div class="section-header">📊 Analysis Iteration {i+1}</div>', unsafe_allow_html=True)
-                st.markdown('<div class="analysis-box">' + result + '</div>', unsafe_allow_html=True)
+            results['analysis'] = analysis
+            status.update(label="✅ Agent 2: Analysis complete", state="complete")
         
         # Agent 3: Summary (Medium-low temperature for balanced synthesis)
-        with st.status("📊 Agent 3: Generating final report..."):
+        with st.status("📊 Agent 3: Generating final report...") as status:
+            status.write("Synthesizing findings...")
             summary = model.generate_content(
                 f"""Using the optimized prompt and framework:
                 {prompt_design}
@@ -170,15 +154,15 @@ def analyze_topic(model, topic, iterations=1):
                     top_k=40
                 )
             ).text
-            st.markdown('<div class="section-header">📑 Final Report</div>', unsafe_allow_html=True)
-            st.markdown('<div class="analysis-box">' + summary + '</div>', unsafe_allow_html=True)
+            results['summary'] = summary
+            status.update(label="✅ Agent 3: Final report generated", state="complete")
             
-        return prompt_design, framework, analysis, summary
+        return results
         
     except Exception as e:
         st.error(f"Analysis error: {str(e)}")
         logger.error(f"Analysis error: {str(e)}")
-        return None, None, None, None
+        return None
 
 # Main UI
 st.markdown("<h1 class='main-title'>M.A.R.A. 🤖</h1>", unsafe_allow_html=True)
@@ -217,7 +201,24 @@ if submit and topic:
     depth_iterations = {"Quick": 1, "Balanced": 2, "Deep": 3, "Comprehensive": 4}
     iterations = depth_iterations[depth]
     
-    prompt_design, framework, analysis, summary = analyze_topic(model, topic, iterations)
+    results = analyze_topic(model, topic, iterations)
     
-    if all([prompt_design, framework, analysis, summary]):
-        st.success("Analysis complete! Review the results above.") 
+    if results:
+        # Display Optimized Prompt
+        with st.expander("📝 Optimized Prompt", expanded=False):
+            st.markdown('<div class="output-box">' + results['prompt'] + '</div>', unsafe_allow_html=True)
+        
+        # Display Framework
+        with st.expander("🔍 Analysis Framework", expanded=False):
+            st.markdown('<div class="output-box">' + results['framework'] + '</div>', unsafe_allow_html=True)
+        
+        # Display Analysis Iterations
+        for i, analysis in enumerate(results['analysis'], 1):
+            with st.expander(f"🔄 Research Iteration {i}", expanded=False):
+                st.markdown('<div class="output-box">' + analysis + '</div>', unsafe_allow_html=True)
+        
+        # Display Final Report
+        with st.expander("📊 Final Report", expanded=False):
+            st.markdown('<div class="output-box">' + results['summary'] + '</div>', unsafe_allow_html=True)
+        
+        st.success("Analysis complete! Explore the results in the sections above.") 
