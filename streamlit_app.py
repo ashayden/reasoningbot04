@@ -2,36 +2,96 @@ import streamlit as st
 import logging
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-# Debug information
-logger.info("Starting Streamlit app...")
-st.set_page_config(
-    page_title="Gemini Reasoning Bot",
-    layout="wide",
-    initial_sidebar_state="expanded"
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(levelname)s - %(message)s'
 )
-logger.info("Page config set")
 
-# Basic UI elements
-try:
-    st.title("Gemini Reasoning Bot")
-    logger.info("Title rendered")
-    
-    st.write("Welcome to the Gemini Reasoning Bot!")
-    logger.info("Welcome message rendered")
-    
-    # Simple input form
-    with st.form("input_form"):
-        topic = st.text_input("What topic would you like to explore?")
-        submit = st.form_submit_button("Start Analysis")
-        logger.info("Form rendered")
-    
-    if submit and topic:
-        st.info(f"Starting analysis of: {topic}")
-        logger.info(f"Form submitted with topic: {topic}")
+# Custom CSS for better UI
+st.markdown("""
+<style>
+.block-container {
+    padding-top: 2rem !important;
+    padding-bottom: 1rem !important;
+    max-width: 800px;
+}
 
-except Exception as e:
-    logger.error(f"Error in UI rendering: {str(e)}")
-    st.error(f"An error occurred: {str(e)}") 
+.stTextInput > div > div > input {
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+    border-radius: 0.5rem;
+}
+
+.stButton > button {
+    width: 100%;
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+    font-weight: 500;
+    border-radius: 0.5rem;
+    margin: 0.5rem 0;
+}
+
+.streamlit-expanderHeader {
+    font-size: 1rem;
+    font-weight: 600;
+    padding: 0.75rem 0;
+    border-radius: 0.5rem;
+}
+
+.element-container {
+    margin-bottom: 1rem;
+}
+
+.main-title {
+    font-size: 2.5rem !important;
+    text-align: center !important;
+    margin-bottom: 2rem !important;
+    font-weight: 700 !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# Initialize session state
+if 'current_step' not in st.session_state:
+    st.session_state.current_step = 0
+
+# Main UI
+st.markdown("<h1 class='main-title'>Gemini Reasoning Bot</h1>", unsafe_allow_html=True)
+
+# Sidebar
+with st.sidebar:
+    st.markdown("""
+    ### About
+    This application uses multiple AI agents to perform deep analysis on any topic:
+    1. **🎯 Agent 1** creates a sophisticated analysis framework
+    2. **🔄 Agent 2** performs multiple iterations of deep reasoning
+    3. **📊 Agent 3** synthesizes the findings into a comprehensive report
+    """)
+    
+    st.markdown("---")
+    st.markdown("### How to Use")
+    st.markdown("""
+    1. Enter your topic of interest
+    2. Choose analysis depth
+    3. Click 'Start Analysis' and watch the magic happen!
+    """)
+
+# Main content area
+col1, col2 = st.columns([2, 1])
+
+with col1:
+    with st.form("analysis_form"):
+        topic = st.text_input(
+            "What topic would you like to explore?",
+            placeholder="Enter any topic, e.g., 'Artificial Intelligence' or 'Climate Change'"
+        )
+        depth = st.select_slider(
+            "Analysis Depth",
+            options=["Quick", "Balanced", "Deep", "Comprehensive"],
+            value="Balanced",
+            help="More depth = deeper analysis, but takes longer"
+        )
+        submit = st.form_submit_button("🚀 Start Analysis")
+
+with col2:
+    st.info("👈 Enter your topic and click 'Start Analysis' to begin!") 
