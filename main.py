@@ -22,8 +22,23 @@ st.markdown("""
 .prompt-box { 
     background-color: #f0f2f6;
     border-radius: 0.5rem;
-    padding: 1rem;
+    padding: 1.5rem;
     margin: 1rem 0;
+    border-left: 5px solid #1f77b4;
+}
+.framework-box {
+    background-color: #f8f9fa;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    margin: 1rem 0;
+    border-left: 5px solid #2ca02c;
+}
+.analysis-box {
+    background-color: #fff;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    margin: 1rem 0;
+    border: 1px solid #ddd;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -70,8 +85,9 @@ def analyze_topic(model, topic, iterations=1):
                 )
             ).text
             
-            st.markdown("### 📝 Optimized Analysis Prompt")
-            st.markdown('<div class="prompt-box">' + prompt_design + '</div>', unsafe_allow_html=True)
+            # Display prompt in its own expander
+            with st.expander("📝 Optimized Analysis Prompt", expanded=True):
+                st.markdown('<div class="prompt-box">' + prompt_design + '</div>', unsafe_allow_html=True)
             
             # Then, create the analysis framework based on the optimized prompt
             framework = model.generate_content(
@@ -92,8 +108,9 @@ def analyze_topic(model, topic, iterations=1):
                 )
             ).text
             
-            st.markdown("### 🔍 Analysis Framework")
-            st.markdown(framework)
+            # Display framework in its own expander
+            with st.expander("🔍 Analysis Framework", expanded=True):
+                st.markdown('<div class="framework-box">' + framework + '</div>', unsafe_allow_html=True)
         
         # Agent 2: Analysis (Higher temperature for creative insights)
         analysis = []
@@ -116,7 +133,8 @@ def analyze_topic(model, topic, iterations=1):
                     )
                 ).text
                 analysis.append(result)
-                st.markdown(result)
+                with st.expander(f"📊 Analysis Iteration {i+1}", expanded=True):
+                    st.markdown('<div class="analysis-box">' + result + '</div>', unsafe_allow_html=True)
         
         # Agent 3: Summary (Medium-low temperature for balanced synthesis)
         with st.status("📊 Agent 3: Generating final report..."):
@@ -145,7 +163,8 @@ def analyze_topic(model, topic, iterations=1):
                     top_k=40
                 )
             ).text
-            st.markdown(summary)
+            with st.expander("📑 Final Report", expanded=True):
+                st.markdown('<div class="analysis-box">' + summary + '</div>', unsafe_allow_html=True)
             
         return prompt_design, framework, analysis, summary
         
