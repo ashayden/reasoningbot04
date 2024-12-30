@@ -1,6 +1,6 @@
 import os
 import time
-from dotenv import load_dotenv
+import streamlit as st
 import google.generativeai as genai
 import logging
 
@@ -14,10 +14,9 @@ logger = logging.getLogger(__name__)
 def initialize_gemini():
     """Initialize and configure the Gemini API."""
     try:
-        load_dotenv()
-        api_key = os.getenv("GOOGLE_API_KEY")
+        api_key = st.secrets["GOOGLE_API_KEY"]
         if not api_key:
-            raise ValueError("API key not found in environment variables")
+            raise ValueError("API key not found in Streamlit secrets")
         genai.configure(api_key=api_key)
         return True
     except Exception as e:
