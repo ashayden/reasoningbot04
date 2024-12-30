@@ -1,17 +1,12 @@
 import streamlit as st
 import google.generativeai as genai
-from dotenv import load_dotenv
-import os
-import time
 
-# Load environment variables and configure API
-load_dotenv()
-api_key = os.getenv("GOOGLE_API_KEY")
-if not api_key:
-    st.error("No API key found. Please set the GOOGLE_API_KEY environment variable.")
+# Configure API key from Streamlit secrets
+try:
+    genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+except Exception as e:
+    st.error("Error accessing Google API key. Please check your Streamlit secrets configuration.")
     st.stop()
-
-genai.configure(api_key=api_key)
 
 # Initialize model
 def create_model():
@@ -201,6 +196,13 @@ if st.session_state.current_step > 0:
     st.markdown(render_stepper(st.session_state.current_step), unsafe_allow_html=True)
 
 if submit and topic:
-    # Your existing analysis logic here, but update st.session_state.current_step
-    # as each phase completes
-    pass 
+    # Test API connection
+    try:
+        model = create_model()
+        test_response = model.generate_content("Hello, are you working?")
+        st.success("API connection successful!")
+        st.session_state.current_step = 1
+        st.markdown(render_stepper(st.session_state.current_step), unsafe_allow_html=True)
+    except Exception as e:
+        st.error(f"Error connecting to Gemini API: {str(e)}")
+        st.stop() 
