@@ -1,11 +1,18 @@
 import streamlit as st
 import logging
+from core import initialize_gemini, analyze_topic
 
 # Configure logging
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
+logger = logging.getLogger(__name__)
+
+# Initialize Gemini
+if not initialize_gemini():
+    st.error("Failed to initialize Gemini API. Please check your API key.")
+    st.stop()
 
 # Custom CSS for better UI
 st.markdown("""
@@ -54,6 +61,8 @@ st.markdown("""
 # Initialize session state
 if 'current_step' not in st.session_state:
     st.session_state.current_step = 0
+if 'analysis_complete' not in st.session_state:
+    st.session_state.analysis_complete = False
 
 # Main UI
 st.markdown("<h1 class='main-title'>Gemini Reasoning Bot</h1>", unsafe_allow_html=True)
@@ -85,13 +94,48 @@ with col1:
             "What topic would you like to explore?",
             placeholder="Enter any topic, e.g., 'Artificial Intelligence' or 'Climate Change'"
         )
+        
+        depth_options = {
+            "Quick": 1,
+            "Balanced": 2,
+            "Deep": 3,
+            "Comprehensive": 4
+        }
+        
         depth = st.select_slider(
             "Analysis Depth",
-            options=["Quick", "Balanced", "Deep", "Comprehensive"],
+            options=list(depth_options.keys()),
             value="Balanced",
             help="More depth = deeper analysis, but takes longer"
         )
+        
         submit = st.form_submit_button("🚀 Start Analysis")
 
 with col2:
-    st.info("👈 Enter your topic and click 'Start Analysis' to begin!") 
+    st.info("👈 Enter your topic and click 'Start Analysis' to begin!")
+
+if submit and topic:
+    try:
+        iterations = depth_options[depth]
+        with st.spinner(f"Analyzing '{topic}' with {iterations} iterations..."):
+            result = analyze_topic(topic, iterations)
+            
+            # Display results in expandable sections
+            with st.expander("🎯 Analysis Framework", expanded=True):
+                st.markdown(result['framework'])
+            
+            with st.expander("🔄 Detailed Analysis", expanded=False):
+                for i, analysis in enumerate(result['analysis'], 1):
+                    st.markdown(f"### Iteration {i}")
+                    st.markdown(analysis)
+                    st.markdown("---")
+            
+            with st.expander("📊 Final Report", expanded=True):
+                st.markdown(result['summary'])
+            
+            st.success("Analysis complete! Expand the sections above to explore the results.")
+            st.session_state.analysis_complete = True
+            
+    except Exception as e:
+        st.error(f"An error occurred during analysis: {str(e)}")
+        logger.error(f"Analysis error: {str(e)}") 
