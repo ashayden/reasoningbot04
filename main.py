@@ -37,7 +37,7 @@ def analyze_topic(model, topic, iterations=1):
     """Perform multi-agent analysis of a topic."""
     try:
         # Agent 1: Framework - Lower temperature for more focused, structured output
-        with st.status("🎯 Agent 1: Creating analysis framework..."):
+        with st.status("🎯 Creating analysis framework..."):
             framework = model.generate_content(
                 f"""Create a refined analysis framework for '{topic}'. Include multiple perspectives and implications. Be specific but concise.""",
                 generation_config=genai.types.GenerationConfig(
@@ -50,7 +50,7 @@ def analyze_topic(model, topic, iterations=1):
         
         # Agent 2: Analysis - Higher temperature for creative, diverse perspectives
         analysis = []
-        with st.status("🔄 Agent 2: Performing analysis..."):
+        with st.status("🔄 Performing analysis..."):
             for i in range(iterations):
                 st.write(f"Iteration {i+1}/{iterations}")
                 result = model.generate_content(
@@ -65,7 +65,7 @@ def analyze_topic(model, topic, iterations=1):
                 st.markdown(result)
         
         # Agent 3: Summary - Medium-low temperature for balanced, coherent synthesis
-        with st.status("📊 Agent 3: Generating final report..."):
+        with st.status("📊 Generating final report..."):
             summary = model.generate_content(
                 f"""Synthesize this analysis of '{topic}' into a Final Report with:
                 1. Executive Summary (2-3 paragraphs)
