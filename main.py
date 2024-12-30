@@ -138,9 +138,16 @@ with st.sidebar:
     st.markdown("""
     ### About
     Multi-Agent Reasoning Assistant powered by:
+    0. ✍️ Prompt Designer
     1. 🎯 Framework Engineer
     2. 🔄 Research Analyst
     3. 📊 Synthesis Expert
+    
+    ### Agent Temperatures
+    - Agent 0: 0.1 (Precise prompt engineering)
+    - Agent 1: 0.1 (Structured framework)
+    - Agent 2: 0.7 (Creative analysis)
+    - Agent 3: 0.3 (Balanced synthesis)
     """)
 
 # Initialize model
