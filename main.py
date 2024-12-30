@@ -86,10 +86,11 @@ def analyze_topic(model, topic, iterations=1):
                         Follow the methodological approaches and evaluation criteria specified in the framework.
                         Provide detailed findings for each key area of investigation outlined.
                         
-                        Start your response with a title in this format:
-                        "Main Title: Descriptive Subtitle"
-                        
-                        The title should be concise and impactful, while the subtitle provides more context about your analysis focus."""
+                        Start your response with a title in this exact format (including the newlines):
+                        Title: Your Main Title Here
+                        Subtitle: Your Descriptive Subtitle Here
+
+                        Then continue with your analysis content."""
                     else:
                         prompt = f"""Review the previous research iteration:
                         {analysis[-1]}
@@ -100,10 +101,11 @@ def analyze_topic(model, topic, iterations=1):
                         3. Refining and strengthening key arguments
                         4. Adding new supporting evidence or perspectives
                         
-                        Start your response with a title in this format:
-                        "Main Title: Descriptive Subtitle"
-                        
-                        The title should be concise and impactful, while the subtitle provides more context about your analysis focus."""
+                        Start your response with a title in this exact format (including the newlines):
+                        Title: Your Main Title Here
+                        Subtitle: Your Descriptive Subtitle Here
+
+                        Then continue with your analysis content."""
 
                     result = model.generate_content(
                         prompt,
@@ -114,21 +116,34 @@ def analyze_topic(model, topic, iterations=1):
                         )
                     ).text
                     
-                    # Split the result into title and content
-                    lines = result.split('\n', 1)
-                    if len(lines) == 2 and ':' in lines[0]:
-                        title_parts = lines[0].split(':', 1)
-                        main_title = title_parts[0].strip()
-                        subtitle = title_parts[1].strip() if len(title_parts) > 1 else ""
-                        content = lines[1].strip()
-                        
-                        # Display formatted title and subtitle
+                    # Split the result into title, subtitle, and content
+                    lines = result.split('\n')
+                    main_title = ""
+                    subtitle = ""
+                    content_start = 0
+                    
+                    # Parse the title and subtitle
+                    for i, line in enumerate(lines):
+                        if line.startswith('Title:'):
+                            main_title = line.replace('Title:', '').strip()
+                        elif line.startswith('Subtitle:'):
+                            subtitle = line.replace('Subtitle:', '').strip()
+                            content_start = i + 1
+                            break
+                    
+                    # Get the remaining content
+                    content = '\n'.join(lines[content_start:]).strip()
+                    
+                    # Display formatted title and subtitle
+                    if main_title:
                         st.markdown(f"# {main_title}")
-                        if subtitle:
-                            st.markdown(f"*{subtitle}*")
+                    if subtitle:
+                        st.markdown(f"*{subtitle}*")
+                        st.markdown("\n")  # Add some spacing
+                    if content:
                         st.markdown(content)
                     else:
-                        # Fallback if the format is not as expected
+                        # Fallback if parsing failed
                         st.markdown(result)
                     
                     analysis.append(result)
