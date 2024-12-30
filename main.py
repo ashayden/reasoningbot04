@@ -78,7 +78,7 @@ def analyze_topic(model, topic, iterations=1):
         analysis = []
         for i in range(iterations):
             with st.status(f"🔄 Performing research analysis #{i+1}...") as status:
-                iteration_title = f"Analysis #{i+1}: {topic.title()} - Key Dimensions"
+                iteration_title = f"Research Analysis #{i+1}: {topic.title()}"
                 st.write(f"### {iteration_title}")
                 
                 # Create a new section for each analysis iteration
