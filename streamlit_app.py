@@ -1,153 +1,120 @@
 import streamlit as st
+import google.generativeai as genai
 import logging
-from core import initialize_gemini, analyze_topic
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Page configuration
 st.set_page_config(
-    page_title="Gemini Reasoning Bot",
+    page_title="M.A.R.A. - Multi-Agent Reasoning Assistant",
     page_icon="🤖",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="wide"
 )
 
-# Configure logging
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
-
-# Initialize Gemini
-if not initialize_gemini():
-    st.error("Failed to initialize Gemini API. Please check your API key.")
-    st.stop()
-
-# Custom CSS for better UI
+# Custom CSS
 st.markdown("""
 <style>
-.block-container {
-    padding-top: 2rem !important;
-    padding-bottom: 1rem !important;
-    max-width: 800px;
-}
-
-.stTextInput > div > div > input {
-    padding: 0.5rem 1rem;
-    font-size: 1rem;
-    border-radius: 0.5rem;
-}
-
-.stButton > button {
-    width: 100%;
-    padding: 0.5rem 1rem;
-    font-size: 1rem;
-    font-weight: 500;
-    border-radius: 0.5rem;
-    margin: 0.5rem 0;
-}
-
-.streamlit-expanderHeader {
-    font-size: 1rem;
-    font-weight: 600;
-    padding: 0.75rem 0;
-    border-radius: 0.5rem;
-}
-
-.element-container {
-    margin-bottom: 1rem;
-}
-
-.main-title {
-    font-size: 2.5rem !important;
-    text-align: center !important;
-    margin-bottom: 2rem !important;
-    font-weight: 700 !important;
-}
+.block-container { max-width: 800px; padding: 2rem 1rem; }
+.main-title { font-size: 2.5rem; text-align: center; margin-bottom: 2rem; font-weight: 700; }
+.stButton > button { width: 100%; }
 </style>
 """, unsafe_allow_html=True)
 
-# Initialize session state
-if 'current_step' not in st.session_state:
-    st.session_state.current_step = 0
-if 'analysis_complete' not in st.session_state:
-    st.session_state.analysis_complete = False
+# Initialize Gemini
+@st.cache_resource
+def initialize_gemini():
+    try:
+        api_key = st.secrets["GOOGLE_API_KEY"]
+        genai.configure(api_key=api_key)
+        return genai.GenerativeModel("gemini-1.5-pro-latest")
+    except Exception as e:
+        st.error(f"Failed to initialize Gemini API: {str(e)}")
+        return None
 
-def main():
-    # Main UI
-    st.markdown("<h1 class='main-title'>Gemini Reasoning Bot</h1>", unsafe_allow_html=True)
-
-    # Sidebar
-    with st.sidebar:
-        st.markdown("""
-        ### About
-        This application uses multiple AI agents to perform deep analysis on any topic:
-        1. **🎯 Agent 1** creates a sophisticated analysis framework
-        2. **🔄 Agent 2** performs multiple iterations of deep reasoning
-        3. **📊 Agent 3** synthesizes the findings into a comprehensive report
-        """)
+def analyze_topic(model, topic, iterations=1):
+    """Perform multi-agent analysis of a topic."""
+    try:
+        # Agent 1: Framework
+        with st.status("🎯 Agent 1: Creating analysis framework..."):
+            framework = model.generate_content(
+                f"""Create a refined analysis framework for '{topic}'. Include multiple perspectives and implications. Be specific but concise.""",
+                generation_config=genai.types.GenerationConfig(temperature=0.3)
+            ).text
+            st.markdown(framework)
         
-        st.markdown("---")
-        st.markdown("### How to Use")
-        st.markdown("""
-        1. Enter your topic of interest
-        2. Choose analysis depth
-        3. Click 'Start Analysis' and watch the magic happen!
-        """)
-
-    # Main content area
-    col1, col2 = st.columns([2, 1])
-
-    with col1:
-        with st.form("analysis_form"):
-            topic = st.text_input(
-                "What topic would you like to explore?",
-                placeholder="Enter any topic, e.g., 'Artificial Intelligence' or 'Climate Change'"
-            )
+        # Agent 2: Analysis
+        analysis = []
+        with st.status("🔄 Agent 2: Performing analysis..."):
+            for i in range(iterations):
+                st.write(f"Iteration {i+1}/{iterations}")
+                result = model.generate_content(
+                    f"""{framework}\n\nAnalyze '{topic}' as a Nobel laureate, following the framework above. Previous context: {analysis[-1] if analysis else topic}""",
+                    generation_config=genai.types.GenerationConfig(temperature=1.0)
+                ).text
+                analysis.append(result)
+                st.markdown(result)
+        
+        # Agent 3: Summary
+        with st.status("📊 Agent 3: Generating final report..."):
+            summary = model.generate_content(
+                f"""Synthesize this analysis of '{topic}' into a Final Report with:
+                1. Executive Summary (2-3 paragraphs)
+                2. Key Insights (bullet points)
+                3. Analysis
+                4. Conclusion
+                
+                Analysis to synthesize: {' '.join(analysis)}""",
+                generation_config=genai.types.GenerationConfig(temperature=0.1)
+            ).text
+            st.markdown(summary)
             
-            depth_options = {
-                "Quick": 1,
-                "Balanced": 2,
-                "Deep": 3,
-                "Comprehensive": 4
-            }
-            
-            depth = st.select_slider(
-                "Analysis Depth",
-                options=list(depth_options.keys()),
-                value="Balanced",
-                help="More depth = deeper analysis, but takes longer"
-            )
-            
-            submit = st.form_submit_button("🚀 Start Analysis")
+        return framework, analysis, summary
+        
+    except Exception as e:
+        st.error(f"Analysis error: {str(e)}")
+        logger.error(f"Analysis error: {str(e)}")
+        return None, None, None
 
-    with col2:
-        st.info("👈 Enter your topic and click 'Start Analysis' to begin!")
+# Main UI
+st.markdown("<h1 class='main-title'>M.A.R.A. 🤖</h1>", unsafe_allow_html=True)
 
-    if submit and topic:
-        try:
-            iterations = depth_options[depth]
-            with st.spinner(f"Analyzing '{topic}' with {iterations} iterations..."):
-                result = analyze_topic(topic, iterations)
-                
-                # Display results in expandable sections
-                with st.expander("🎯 Analysis Framework", expanded=True):
-                    st.markdown(result['framework'])
-                
-                with st.expander("🔄 Detailed Analysis", expanded=False):
-                    for i, analysis in enumerate(result['analysis'], 1):
-                        st.markdown(f"### Iteration {i}")
-                        st.markdown(analysis)
-                        st.markdown("---")
-                
-                with st.expander("📊 Final Report", expanded=True):
-                    st.markdown(result['summary'])
-                
-                st.success("Analysis complete! Expand the sections above to explore the results.")
-                st.session_state.analysis_complete = True
-                
-        except Exception as e:
-            st.error(f"An error occurred during analysis: {str(e)}")
-            logger.error(f"Analysis error: {str(e)}")
+# Sidebar
+with st.sidebar:
+    st.markdown("""
+    ### About
+    Multi-Agent Reasoning Assistant powered by:
+    1. 🎯 Framework Engineer
+    2. 🔄 Research Analyst
+    3. 📊 Synthesis Expert
+    """)
 
-if __name__ == "__main__":
-    main() 
+# Initialize model
+model = initialize_gemini()
+if not model:
+    st.stop()
+
+# Input form
+with st.form("analysis_form"):
+    topic = st.text_input(
+        "What would you like to explore?",
+        placeholder="e.g., 'Artificial Intelligence' or 'Climate Change'"
+    )
+    
+    depth = st.select_slider(
+        "Analysis Depth",
+        options=["Quick", "Balanced", "Deep", "Comprehensive"],
+        value="Balanced"
+    )
+    
+    submit = st.form_submit_button("🚀 Start Analysis")
+
+if submit and topic:
+    depth_iterations = {"Quick": 1, "Balanced": 2, "Deep": 3, "Comprehensive": 4}
+    iterations = depth_iterations[depth]
+    
+    framework, analysis, summary = analyze_topic(model, topic, iterations)
+    
+    if framework and analysis and summary:
+        st.success("Analysis complete! Review the results above.") 
