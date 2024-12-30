@@ -36,9 +36,12 @@ def generate_with_retry(model, prompt, temperature=0.5, max_retries=3, initial_d
             if attempt == max_retries - 1:
                 st.error(f"Error: Failed after {max_retries} attempts: {str(e)}")
                 raise
+            delay = initial_delay * (2 ** attempt)  # Calculate delay here
             st.warning(f"Attempt {attempt + 1} failed. Retrying in {delay} seconds...")
             time.sleep(delay)
             model = create_model()
+            
+    return None  # Return None if all retries fail
 
 def run_analysis(topic, num_iterations):
     try:
@@ -54,6 +57,9 @@ def run_analysis(topic, num_iterations):
             Be specific but concise.""",
             temperature=0.3
         )
+        
+        if not system_prompt:
+            return False
 
         # Agent 2: Reasoning Loops
         full_analysis = []
@@ -69,6 +75,8 @@ def run_analysis(topic, num_iterations):
                 Analyze this topic as if you were a Nobel Prize winner in the relevant field, drawing upon deep expertise and groundbreaking insights. Provide fresh analysis following the framework above.""",
                 temperature=1.0
             )
+            if not loop_content:
+                return False
             context = loop_content
             full_analysis.append(loop_content)
             st.divider()
@@ -125,15 +133,22 @@ def run_analysis(topic, num_iterations):
             temperature=0.1
         )
         
-        return True
+        return summary is not None
         
     except Exception as e:
         st.error(f"Error during analysis: {str(e)}")
         st.warning("Please try again. If the error persists, try fewer iterations.")
         return False
 
+# Set page config
+st.set_page_config(
+    page_title="Gemini Reasoning Bot",
+    page_icon="🤖",
+    layout="wide"
+)
+
 # Streamlit UI
-st.title("Gemini Reasoning Bot")
+st.title("🤖 Gemini Reasoning Bot")
 st.markdown("""
 This application uses multiple AI agents to perform deep analysis on any topic:
 1. **Agent 1** creates a sophisticated analysis framework
