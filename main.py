@@ -76,12 +76,15 @@ def analyze_topic(model, topic, iterations=1):
         
         # Agent 2: Analysis - Higher temperature for creative, diverse perspectives
         analysis = []
-        for i in range(iterations):
-            with st.status(f"🔄 Performing research analysis #{i+1}...") as status:
+        for iteration_num in range(iterations):
+            with st.status(f"🔄 Performing research analysis #{iteration_num + 1}...") as status:
                 # Create a new section for each analysis iteration
                 with st.container():
                     st.divider()
-                    if i == 0:
+                    # Add the iteration header
+                    st.markdown(f"### 🔄 Research Analysis #{iteration_num + 1}")
+                    
+                    if iteration_num == 0:
                         prompt = f"""Acting as a leading expert in topic-related field: Based on the framework above, conduct an initial research analysis of '{topic}'. 
                         Follow the methodological approaches and evaluation criteria specified in the framework.
                         Provide detailed findings for each key area of investigation outlined.
@@ -148,7 +151,7 @@ def analyze_topic(model, topic, iterations=1):
                     
                     analysis.append(result)
                     st.divider()
-                    status.update(label=f"🔄 Research Analysis #{i+1}")
+                    status.update(label=f"🔄 Research Analysis #{iteration_num + 1}")
         
         # Agent 3: Summary - Medium-low temperature for balanced, coherent synthesis
         with st.status("📊 Generating final report...") as status:
