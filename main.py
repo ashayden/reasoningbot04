@@ -86,7 +86,10 @@ def analyze_topic(model, topic, iterations=1):
                         Follow the methodological approaches and evaluation criteria specified in the framework.
                         Provide detailed findings for each key area of investigation outlined.
                         
-                        Start your response with a one-line title that captures the main focus or key insight of your analysis."""
+                        Start your response with a title in this format:
+                        "Main Title: Descriptive Subtitle"
+                        
+                        The title should be concise and impactful, while the subtitle provides more context about your analysis focus."""
                     else:
                         prompt = f"""Review the previous research iteration:
                         {analysis[-1]}
@@ -97,7 +100,10 @@ def analyze_topic(model, topic, iterations=1):
                         3. Refining and strengthening key arguments
                         4. Adding new supporting evidence or perspectives
                         
-                        Start your response with a one-line title that captures the main focus or key insight of your analysis."""
+                        Start your response with a title in this format:
+                        "Main Title: Descriptive Subtitle"
+                        
+                        The title should be concise and impactful, while the subtitle provides more context about your analysis focus."""
 
                     result = model.generate_content(
                         prompt,
@@ -107,8 +113,25 @@ def analyze_topic(model, topic, iterations=1):
                             max_output_tokens=2048
                         )
                     ).text
+                    
+                    # Split the result into title and content
+                    lines = result.split('\n', 1)
+                    if len(lines) == 2 and ':' in lines[0]:
+                        title_parts = lines[0].split(':', 1)
+                        main_title = title_parts[0].strip()
+                        subtitle = title_parts[1].strip() if len(title_parts) > 1 else ""
+                        content = lines[1].strip()
+                        
+                        # Display formatted title and subtitle
+                        st.markdown(f"# {main_title}")
+                        if subtitle:
+                            st.markdown(f"*{subtitle}*")
+                        st.markdown(content)
+                    else:
+                        # Fallback if the format is not as expected
+                        st.markdown(result)
+                    
                     analysis.append(result)
-                    st.markdown(result)
                     st.divider()
                     status.update(label=f"🔄 Research Analysis #{i+1}")
         
