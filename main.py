@@ -1,6 +1,12 @@
+import os
+from dotenv import load_dotenv
 import google.generativeai as genai
 
-genai.configure(api_key="AIzaSyA3szOv69RF7vT9qOLsZyRygoQWOdnc760")
+# Load environment variables
+load_dotenv()
+
+# Configure API key from environment variable
+genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 model = genai.GenerativeModel("gemini-1.5-pro-latest")
 
 # Agent 1: Creates sophisticated prompt structure (low temperature for focused, consistent output)

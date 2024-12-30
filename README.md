@@ -32,9 +32,13 @@ cd gemini-reasoning-bot
 pip install -r requirements.txt
 ```
 
-3. Set up your Google API key:
+3. Set up your environment:
+   - Copy `.env.example` to `.env`:
+     ```bash
+     cp .env.example .env
+     ```
    - Get an API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
-   - Replace the API key in `main.py` with your key (or better yet, use environment variables)
+   - Edit `.env` and replace `your_api_key_here` with your actual API key
 
 ## Usage
 
@@ -50,4 +54,4 @@ Follow the prompts to:
 
 ## Security Note
 
-Make sure to keep your API key secure and never commit it directly to the repository. 
+The API key is stored in the `.env` file, which is excluded from git via `.gitignore`. Never commit your actual API key to the repository. 
