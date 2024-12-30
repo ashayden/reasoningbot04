@@ -36,10 +36,28 @@ def initialize_gemini():
 def analyze_topic(model, topic, iterations=1):
     """Perform multi-agent analysis of a topic."""
     try:
+        # Agent 0: Prompt Designer - Very low temperature for precise prompt engineering
+        with st.status("✍️ Designing optimal prompt..."):
+            prompt_design = model.generate_content(
+                f"""As an expert prompt engineer, create a detailed and thorough prompt to analyze '{topic}'.
+                The prompt should:
+                1. Break down the topic into key components
+                2. Specify the depth and breadth of analysis needed
+                3. Include relevant context and constraints
+                4. Define clear objectives and deliverables
+                Be specific and structured in your prompt design.""",
+                generation_config=genai.types.GenerationConfig(
+                    temperature=0.1,  # Very low temperature for precise, consistent output
+                    candidate_count=1,
+                    max_output_tokens=1024
+                )
+            ).text
+            st.markdown(prompt_design)
+
         # Agent 1: Framework - Lower temperature for more focused, structured output
         with st.status("🎯 Creating analysis framework..."):
             framework = model.generate_content(
-                f"""Create a refined analysis framework for '{topic}'. Include multiple perspectives and implications. Be specific but concise.""",
+                prompt_design,  # Using the optimized prompt from Agent 0
                 generation_config=genai.types.GenerationConfig(
                     temperature=0.1,  # Lower temperature for structured, consistent framework
                     candidate_count=1,
@@ -52,7 +70,8 @@ def analyze_topic(model, topic, iterations=1):
         analysis = []
         with st.status("🔄 Performing analysis..."):
             for i in range(iterations):
-                st.write(f"Iteration {i+1}/{iterations}")
+                iteration_title = f"Analysis #{i+1}: {topic.title()} - Key Dimensions"
+                st.write(f"### {iteration_title}")
                 result = model.generate_content(
                     f"""{framework}\n\nAnalyze '{topic}' as a Nobel laureate, following the framework above. Previous context: {analysis[-1] if analysis else topic}""",
                     generation_config=genai.types.GenerationConfig(
