@@ -1,14 +1,15 @@
 [server]
-port = 8502
-address = "localhost"
-headless = true
+enableCORS = false
+enableXsrfProtection = false
 
 [browser]
-serverAddress = "localhost"
-serverPort = 8502
+serverAddress = "0.0.0.0"
+serverPort = 8501
+gatherUsageStats = false
 
 [theme]
-primaryColor = "#2439f7"
-backgroundColor = "#0e1117"
-secondaryBackgroundColor = "#1a1c24"
-textColor = "#fafafa" 
+primaryColor = "#FF4B4B"
+backgroundColor = "#0E1117"
+secondaryBackgroundColor = "#262730"
+textColor = "#FAFAFA"
+font = "sans serif" 
