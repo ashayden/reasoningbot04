@@ -24,7 +24,7 @@ div[data-testid="stImage"] > img { max-width: 800px; width: 100%; }
 """, unsafe_allow_html=True)
 
 # Logo/Header
-st.image("assets/mara-logo.png", use_column_width=True)
+st.image("assets/mara-logo.png", use_container_width=True)
 
 # Initialize Gemini
 @st.cache_resource
