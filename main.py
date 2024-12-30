@@ -137,7 +137,6 @@ st.markdown("<h1 class='main-title'>M.A.R.A. 🤖</h1>", unsafe_allow_html=True)
 with st.sidebar:
     st.markdown("""
     ### About
-    Multi-Agent Reasoning Assistant powered by:
     0. ✍️ Prompt Designer
     1. 🎯 Framework Engineer
     2. 🔄 Research Analyst
