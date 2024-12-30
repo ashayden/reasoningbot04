@@ -37,7 +37,7 @@ def analyze_topic(model, topic, iterations=1):
     """Perform multi-agent analysis of a topic."""
     try:
         # Agent 0: Prompt Designer - Very low temperature for precise prompt engineering
-        with st.status("✍️ Designing optimal prompt..."):
+        with st.status("✍️ Designing optimal prompt...") as status:
             prompt_design = model.generate_content(
                 f"""As an expert prompt engineer, create a concise one-paragraph prompt that will guide the development 
                 of a research framework for analyzing '{topic}'. Focus on the essential aspects that need to be 
@@ -49,9 +49,10 @@ def analyze_topic(model, topic, iterations=1):
                 )
             ).text
             st.markdown(prompt_design)
+            status.update(label="✍️ Optimized Prompt")
 
         # Agent 1: Framework - Lower temperature for more focused, structured output
-        with st.status("🎯 Creating analysis framework..."):
+        with st.status("🎯 Creating analysis framework...") as status:
             framework = model.generate_content(
                 f"""{prompt_design}
 
@@ -67,11 +68,12 @@ def analyze_topic(model, topic, iterations=1):
                 )
             ).text
             st.markdown(framework)
+            status.update(label="🎯 Analysis Framework")
         
         # Agent 2: Analysis - Higher temperature for creative, diverse perspectives
         analysis = []
         for i in range(iterations):
-            with st.status(f"🔄 Performing Analysis #{i+1}..."):
+            with st.status(f"🔄 Performing research analysis #{i+1}...") as status:
                 iteration_title = f"Analysis #{i+1}: {topic.title()} - Key Dimensions"
                 st.write(f"### {iteration_title}")
                 
@@ -107,9 +109,10 @@ def analyze_topic(model, topic, iterations=1):
                     analysis.append(result)
                     st.markdown(result)
                     st.divider()
+                    status.update(label=f"🔄 Research Analysis #{i+1}")
         
         # Agent 3: Summary - Medium-low temperature for balanced, coherent synthesis
-        with st.status("📊 Generating final report..."):
+        with st.status("📊 Generating final report...") as status:
             summary = model.generate_content(
                 f"""Synthesize all research from agent 2 on '{topic}' into a Final Report with:
                 1. Executive Summary (2-3 paragraphs)
@@ -127,6 +130,7 @@ def analyze_topic(model, topic, iterations=1):
                 )
             ).text
             st.markdown(summary)
+            status.update(label="📊 Final Report")
             
         return framework, analysis, summary
         
