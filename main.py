@@ -17,9 +17,17 @@ st.set_page_config(
 st.markdown("""
 <style>
 .block-container { max-width: 800px; padding: 2rem 1rem; }
-.main-title { font-size: 2.5rem; text-align: center; margin-bottom: 2rem; font-weight: 700; }
+.logo-container { text-align: center; margin-bottom: 2rem; }
+.logo-container img { max-width: 800px; width: 100%; }
 .stButton > button { width: 100%; }
 </style>
+""", unsafe_allow_html=True)
+
+# Logo/Header
+st.markdown("""
+<div class="logo-container">
+    <img src="https://raw.githubusercontent.com/ashayden/gemini-reasoning-bot/main/assets/mara-logo.png" alt="MARA Logo">
+</div>
 """, unsafe_allow_html=True)
 
 # Initialize Gemini
@@ -140,7 +148,6 @@ def analyze_topic(model, topic, iterations=1):
         return None, None, None
 
 # Main UI
-st.markdown("<h1 class='main-title'>M.A.R.A. 🤖</h1>", unsafe_allow_html=True)
 
 # Sidebar
 with st.sidebar:
