@@ -39,13 +39,9 @@ def analyze_topic(model, topic, iterations=1):
         # Agent 0: Prompt Designer - Very low temperature for precise prompt engineering
         with st.status("✍️ Designing optimal prompt..."):
             prompt_design = model.generate_content(
-                f"""As an expert prompt engineer, create a detailed and thorough prompt to analyze '{topic}'.
-                The prompt should:
-                1. Break down the topic into key components
-                2. Specify the depth and breadth of analysis needed
-                3. Include relevant context and constraints
-                4. Define clear objectives and deliverables
-                Be specific and structured in your prompt design.""",
+                f"""As an expert prompt engineer, create a concise one-paragraph prompt that will guide the development 
+                of a research framework for analyzing '{topic}'. Focus on the essential aspects that need to be 
+                investigated while maintaining analytical rigor and academic standards.""",
                 generation_config=genai.types.GenerationConfig(
                     temperature=0.1,  # Very low temperature for precise, consistent output
                     candidate_count=1,
@@ -57,7 +53,13 @@ def analyze_topic(model, topic, iterations=1):
         # Agent 1: Framework - Lower temperature for more focused, structured output
         with st.status("🎯 Creating analysis framework..."):
             framework = model.generate_content(
-                prompt_design,  # Using the optimized prompt from Agent 0
+                f"""{prompt_design}
+
+                Based on this prompt, create a detailed research framework that:
+                1. Outlines the key areas of investigation
+                2. Specifies methodological approaches
+                3. Defines evaluation criteria
+                4. Sets clear milestones for the analysis process""",
                 generation_config=genai.types.GenerationConfig(
                     temperature=0.1,  # Lower temperature for structured, consistent framework
                     candidate_count=1,
@@ -72,8 +74,26 @@ def analyze_topic(model, topic, iterations=1):
             for i in range(iterations):
                 iteration_title = f"Analysis #{i+1}: {topic.title()} - Key Dimensions"
                 st.write(f"### {iteration_title}")
+                
+                # Build prompt based on iteration
+                if i == 0:
+                    prompt = f"""Acting as a leading expert in topic-related field: Based on the framework above, conduct an initial research analysis of '{topic}'. 
+                    Follow the methodological approaches and evaluation criteria specified in the framework.
+                    Provide detailed findings for each key area of investigation outlined."""
+                else:
+                    prompt = f"""Review the previous research iteration:
+                    {analysis[-1]}
+                    
+                    Based on this previous analysis and the original framework, expand and deepen the research by:
+                    1. Identifying gaps or areas needing more depth
+                    2. Exploring new connections and implications
+                    3. Refining and strengthening key arguments
+                    4. Adding new supporting evidence or perspectives
+                    
+                    Provide an enhanced analysis that builds upon and extends the previous findings."""
+
                 result = model.generate_content(
-                    f"""{framework}\n\nAnalyze '{topic}' as a Nobel laureate, following the framework above. Previous context: {analysis[-1] if analysis else topic}""",
+                    prompt,
                     generation_config=genai.types.GenerationConfig(
                         temperature=0.7,  # Higher temperature for creative analysis
                         candidate_count=1,
@@ -86,11 +106,13 @@ def analyze_topic(model, topic, iterations=1):
         # Agent 3: Summary - Medium-low temperature for balanced, coherent synthesis
         with st.status("📊 Generating final report..."):
             summary = model.generate_content(
-                f"""Synthesize this analysis of '{topic}' into a Final Report with:
+                f"""Synthesize all research from agent 2 on '{topic}' into a Final Report with:
                 1. Executive Summary (2-3 paragraphs)
                 2. Key Insights (bullet points)
                 3. Analysis
                 4. Conclusion
+                5. Further Considerations & Counter-Arguments (where applicable)
+                6. Recommended Readings and Resources
                 
                 Analysis to synthesize: {' '.join(analysis)}""",
                 generation_config=genai.types.GenerationConfig(
