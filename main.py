@@ -204,45 +204,21 @@ if submit and topic:
     results = analyze_topic(model, topic, iterations)
     
     if results:
-        # Debug logging
-        logger.info(f"Results received: {list(results.keys())}")
+        # Display Optimized Prompt
+        with st.expander("📝 Optimized Analysis Prompt", expanded=False):
+            st.markdown('<div class="output-box">' + results['prompt'] + '</div>', unsafe_allow_html=True)
         
-        try:
-            # Display Optimized Prompt
-            st.write("### Results:")
-            
-            with st.expander("📝 Optimized Prompt", expanded=False):
-                if results.get('prompt'):
-                    st.markdown('<div class="output-box">' + results['prompt'] + '</div>', unsafe_allow_html=True)
-                else:
-                    st.warning("No prompt generated")
-            
-            # Display Framework
-            with st.expander("🔍 Analysis Framework", expanded=False):
-                if results.get('framework'):
-                    st.markdown('<div class="output-box">' + results['framework'] + '</div>', unsafe_allow_html=True)
-                else:
-                    st.warning("No framework generated")
-            
-            # Display Analysis Iterations
-            if results.get('analysis'):
-                for i, analysis in enumerate(results['analysis'], 1):
-                    with st.expander(f"🔄 Research Iteration {i}", expanded=False):
-                        if analysis:
-                            st.markdown('<div class="output-box">' + analysis + '</div>', unsafe_allow_html=True)
-                        else:
-                            st.warning(f"No analysis for iteration {i}")
-            
-            # Display Final Report
-            with st.expander("📊 Final Report", expanded=False):
-                if results.get('summary'):
-                    st.markdown('<div class="output-box">' + results['summary'] + '</div>', unsafe_allow_html=True)
-                else:
-                    st.warning("No final report generated")
-            
-            st.success("Analysis complete! Explore the results in the sections above.")
-        except Exception as e:
-            st.error(f"Error displaying results: {str(e)}")
-            logger.error(f"Error displaying results: {str(e)}")
-    else:
-        st.error("No results generated. Please try again.") 
+        # Display Framework
+        with st.expander("🔍 Analysis Framework", expanded=False):
+            st.markdown('<div class="output-box">' + results['framework'] + '</div>', unsafe_allow_html=True)
+        
+        # Display Analysis Iterations
+        for i, analysis in enumerate(results['analysis'], 1):
+            with st.expander(f"🔄 Analysis Iteration {i}", expanded=False):
+                st.markdown('<div class="output-box">' + analysis + '</div>', unsafe_allow_html=True)
+        
+        # Display Final Report
+        with st.expander("📊 Final Report", expanded=False):
+            st.markdown('<div class="output-box">' + results['summary'] + '</div>', unsafe_allow_html=True)
+        
+        st.success("Analysis complete! Explore the results in the sections above.") 
