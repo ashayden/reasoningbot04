@@ -13,22 +13,18 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom CSS
+# Custom CSS and Logo
 st.markdown("""
 <style>
 .block-container { max-width: 800px; padding: 2rem 1rem; }
-.logo-container { text-align: center; margin-bottom: 2rem; }
-.logo-container img { max-width: 800px; width: 100%; }
 .stButton > button { width: 100%; }
+div[data-testid="stImage"] { text-align: center; }
+div[data-testid="stImage"] > img { max-width: 800px; width: 100%; }
 </style>
 """, unsafe_allow_html=True)
 
 # Logo/Header
-st.markdown("""
-<div class="logo-container">
-    <img src="https://raw.githubusercontent.com/ashayden/gemini-reasoning-bot/main/assets/mara-logo.png" alt="MARA Logo">
-</div>
-""", unsafe_allow_html=True)
+st.image("assets/mara-logo.png", use_column_width=True)
 
 # Initialize Gemini
 @st.cache_resource
@@ -152,7 +148,6 @@ def analyze_topic(model, topic, iterations=1):
 # Sidebar
 with st.sidebar:
     st.markdown("""
-    ### About
     0. ✍️ Prompt Designer
     1. 🎯 Framework Engineer
     2. 🔄 Research Analyst
