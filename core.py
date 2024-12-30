@@ -36,15 +36,9 @@ def generate_with_retry(model, prompt, temperature=0.5, max_retries=3, initial_d
                 prompt,
                 generation_config=genai.types.GenerationConfig(
                     temperature=temperature
-                ),
-                stream=True
+                )
             )
-            
-            result = ""
-            for chunk in response:
-                result += chunk.text
-                yield chunk.text  # Stream the response
-            return
+            return response.text
             
         except Exception as e:
             if attempt == max_retries - 1:
