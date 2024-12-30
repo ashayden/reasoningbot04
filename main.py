@@ -70,38 +70,43 @@ def analyze_topic(model, topic, iterations=1):
         
         # Agent 2: Analysis - Higher temperature for creative, diverse perspectives
         analysis = []
-        with st.status("🔄 Performing analysis..."):
-            for i in range(iterations):
+        for i in range(iterations):
+            with st.status(f"🔄 Performing Analysis #{i+1}..."):
                 iteration_title = f"Analysis #{i+1}: {topic.title()} - Key Dimensions"
                 st.write(f"### {iteration_title}")
                 
-                # Build prompt based on iteration
-                if i == 0:
-                    prompt = f"""Acting as a leading expert in topic-related field: Based on the framework above, conduct an initial research analysis of '{topic}'. 
-                    Follow the methodological approaches and evaluation criteria specified in the framework.
-                    Provide detailed findings for each key area of investigation outlined."""
-                else:
-                    prompt = f"""Review the previous research iteration:
-                    {analysis[-1]}
-                    
-                    Based on this previous analysis and the original framework, expand and deepen the research by:
-                    1. Identifying gaps or areas needing more depth
-                    2. Exploring new connections and implications
-                    3. Refining and strengthening key arguments
-                    4. Adding new supporting evidence or perspectives
-                    
-                    Provide an enhanced analysis that builds upon and extends the previous findings."""
+                # Create a new section for each analysis iteration
+                with st.container():
+                    st.divider()
+                    if i == 0:
+                        st.subheader("Initial Research Analysis")
+                        prompt = f"""Acting as a leading expert in topic-related field: Based on the framework above, conduct an initial research analysis of '{topic}'. 
+                        Follow the methodological approaches and evaluation criteria specified in the framework.
+                        Provide detailed findings for each key area of investigation outlined."""
+                    else:
+                        st.subheader("Enhanced Research Analysis")
+                        prompt = f"""Review the previous research iteration:
+                        {analysis[-1]}
+                        
+                        Based on this previous analysis and the original framework, expand and deepen the research by:
+                        1. Identifying gaps or areas needing more depth
+                        2. Exploring new connections and implications
+                        3. Refining and strengthening key arguments
+                        4. Adding new supporting evidence or perspectives
+                        
+                        Provide an enhanced analysis that builds upon and extends the previous findings."""
 
-                result = model.generate_content(
-                    prompt,
-                    generation_config=genai.types.GenerationConfig(
-                        temperature=0.7,  # Higher temperature for creative analysis
-                        candidate_count=1,
-                        max_output_tokens=2048
-                    )
-                ).text
-                analysis.append(result)
-                st.markdown(result)
+                    result = model.generate_content(
+                        prompt,
+                        generation_config=genai.types.GenerationConfig(
+                            temperature=0.7,  # Higher temperature for creative analysis
+                            candidate_count=1,
+                            max_output_tokens=2048
+                        )
+                    ).text
+                    analysis.append(result)
+                    st.markdown(result)
+                    st.divider()
         
         # Agent 3: Summary - Medium-low temperature for balanced, coherent synthesis
         with st.status("📊 Generating final report..."):
