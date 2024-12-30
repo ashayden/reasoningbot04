@@ -78,19 +78,16 @@ def analyze_topic(model, topic, iterations=1):
         analysis = []
         for i in range(iterations):
             with st.status(f"🔄 Performing research analysis #{i+1}...") as status:
-                iteration_title = f"Research Analysis #{i+1}: {topic.title()}"
-                st.write(f"### {iteration_title}")
-                
                 # Create a new section for each analysis iteration
                 with st.container():
                     st.divider()
                     if i == 0:
-                        st.subheader("Initial Research Analysis")
                         prompt = f"""Acting as a leading expert in topic-related field: Based on the framework above, conduct an initial research analysis of '{topic}'. 
                         Follow the methodological approaches and evaluation criteria specified in the framework.
-                        Provide detailed findings for each key area of investigation outlined."""
+                        Provide detailed findings for each key area of investigation outlined.
+                        
+                        Start your response with a one-line title that captures the main focus or key insight of your analysis."""
                     else:
-                        st.subheader("Enhanced Research Analysis")
                         prompt = f"""Review the previous research iteration:
                         {analysis[-1]}
                         
@@ -100,7 +97,7 @@ def analyze_topic(model, topic, iterations=1):
                         3. Refining and strengthening key arguments
                         4. Adding new supporting evidence or perspectives
                         
-                        Provide an enhanced analysis that builds upon and extends the previous findings."""
+                        Start your response with a one-line title that captures the main focus or key insight of your analysis."""
 
                     result = model.generate_content(
                         prompt,
