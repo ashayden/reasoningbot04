@@ -1,11 +1,11 @@
 [server]
-port = 8501
+port = 8502
 address = "localhost"
 headless = true
 
 [browser]
 serverAddress = "localhost"
-serverPort = 8501
+serverPort = 8502
 
 [theme]
 primaryColor = "#2439f7"
