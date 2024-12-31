@@ -396,7 +396,9 @@ if submit and topic:
             'topic': topic,
             'framework': None,
             'analysis': None,
-            'summary': None
+            'summary': None,
+            'stage': 'start',  # Reset to initial stage
+            'initial_prompt': None
         }
         # Reset focus area state
         reset_focus_state()
