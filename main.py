@@ -47,19 +47,23 @@ div[data-baseweb="select-slider"] span {
     font-size: 14px !important;
     font-weight: 400 !important;
 }
+div[data-baseweb="slider"] {
+    background: transparent !important;
+}
 div[data-baseweb="slider"] div[role="slider"] {
-    background: #0066cc !important;
+    background: #fff !important;
     border: none !important;
-    width: 12px !important;
-    height: 12px !important;
-    margin-top: -5px !important;
+    width: 24px !important;
+    height: 24px !important;
+    margin-top: -11px !important;
+    border-radius: 50% !important;
 }
 div[data-baseweb="slider"] div[data-testid="stSliderBar"] {
-    background: rgba(255, 255, 255, 0.1) !important;
+    background: rgba(255, 255, 255, 0.2) !important;
     height: 2px !important;
 }
 div[data-baseweb="slider"] div[data-testid="stSliderProgress"] {
-    background: #0066cc !important;
+    background: #fff !important;
     height: 2px !important;
 }
 div[data-baseweb="select-slider"] div[role="tablist"] span {
@@ -68,7 +72,7 @@ div[data-baseweb="select-slider"] div[role="tablist"] span {
     border-radius: 4px !important;
 }
 div[data-baseweb="select-slider"] div[role="tablist"] span[aria-selected="true"] {
-    color: #0066cc !important;
+    color: #fff !important;
     background: transparent !important;
 }
 button[kind="primary"] {
