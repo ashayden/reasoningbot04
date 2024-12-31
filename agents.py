@@ -43,15 +43,24 @@ class BaseAgent:
                 generation_config=GenerationConfig(**config)
             )
             
+            if not response or not response.text:
+                logger.error("Empty response from model")
+                return None
+                
+            logger.info(f"Raw response length: {len(response.text)}")
+            
             # Split response into thoughts and actual content
             parts = response.text.split("\n\n", 1)
             
             if len(parts) > 1 and "Thoughts" in parts[0]:
                 self._last_thoughts = parts[0]
-                return parts[1].strip()
+                content = parts[1].strip()
+                logger.info(f"Extracted content length: {len(content)}")
+                return content
             else:
                 # If no clear separation, return the whole response
-                return response.text
+                logger.info("No thoughts section found, returning full response")
+                return response.text.strip()
                 
         except Exception as e:
             logger.error(f"Content generation error: {str(e)}")

@@ -66,30 +66,48 @@ def parse_title_content(text: str) -> Dict[str, str]:
     Returns:
         Dictionary containing 'title', 'subtitle', and 'content'.
     """
-    lines = text.split('\n')
-    result = {
-        'title': '',
-        'subtitle': '',
-        'content': ''
-    }
-    
-    content_start = 0
-    
-    for i, line in enumerate(lines):
-        if line.startswith('Title:'):
-            result['title'] = line.replace('Title:', '').strip()
-        elif line.startswith('Subtitle:'):
-            result['subtitle'] = line.replace('Subtitle:', '').strip()
-            content_start = i + 1
-            break
-    
-    result['content'] = '\n'.join(lines[content_start:]).strip()
-    
-    # If parsing failed, use the original text as content
-    if not any([result['title'], result['subtitle'], result['content']]):
-        result['content'] = text
+    if not text:
+        return {
+            'title': '',
+            'subtitle': '',
+            'content': ''
+        }
+
+    try:
+        lines = text.split('\n')
+        result = {
+            'title': '',
+            'subtitle': '',
+            'content': ''
+        }
         
-    return result
+        content_start = 0
+        
+        for i, line in enumerate(lines):
+            if line.startswith('Title:'):
+                result['title'] = line.replace('Title:', '').strip()
+            elif line.startswith('Subtitle:'):
+                result['subtitle'] = line.replace('Subtitle:', '').strip()
+                content_start = i + 1
+                break
+        
+        # If we found a title/subtitle, get the remaining content
+        if content_start > 0:
+            result['content'] = '\n'.join(lines[content_start:]).strip()
+        else:
+            # If no title/subtitle found, treat entire text as content
+            result['content'] = text.strip()
+        
+        # Ensure we never return None values
+        return {k: v if v is not None else '' for k, v in result.items()}
+        
+    except Exception as e:
+        logger.error(f"Error parsing content: {str(e)}")
+        return {
+            'title': '',
+            'subtitle': '',
+            'content': text if text else ''
+        }
 
 def sanitize_topic(topic: str) -> str:
     """Sanitize the topic string for safe use in prompts.
