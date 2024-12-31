@@ -33,14 +33,6 @@ SYNTHESIS_CONFIG = {
     "max_output_tokens": 8192
 }
 
-# Analysis depth settings
-DEPTH_ITERATIONS = {
-    "Quick": 1,
-    "Balanced": 2,
-    "Deep": 3,
-    "Comprehensive": 4
-}
-
 # Input validation
 MIN_TOPIC_LENGTH = 3
 MAX_TOPIC_LENGTH = 200

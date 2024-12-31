@@ -5,10 +5,9 @@ import streamlit as st
 import google.generativeai as genai
 import os
 
-from config import GEMINI_MODEL, DEPTH_ITERATIONS
+from config import GEMINI_MODEL
 from utils import validate_topic, sanitize_topic
 from agents import PromptDesigner, FrameworkEngineer, ResearchAnalyst, SynthesisExpert
-from custom_components.depth_slider import depth_slider
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -198,11 +197,14 @@ with st.form("analysis_form"):
         placeholder="e.g., 'Examine the impact of artificial intelligence on healthcare, focusing on diagnostic applications, ethical considerations, and future implications.'"
     )
     
-    # Analysis depth selection using custom slider
-    depth = depth_slider(
-        value="Balanced",
-        options=list(DEPTH_ITERATIONS.keys()),
-        key="analysis-depth"
+    # Analysis iterations input
+    iterations = st.number_input(
+        "Number of Analysis Iterations",
+        min_value=1,
+        max_value=5,
+        value=2,
+        step=1,
+        help="Choose how many iterations of analysis to perform. More iterations provide deeper insights but take longer."
     )
     
     # Submit button
@@ -224,7 +226,6 @@ if submit and topic:
         }
     
     # Run analysis
-    iterations = DEPTH_ITERATIONS[depth]
     framework, analysis, summary = analyze_topic(model, topic, iterations)
     
     if framework and analysis and summary:
