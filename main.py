@@ -26,6 +26,17 @@ st.markdown("""
 .stButton > button { width: 100%; }
 div[data-testid="stImage"] { text-align: center; }
 div[data-testid="stImage"] > img { max-width: 800px; width: 100%; }
+textarea {
+    font-size: 1.1em !important;
+    line-height: 1.5 !important;
+    padding: 0.5em !important;
+    height: 150px !important;
+}
+.input-description {
+    font-size: 0.9em;
+    color: #666;
+    margin-bottom: 0.5em;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -169,18 +180,34 @@ if not model:
 
 # Input form
 with st.form("analysis_form"):
-    topic = st.text_input(
+    st.markdown("""
+        <div class="input-description">
+        Enter your research topic or question. Feel free to provide additional context or specific aspects you'd like to explore.
+        </div>
+        """, 
+        unsafe_allow_html=True
+    )
+    
+    topic = st.text_area(
         "What would you like to explore?",
-        placeholder="e.g., 'Artificial Intelligence' or 'Climate Change'"
+        placeholder="e.g., 'Examine the impact of artificial intelligence on healthcare, focusing on diagnostic applications, ethical considerations, and future implications.'",
+        help="You can provide a detailed description of your topic. Include specific aspects or questions you'd like to explore."
     )
     
     depth = st.select_slider(
         "Analysis Depth",
         options=list(DEPTH_ITERATIONS.keys()),
-        value="Balanced"
+        value="Balanced",
+        help="Quick: Basic overview (1 iteration)\nBalanced: Moderate depth (2 iterations)\nDeep: Detailed analysis (3 iterations)\nComprehensive: Exhaustive research (4 iterations)"
     )
     
-    submit = st.form_submit_button("🚀 Start Analysis")
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        submit = st.form_submit_button(
+            "🚀 Start Analysis",
+            use_container_width=True,
+            help="Click to begin the multi-agent analysis process"
+        )
 
 if submit and topic:
     # Clear previous results when starting new analysis
