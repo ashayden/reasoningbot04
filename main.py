@@ -7,12 +7,14 @@ from typing import Optional, Dict, Any
 import google.generativeai as genai
 import streamlit as st
 
-from config import GEMINI_MODEL
+from config import (
+    GEMINI_MODEL,
+    DEPTH_ITERATIONS
+)
 from constants import (
     CUSTOM_CSS,
     TOPIC_INPUT,
-    DEPTH_SELECTOR,
-    DEPTH_ITERATIONS
+    DEPTH_SELECTOR
 )
 from agents import (
     PromptDesigner,
