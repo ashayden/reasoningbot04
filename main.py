@@ -91,30 +91,38 @@ div[data-testid="stNumberInput"] button:hover {
     background-color: #444 !important;
 }
 
-/* Focus area styling */
-div[data-testid="stCheckbox"] {
-    background-color: rgba(70, 70, 70, 0.2);
-    border-radius: 30px;
-    padding: 0.5rem 1rem;
-    margin: 0.25rem 0;
-    transition: background-color 0.2s ease;
+/* Multiselect styling */
+div[data-testid="stMultiSelect"] {
+    margin-bottom: 1rem;
 }
 
-div[data-testid="stCheckbox"]:hover {
-    background-color: rgba(70, 70, 70, 0.4);
+div[data-testid="stMultiSelect"] > div:first-child {
+    background-color: #1E1E1E !important;
+    border: 1px solid #333 !important;
+    border-radius: 4px;
 }
 
-div[data-testid="stCheckbox"] label {
-    cursor: pointer;
+div[data-testid="stMultiSelect"] input {
+    color: #fff !important;
 }
 
-div[data-testid="stCheckbox"] label span {
-    font-size: 0.9em;
+div[data-testid="stMultiSelect"] [data-baseweb="tag"] {
+    background-color: #0066cc !important;
+    border: none !important;
+    margin: 2px !important;
 }
 
-div[data-testid="stCheckbox"] label p {
-    margin: 0;
-    padding: 0;
+div[data-testid="stMultiSelect"] [data-baseweb="tag"] span {
+    color: #fff !important;
+}
+
+div[data-testid="stMultiSelect"] [data-baseweb="popover"] {
+    background-color: #1E1E1E !important;
+    border: 1px solid #333 !important;
+}
+
+div[data-testid="stMultiSelect"] [data-baseweb="select-option"]:hover {
+    background-color: #333 !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -173,82 +181,65 @@ def handle_focus_area_selection(topic: str, prompt_designer):
         
     # Display focus areas for selection
     if st.session_state.focus_state['areas']:
-        # Create a container for the focus area selection
-        focus_container = st.container()
+        st.markdown("### 🎯 Select Focus Areas")
+        st.markdown("Choose specific aspects you'd like the analysis to emphasize (optional):")
         
-        with focus_container:
-            st.markdown("### 🎯 Select Focus Areas")
-            st.markdown("Choose specific aspects you'd like the analysis to emphasize (optional):")
-            
-            # Create columns for better layout
-            cols = st.columns(3)
-            
-            # Distribute focus areas across columns
-            for i, area in enumerate(st.session_state.focus_state['areas']):
-                col_idx = i % 3
-                # Create a unique key for each checkbox
-                checkbox_key = f'focus_area_{i}'
+        # Convert selected set to list for multiselect
+        current_selections = list(st.session_state.focus_state['selected'])
+        
+        # Use multiselect for focus areas
+        selected_areas = st.multiselect(
+            "Focus Areas",
+            options=st.session_state.focus_state['areas'],
+            default=current_selections,
+            key="focus_multiselect"
+        )
+        
+        # Update selected areas in state
+        st.session_state.focus_state['selected'] = set(selected_areas)
+        
+        # Add some spacing
+        st.markdown("---")
+        
+        # Create two columns for buttons
+        col1, col2 = st.columns(2)
+        
+        # Skip button in left column
+        if col1.button(
+            "Skip",
+            key="skip_focus",
+            help="Proceed with analysis using only the optimized prompt",
+            use_container_width=True
+        ):
+            st.session_state.focus_state['proceed'] = True
+            st.session_state.current_analysis['stage'] = 'framework'
+            return True
+        
+        # Continue button in right column (disabled if no areas selected)
+        continue_disabled = len(selected_areas) == 0
+        if col2.button(
+            "Continue",
+            key="continue_focus",
+            disabled=continue_disabled,
+            help="Proceed with analysis using selected focus areas",
+            type="primary",
+            use_container_width=True
+        ):
+            # Generate enhanced prompt if areas are selected
+            if selected_areas:
+                st.session_state.focus_state['enhanced_prompt'] = prompt_designer.design_prompt(
+                    topic,
+                    selected_areas
+                )
                 
-                # Handle checkbox click
-                if cols[col_idx].checkbox(
-                    area,
-                    value=area in st.session_state.focus_state['selected'],
-                    key=checkbox_key
-                ):
-                    if area not in st.session_state.focus_state['selected']:
-                        st.session_state.focus_state['selected'].add(area)
-                elif area in st.session_state.focus_state['selected']:
-                    st.session_state.focus_state['selected'].discard(area)
+                # Show updated prompt in a collapsed section
+                with st.status("✍️ Updated Prompt", expanded=False) as status:
+                    st.markdown(st.session_state.focus_state['enhanced_prompt'])
+                    status.update(label="✍️ Updated Prompt")
             
-            # Add some spacing
-            st.markdown("---")
-            
-            # Create two columns for buttons
-            col1, col2 = st.columns(2)
-            
-            # Skip button in left column
-            if col1.button(
-                "Skip",
-                key="skip_focus",
-                help="Proceed with analysis using only the optimized prompt",
-                use_container_width=True
-            ):
-                st.session_state.focus_state['proceed'] = True
-                st.session_state.current_analysis['stage'] = 'framework'
-                return True
-            
-            # Continue button in right column (disabled if no areas selected)
-            continue_disabled = len(st.session_state.focus_state['selected']) == 0
-            if col2.button(
-                "Continue",
-                key="continue_focus",
-                disabled=continue_disabled,
-                help="Proceed with analysis using selected focus areas",
-                type="primary",
-                use_container_width=True
-            ):
-                # Generate enhanced prompt if areas are selected
-                if st.session_state.focus_state['selected']:
-                    st.session_state.focus_state['enhanced_prompt'] = prompt_designer.design_prompt(
-                        topic,
-                        list(st.session_state.focus_state['selected'])
-                    )
-                    
-                    # Show updated prompt in a collapsed section
-                    with st.status("✍️ Updated Prompt", expanded=False) as status:
-                        st.markdown(st.session_state.focus_state['enhanced_prompt'])
-                        status.update(label="✍️ Updated Prompt")
-                
-                st.session_state.focus_state['proceed'] = True
-                st.session_state.current_analysis['stage'] = 'framework'
-                return True
-            
-            # Display current selections
-            if st.session_state.focus_state['selected']:
-                st.markdown("---")
-                st.markdown("**Selected Focus Areas:**")
-                for area in sorted(st.session_state.focus_state['selected']):
-                    st.markdown(f"- {area}")
+            st.session_state.focus_state['proceed'] = True
+            st.session_state.current_analysis['stage'] = 'framework'
+            return True
         
         return False
     
