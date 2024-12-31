@@ -172,12 +172,12 @@ class ResearchAnalyst(BaseAgent):
                - Analytical methods
 
             3. Key Findings
-               - Primary discoveries
-               - Supporting evidence
+               - Primary discoveries (with citations)
+               - Supporting evidence (with citations)
                - Critical insights
 
             4. Analysis
-               - Detailed examination of findings
+               - Detailed examination of findings (with citations)
                - Interpretation of results
                - Connections and patterns
 
@@ -190,6 +190,18 @@ class ResearchAnalyst(BaseAgent):
                - Current limitations
                - Areas needing further research
                - Potential biases
+
+            7. References
+               - List all cited works in APA format
+               - Include DOIs where available
+               - Ensure all citations in the text have corresponding references
+
+            Important:
+            - Use in-text citations in APA format (Author, Year) for all major claims and findings
+            - Each section should have at least 2-3 relevant citations
+            - Ensure citations are from reputable academic sources
+            - Include a mix of seminal works and recent research (last 5 years)
+            - All citations must have corresponding entries in the References section
 
             Ensure each section is thoroughly developed with specific examples and evidence."""
         else:
@@ -225,17 +237,17 @@ class ResearchAnalyst(BaseAgent):
                - New perspectives to explore
 
             2. Expanded Analysis
-               - Deeper investigation of key themes
-               - New evidence and insights
+               - Deeper investigation of key themes (with citations)
+               - New evidence and insights (with citations)
                - Advanced interpretations
 
             3. Novel Connections
-               - Cross-cutting themes
+               - Cross-cutting themes (with citations)
                - Interdisciplinary insights
                - Emerging patterns
 
             4. Critical Evaluation
-               - Strengthened arguments
+               - Strengthened arguments (with citations)
                - Counter-arguments addressed
                - Enhanced evidence base
 
@@ -243,6 +255,18 @@ class ResearchAnalyst(BaseAgent):
                - Integration with previous findings
                - Enhanced understanding
                - Refined conclusions
+
+            6. References
+               - List all new citations in APA format
+               - Include DOIs where available
+               - Ensure all citations have corresponding references
+
+            Important:
+            - Use in-text citations in APA format (Author, Year) for all major claims and findings
+            - Each section should have at least 2-3 relevant citations
+            - Ensure citations are from reputable academic sources
+            - Include a mix of seminal works and recent research (last 5 years)
+            - All citations must have corresponding entries in the References section
 
             Note: As this is iteration {self.iteration_count + 1}, be more explorative and creative 
             while maintaining academic rigor. Push the boundaries of conventional analysis while 
@@ -259,12 +283,47 @@ class SynthesisExpert(BaseAgent):
     def synthesize(self, topic: str, analyses: list) -> Optional[str]:
         """Synthesize all research analyses into a final report."""
         prompt = f"""Synthesize all research from agent 2 on '{topic}' into a Final Report with:
+        
         1. Executive Summary (2-3 paragraphs)
+           - Include key citations for major findings
+           - Highlight most significant discoveries
+        
         2. Key Insights (bullet points)
+           - Support each insight with relevant citations
+           - Include methodology used to derive insights
+        
         3. Analysis
+           - Comprehensive synthesis of findings with citations
+           - Integration of multiple perspectives
+           - Critical evaluation of evidence
+        
         4. Conclusion
-        5. Further Considerations & Counter-Arguments (where applicable)
+           - Summary of main findings
+           - Implications for theory and practice
+           - Future research directions
+        
+        5. Further Considerations & Counter-Arguments
+           - Alternative viewpoints with citations
+           - Limitations of current research
+           - Areas of uncertainty or debate
+        
         6. Recommended Readings and Resources
+           - Key papers and their main contributions
+           - Seminal works in the field
+           - Recent significant publications
+        
+        7. Works Cited
+           - Comprehensive bibliography in APA format
+           - Include all sources cited in the report
+           - Organize by primary sources, secondary sources, and additional resources
+           - Include DOIs where available
+        
+        Important:
+        - Use in-text citations in APA format (Author, Year)
+        - Ensure all citations have corresponding entries in Works Cited
+        - Include both seminal works and recent research
+        - Maintain academic rigor while being accessible
+        - Cross-reference findings from different analyses
         
         Analysis to synthesize: {' '.join(analyses)}"""
         
