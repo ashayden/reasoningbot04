@@ -111,7 +111,7 @@ div[data-testid="stNumberInput"] button:hover {
 # Logo/Header
 st.image("assets/mara-logo.png", use_container_width=True)
 
-# Initialize analysis state
+# Initialize state
 if 'analysis_state' not in st.session_state:
     st.session_state.analysis_state = {
         'analysis': {
@@ -131,6 +131,19 @@ if 'analysis_state' not in st.session_state:
             'summary': None
         }
     }
+    st.session_state.displayed_outputs = set()
+
+def process_stage_output(stage_name, content, expanded=True):
+    """Handle stage output display consistently."""
+    if stage_name not in st.session_state.displayed_outputs:
+        # Show expanded for new content
+        with st.expander(stage_name, expanded=expanded):
+            st.markdown(content)
+        st.session_state.displayed_outputs.add(stage_name)
+    else:
+        # Show collapsed for existing content
+        with st.expander(stage_name, expanded=False):
+            st.markdown(content)
 
 def display_completed_outputs():
     """Display outputs from completed stages."""
@@ -139,32 +152,49 @@ def display_completed_outputs():
     
     # Display insights if completed
     if outputs['insights']:
-        st.markdown("### 💡 Quick Insights")
-        with st.expander("Did You Know?"):
-            st.markdown(outputs['insights']['did_you_know'])
-        with st.expander("ELI5 (Explain Like I'm 5)"):
-            st.markdown(outputs['insights']['eli5'])
+        process_stage_output(
+            "💡 Did You Know?",
+            outputs['insights']['did_you_know'],
+            expanded=False
+        )
+        process_stage_output(
+            "⚡ ELI5 (Explain Like I'm 5)",
+            outputs['insights']['eli5'],
+            expanded=False
+        )
     
     # Display prompt if completed
     if outputs['prompt']:
-        with st.expander("✍️ Optimized Prompt"):
-            st.markdown(outputs['prompt'])
+        process_stage_output(
+            "✍️ Optimized Prompt",
+            outputs['prompt'],
+            expanded=False
+        )
     
     # Display framework if completed
     if outputs['framework']:
-        with st.expander("🎯 Analysis Framework"):
-            st.markdown(outputs['framework'])
+        process_stage_output(
+            "🎯 Analysis Framework",
+            outputs['framework'],
+            expanded=False
+        )
     
     # Display analysis results if completed
     if outputs['analysis_results']:
         for i, result in enumerate(outputs['analysis_results']):
-            with st.expander(f"🔄 Research Analysis #{i + 1}"):
-                st.markdown(result)
+            process_stage_output(
+                f"🔄 Research Analysis #{i + 1}",
+                result,
+                expanded=False
+            )
     
     # Display summary if completed
     if outputs['summary']:
-        with st.expander("📊 Final Report"):
-            st.markdown(outputs['summary'])
+        process_stage_output(
+            "📊 Final Report",
+            outputs['summary'],
+            expanded=False
+        )
 
 def advance_stage(next_stage):
     """Advance to the next stage and update completed stages."""
@@ -172,6 +202,31 @@ def advance_stage(next_stage):
     current_stage = state['analysis']['stage']
     state['analysis']['completed_stages'].add(current_stage)
     state['analysis']['stage'] = next_stage
+
+def initialize_or_reset_state(topic, iterations, force=False):
+    """Initialize or reset state with proper checks."""
+    if force or st.session_state.analysis_state['analysis']['topic'] != topic:
+        st.session_state.analysis_state = {
+            'analysis': {
+                'topic': topic,
+                'stage': 'start',
+                'iterations': iterations,
+                'completed_stages': set()
+            },
+            'outputs': {
+                'insights': None,
+                'prompt': None,
+                'focus_areas': None,
+                'selected_areas': [],
+                'enhanced_prompt': None,
+                'framework': None,
+                'analysis_results': [],
+                'summary': None
+            }
+        }
+        st.session_state.displayed_outputs = set()
+        return True
+    return False
 
 def process_insights(model, topic):
     """Process the insights stage."""
@@ -188,13 +243,16 @@ def process_insights(model, topic):
     state['outputs']['insights'] = insights
     
     # Display insights
-    st.markdown("### 💡 Quick Insights")
-    
-    st.markdown("#### Did You Know?")
-    st.markdown(insights['did_you_know'])
-    
-    st.markdown("#### ELI5 (Explain Like I'm 5)")
-    st.markdown(insights['eli5'])
+    process_stage_output(
+        "💡 Did You Know?",
+        insights['did_you_know'],
+        expanded=True
+    )
+    process_stage_output(
+        "⚡ ELI5 (Explain Like I'm 5)",
+        insights['eli5'],
+        expanded=True
+    )
     
     return True
 
@@ -213,8 +271,11 @@ def process_prompt(model, topic):
     state['outputs']['prompt'] = prompt
     
     # Display prompt
-    st.markdown("### ✍️ Optimized Prompt")
-    st.markdown(prompt)
+    process_stage_output(
+        "✍️ Optimized Prompt",
+        prompt,
+        expanded=True
+    )
     
     return True
 
@@ -277,38 +338,39 @@ def process_stage(model, topic):
     
     # Process current stage
     if state['analysis']['stage'] == 'start':
-        # Move directly to insights stage
         advance_stage('insights')
-        st.experimental_rerun()
+        st.rerun()
         
     elif state['analysis']['stage'] == 'insights':
         if process_insights(model, topic):
             advance_stage('prompt')
-            st.experimental_rerun()
+            st.rerun()
             
     elif state['analysis']['stage'] == 'prompt':
         if process_prompt(model, topic):
             advance_stage('focus')
-            st.experimental_rerun()
+            st.rerun()
             
     elif state['analysis']['stage'] == 'focus':
         if handle_focus_selection(model, topic):
             advance_stage('framework')
-            st.experimental_rerun()
+            st.rerun()
         st.stop()  # Pause for user input
-
-# Initialize Gemini
-@st.cache_resource
-def initialize_gemini():
-    """Initialize the Gemini model with caching."""
-    try:
-        api_key = st.secrets["GOOGLE_API_KEY"]
-        genai.configure(api_key=api_key)
-        return genai.GenerativeModel(GEMINI_MODEL)
-    except Exception as e:
-        logger.error(f"Failed to initialize Gemini API: {str(e)}")
-        st.error(f"Failed to initialize Gemini API: {str(e)}")
-        return None
+            
+    elif state['analysis']['stage'] == 'framework':
+        if process_framework(model, topic):
+            advance_stage('analysis')
+            st.rerun()
+            
+    elif state['analysis']['stage'] == 'analysis':
+        if process_analysis_stage(model, topic, state['analysis']['iterations']):
+            advance_stage('summary')
+            st.rerun()
+            
+    elif state['analysis']['stage'] == 'summary':
+        if process_summary(model, topic):
+            advance_stage('complete')
+            st.rerun()
 
 def analyze_topic(model, topic: str, iterations: int = 1):
     """Perform multi-agent analysis of a topic with proper state management."""
@@ -322,74 +384,10 @@ def analyze_topic(model, topic: str, iterations: int = 1):
         topic = sanitize_topic(topic)
         state = st.session_state.analysis_state
         
-        # Initialize agents
-        framework_engineer = FrameworkEngineer(model)
-        research_analyst = ResearchAnalyst(model)
-        synthesis_expert = SynthesisExpert(model)
-        
-        # Process stages up to framework
+        # Process all stages
         process_stage(model, topic)
         
-        # Stage: Framework Development
-        if state['analysis']['stage'] == 'framework':
-            with st.status("🎯 Creating analysis framework...") as status:
-                framework = framework_engineer.create_framework(
-                    state['outputs']['prompt'],
-                    state['outputs']['enhanced_prompt']
-                )
-                if not framework:
-                    return None, None, None
-                
-                state['outputs']['framework'] = framework
-                st.markdown(framework)
-                advance_stage('analysis')
-                st.rerun()
-        
-        # Stage: Research Analysis
-        if state['analysis']['stage'] == 'analysis':
-            analysis_results = []
-            previous_analysis = None
-            
-            for iteration_num in range(iterations):
-                with st.status(f"🔄 Performing research analysis #{iteration_num + 1}...") as status:
-                    result = research_analyst.analyze(
-                        topic, 
-                        state['outputs']['framework'],
-                        previous_analysis
-                    )
-                    if not result:
-                        return None, None, None
-                    
-                    if result['title']:
-                        st.markdown(f"# {result['title']}")
-                    if result['subtitle']:
-                        st.markdown(f"*{result['subtitle']}*")
-                    if result['content']:
-                        st.markdown(result['content'])
-                    
-                    analysis_results.append(result['content'])
-                    previous_analysis = result['content']
-                    status.update(label=f"🔄 Research Analysis #{iteration_num + 1}")
-            
-            state['outputs']['analysis_results'] = analysis_results
-            advance_stage('summary')
-            st.rerun()
-        
-        # Stage: Final Synthesis
-        if state['analysis']['stage'] == 'summary':
-            with st.status("📊 Generating final report...") as status:
-                summary = synthesis_expert.synthesize(
-                    topic,
-                    state['outputs']['analysis_results']
-                )
-                if not summary:
-                    return None, None, None
-                
-                state['outputs']['summary'] = summary
-                st.markdown(summary)
-                advance_stage('complete')
-                st.rerun()
-        
+        # Return final outputs
         return (
             state['outputs']['framework'],
             state['outputs']['analysis_results'],
@@ -401,10 +399,18 @@ def analyze_topic(model, topic: str, iterations: int = 1):
         st.error(f"Analysis error: {str(e)}")
         return None, None, None
 
-# Initialize model
-model = initialize_gemini()
-if not model:
-    st.stop()
+# Initialize Gemini
+@st.cache_resource
+def initialize_gemini():
+    """Initialize the Gemini model with caching."""
+    try:
+        api_key = st.secrets["GOOGLE_API_KEY"]
+        genai.configure(api_key=api_key)
+        return genai.GenerativeModel(GEMINI_MODEL)
+    except Exception as e:
+        logger.error(f"Failed to initialize Gemini API: {str(e)}")
+        st.error(f"Failed to initialize Gemini API: {str(e)}")
+        return None
 
 # Input form
 with st.form("analysis_form"):
@@ -434,36 +440,11 @@ with st.form("analysis_form"):
 
 # Analysis section
 if submit and topic:
-    state = st.session_state.analysis_state
+    # Initialize or reset state
+    state_reset = initialize_or_reset_state(topic, iterations)
     
-    # Reset state if topic changed or starting new analysis
-    if (state['analysis']['topic'] != topic or 
-        state['analysis']['stage'] == 'complete'):
-        
-        # Reset analysis state
-        st.session_state.analysis_state = {
-            'analysis': {
-                'topic': topic,
-                'stage': 'start',
-                'iterations': iterations,
-                'completed_stages': set()
-            },
-            'outputs': {
-                'insights': None,
-                'prompt': None,
-                'focus_areas': None,
-                'selected_areas': [],
-                'enhanced_prompt': None,
-                'framework': None,
-                'analysis_results': [],
-                'summary': None
-            }
-        }
-    
-    # Display initial status
-    if state['analysis']['stage'] == 'start':
-        with st.status("🚀 Starting analysis...", expanded=True):
-            st.write("Initializing analysis process...")
+    if state_reset:
+        st.rerun()
     
     # Run analysis
     try:
@@ -471,7 +452,7 @@ if submit and topic:
         
         # Handle completion
         if framework and analysis and summary:
-            if state['analysis']['stage'] == 'complete':
+            if st.session_state.analysis_state['analysis']['stage'] == 'complete':
                 st.success("Analysis complete! Review the results above.")
     except Exception as e:
         st.error(f"An error occurred during analysis: {str(e)}")
