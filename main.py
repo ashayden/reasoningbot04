@@ -35,46 +35,49 @@ textarea {
     border: 1px solid #333 !important;
     color: #fff !important;
 }
-div[data-baseweb="select-slider"] {
+
+/* Slider Container */
+.stSlider {
     padding: 1rem 0;
 }
-div[data-baseweb="select-slider"] > div {
-    background-color: transparent !important;
+
+/* Slider Track */
+.stSlider > div > div > div {
+    background-color: rgba(255, 255, 255, 0.2) !important;
+    height: 2px !important;
 }
-div[data-baseweb="select-slider"] span {
-    color: #fff !important;
-    font-family: "Source Sans Pro", sans-serif !important;
-    font-size: 14px !important;
-    font-weight: 400 !important;
+
+/* Slider Progress Bar */
+.stSlider > div > div > div > div {
+    background-color: #0066cc !important;
+    height: 2px !important;
 }
-div[data-baseweb="slider"] {
-    background: transparent !important;
-}
-div[data-baseweb="slider"] div[role="slider"] {
-    background: #fff !important;
+
+/* Slider Handle */
+.stSlider > div > div > div > div:last-child {
+    background-color: #fff !important;
     border: none !important;
     width: 24px !important;
     height: 24px !important;
     margin-top: -11px !important;
     border-radius: 50% !important;
+    box-shadow: none !important;
 }
-div[data-baseweb="slider"] div[data-testid="stSliderBar"] {
-    background: rgba(255, 255, 255, 0.2) !important;
-    height: 2px !important;
-}
-div[data-baseweb="slider"] div[data-testid="stSliderProgress"] {
-    background: #fff !important;
-    height: 2px !important;
-}
-div[data-baseweb="select-slider"] div[role="tablist"] span {
-    background: transparent !important;
-    padding: 4px 8px !important;
-    border-radius: 4px !important;
-}
-div[data-baseweb="select-slider"] div[role="tablist"] span[aria-selected="true"] {
+
+/* Slider Labels */
+.stSlider > div > div > div > div > div {
     color: #fff !important;
+    font-family: "Source Sans Pro", sans-serif !important;
+    font-size: 14px !important;
+    font-weight: 400 !important;
     background: transparent !important;
 }
+
+/* Selected Value */
+.stSlider > div > div > div > div > div[data-baseweb="typography"] {
+    color: #0066cc !important;
+}
+
 button[kind="primary"] {
     background-color: #0066cc !important;
     border: none !important;
