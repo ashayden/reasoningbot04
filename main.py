@@ -7,6 +7,7 @@ import google.generativeai as genai
 from config import GEMINI_MODEL, DEPTH_ITERATIONS
 from utils import validate_topic, sanitize_topic
 from agents import PromptDesigner, FrameworkEngineer, ResearchAnalyst, SynthesisExpert
+from custom_components.depth_slider import depth_slider
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -195,10 +196,10 @@ with st.form("analysis_form"):
         placeholder="e.g., 'Examine the impact of artificial intelligence on healthcare, focusing on diagnostic applications, ethical considerations, and future implications.'"
     )
     
-    depth = st.select_slider(
-        "Analysis Depth",
+    depth = depth_slider(
+        value="Balanced",
         options=list(DEPTH_ITERATIONS.keys()),
-        value="Balanced"
+        key="analysis-depth"
     )
     
     col1, col2, col3 = st.columns([1, 2, 1])
