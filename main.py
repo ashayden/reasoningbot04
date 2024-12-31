@@ -187,6 +187,8 @@ def analyze_topic(model, topic: str, iterations: int = 1):
             
         # Then generate and display focus areas for selection
         enhanced_prompt = None
+        proceed_with_framework = False  # Initialize the control variable
+        
         focus_areas = prompt_designer.generate_focus_areas(topic)
         if focus_areas:
             st.markdown("### 🎯 Select Focus Areas")
@@ -238,8 +240,11 @@ def analyze_topic(model, topic: str, iterations: int = 1):
             # Only proceed if either Skip or Continue was clicked
             if not proceed_with_framework:
                 st.stop()  # Stop execution here until user makes a choice
+        else:
+            # If no focus areas were generated, proceed with just the initial prompt
+            proceed_with_framework = True
 
-        # Agent 1: Framework Engineer - Pass both prompts
+        # Agent 1: Framework Engineer - Pass both prompts (only reached after user choice)
         with st.status("🎯 Creating analysis framework...") as status:
             framework = framework_engineer.create_framework(initial_prompt, enhanced_prompt)
             if not framework:
