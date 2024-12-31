@@ -8,7 +8,7 @@ import streamlit as st
 _RELEASE = True
 
 if not _RELEASE:
-    _depth_slider = components.declare_component(
+    _component_func = components.declare_component(
         "depth_slider",
         url="http://localhost:3001",
     )
@@ -17,13 +17,22 @@ else:
     parent_dir = os.path.dirname(os.path.abspath(__file__))
     build_dir = os.path.join(parent_dir, "frontend/build")
     
-    # Declare the component
-    _depth_slider = components.declare_component("depth_slider", path=build_dir)
+    if not os.path.exists(build_dir):
+        raise RuntimeError(
+            "Build directory not found. Run 'npm run build' in the frontend directory first."
+        )
+    
+    # Declare the component with an explicit name and path
+    _component_func = components.declare_component(
+        "depth_slider",
+        path=build_dir
+    )
 
 def depth_slider(
     value="Balanced",
     options=["Quick", "Balanced", "Deep", "Comprehensive"],
-    key=None
+    key=None,
+    label="Analysis Depth"
 ):
     """Create a custom depth slider component.
     
@@ -35,14 +44,28 @@ def depth_slider(
         List of available options
     key : str or None
         An optional key that uniquely identifies this component
+    label : str
+        The label to display above the slider
     
     Returns
     -------
     str
         The selected value
     """
-    return _depth_slider(
+    # Ensure options are strings
+    options = [str(opt) for opt in options]
+    
+    # Ensure value is in options
+    if value not in options:
+        value = options[0]
+    
+    # Call the component function
+    component_value = _component_func(
         value=value,
         options=options,
-        key=key
-    ) 
+        key=key,
+        label=label,
+        default=value  # Provide a default value
+    )
+    
+    return component_value or value  # Return the current value or default 

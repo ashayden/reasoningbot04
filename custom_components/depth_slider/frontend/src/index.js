@@ -1,12 +1,23 @@
 import React, { useEffect, useState } from 'react'
 import ReactDOM from 'react-dom'
 import styled from 'styled-components'
-import { Streamlit } from "streamlit-component-lib"
+import {
+  Streamlit,
+  withStreamlitConnection,
+  ComponentProps
+} from "streamlit-component-lib"
 
 const SliderContainer = styled.div`
   width: 100%;
   padding: 20px 0;
   position: relative;
+`
+
+const Label = styled.div`
+  font-family: "Source Sans Pro", sans-serif;
+  font-size: 14px;
+  color: #fff;
+  margin-bottom: 8px;
 `
 
 const Track = styled.div`
@@ -50,7 +61,7 @@ const Labels = styled.div`
   padding: 0 12px;
 `
 
-const Label = styled.span`
+const Option = styled.span`
   color: ${props => props.active ? '#0066cc' : '#fff'};
   font-family: "Source Sans Pro", sans-serif;
   font-size: 14px;
@@ -62,67 +73,57 @@ const Label = styled.span`
   }
 `
 
-const DepthSlider = ({ options, value, setComponentValue }) => {
+const DepthSlider = ({ args, disabled }) => {
+  const { options = [], value = "", label = "Analysis Depth" } = args
   const [currentValue, setCurrentValue] = useState(value)
+  
   const currentIndex = options.indexOf(currentValue)
-  const percentage = (currentIndex / (options.length - 1)) * 100
-
-  const handleClick = (option) => {
-    setCurrentValue(option)
-    setComponentValue(option)
-  }
+  const percentage = (currentIndex / (Math.max(options.length - 1, 1))) * 100
 
   useEffect(() => {
+    // Initialize the component
+    Streamlit.setFrameHeight()
+  }, [])
+
+  useEffect(() => {
+    // Update value when props change
     if (value !== currentValue) {
       setCurrentValue(value)
     }
-  }, [value, currentValue])
+  }, [value])
+
+  const handleClick = (option) => {
+    if (disabled) return
+    setCurrentValue(option)
+    Streamlit.setComponentValue(option)
+  }
 
   return (
     <SliderContainer>
+      <Label>{label}</Label>
       <Track>
         <Progress percentage={percentage} />
         <Handle percentage={percentage} />
       </Track>
       <Labels>
         {options.map((option) => (
-          <Label
+          <Option
             key={option}
             active={option === currentValue}
             onClick={() => handleClick(option)}
           >
             {option}
-          </Label>
+          </Option>
         ))}
       </Labels>
     </SliderContainer>
   )
 }
 
-const StreamlitDepthSlider = () => {
-  const [componentValue, setComponentValue] = useState(null)
+// Wrap the component with Streamlit's connection HOC
+const StreamlitDepthSlider = withStreamlitConnection(DepthSlider)
 
-  useEffect(() => {
-    Streamlit.setComponentReady()
-  }, [])
-
-  useEffect(() => {
-    if (componentValue !== null) {
-      Streamlit.setComponentValue(componentValue)
-    }
-  }, [componentValue])
-
-  const args = Streamlit.args || { options: [], value: "" }
-
-  return (
-    <DepthSlider
-      options={args.options || []}
-      value={args.value || ""}
-      setComponentValue={setComponentValue}
-    />
-  )
-}
-
+// Render with strict mode
 ReactDOM.render(
   <React.StrictMode>
     <StreamlitDepthSlider />
