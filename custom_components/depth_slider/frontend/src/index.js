@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import ReactDOM from 'react-dom'
 import styled from 'styled-components'
+import { Streamlit } from "streamlit-component-lib"
 
 const SliderContainer = styled.div`
   width: 100%;
@@ -75,7 +76,7 @@ const DepthSlider = ({ options, value, setComponentValue }) => {
     if (value !== currentValue) {
       setCurrentValue(value)
     }
-  }, [value])
+  }, [value, currentValue])
 
   return (
     <SliderContainer>
@@ -98,15 +99,25 @@ const DepthSlider = ({ options, value, setComponentValue }) => {
   )
 }
 
-const StreamlitDepthSlider = ({ args, setComponentValue }) => {
-  if (!window.Streamlit) {
-    return null
-  }
+const StreamlitDepthSlider = () => {
+  const [componentValue, setComponentValue] = useState(null)
+
+  useEffect(() => {
+    Streamlit.setComponentReady()
+  }, [])
+
+  useEffect(() => {
+    if (componentValue !== null) {
+      Streamlit.setComponentValue(componentValue)
+    }
+  }, [componentValue])
+
+  const args = Streamlit.args || { options: [], value: "" }
 
   return (
     <DepthSlider
-      options={args.options}
-      value={args.value}
+      options={args.options || []}
+      value={args.value || ""}
       setComponentValue={setComponentValue}
     />
   )
@@ -114,10 +125,7 @@ const StreamlitDepthSlider = ({ args, setComponentValue }) => {
 
 ReactDOM.render(
   <React.StrictMode>
-    <StreamlitDepthSlider
-      args={window.Streamlit.componentArgs}
-      setComponentValue={window.Streamlit.setComponentValue}
-    />
+    <StreamlitDepthSlider />
   </React.StrictMode>,
   document.getElementById('root')
 ) 
