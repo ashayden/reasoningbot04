@@ -103,7 +103,7 @@ class PromptDesigner(BaseAgent):
         """Design an optimal prompt for the given topic."""
         prompt = f"""As an expert prompt engineer, design an optimal prompt to analyze this topic: '{topic}'
 
-        Your response should be structured exactly like this:
+        Your response MUST contain these EXACT section headers:
 
         Desired Output:
         [Write a clear, specific description of what the analysis should accomplish and deliver]
@@ -114,15 +114,15 @@ class PromptDesigner(BaseAgent):
         Emphasize:
         [List key aspects, methods, and perspectives that should be emphasized]
 
-        Consider:
+        Consider these aspects in your response:
         1. Key aspects that need investigation
         2. Potential research angles
         3. Important contextual factors
         4. Relevant academic disciplines
         5. Methodological approaches
 
-        Make sure each section is clearly labeled and formatted.
-        Focus on making the prompt specific, actionable, and comprehensive.
+        IMPORTANT: Each section MUST start with the exact header (e.g., "Desired Output:", "Avoid:", "Emphasize:").
+        Make each section clear, specific, and actionable.
         
         Previous thought process (if available):
         {self._last_thoughts if self._last_thoughts else 'Not available'}"""
@@ -137,31 +137,53 @@ class PromptDesigner(BaseAgent):
         current_section = None
         section_content = []
         
-        for line in result.split('\n'):
-            line = line.strip()
-            if not line:
-                continue
-                
-            if line.startswith('Desired Output:'):
+        # Split into lines and clean up
+        lines = [line.strip() for line in result.split('\n') if line.strip()]
+        
+        # Log the raw response for debugging
+        logger.info(f"Raw response:\n{result}")
+        
+        for line in lines:
+            # Check for section headers with exact matches
+            if "Desired Output:" in line:
                 if current_section and section_content:
                     sections[current_section] = '\n'.join(section_content)
                 current_section = 'Desired Output'
                 section_content = []
-            elif line.startswith('Avoid:'):
+                # If there's content after the header on the same line
+                content_after_header = line.split("Desired Output:", 1)[1].strip()
+                if content_after_header:
+                    section_content.append(content_after_header)
+            elif "Avoid:" in line:
                 if current_section and section_content:
                     sections[current_section] = '\n'.join(section_content)
                 current_section = 'Avoid'
                 section_content = []
-            elif line.startswith('Emphasize:'):
+                # If there's content after the header on the same line
+                content_after_header = line.split("Avoid:", 1)[1].strip()
+                if content_after_header:
+                    section_content.append(content_after_header)
+            elif "Emphasize:" in line:
                 if current_section and section_content:
                     sections[current_section] = '\n'.join(section_content)
                 current_section = 'Emphasize'
                 section_content = []
-            elif current_section and not line.endswith(':'):
+                # If there's content after the header on the same line
+                content_after_header = line.split("Emphasize:", 1)[1].strip()
+                if content_after_header:
+                    section_content.append(content_after_header)
+            elif current_section and not any(header in line for header in ["Consider:", "Previous thought process:"]):
                 section_content.append(line)
                 
+        # Add the last section
         if current_section and section_content:
             sections[current_section] = '\n'.join(section_content)
+            
+        # Log found sections for debugging
+        logger.info(f"Found sections: {list(sections.keys())}")
+        logger.info("Section contents:")
+        for section, content in sections.items():
+            logger.info(f"{section}:\n{content}\n")
             
         # Verify we have all required sections
         required_sections = {'Desired Output', 'Avoid', 'Emphasize'}
@@ -172,13 +194,16 @@ class PromptDesigner(BaseAgent):
         # Format the final output
         formatted_output = []
         for section in ['Desired Output', 'Avoid', 'Emphasize']:
-            if section in sections:
-                formatted_output.append(f"{section}:\n{sections[section]}")
+            if section in sections and sections[section].strip():
+                formatted_output.append(f"{section}:\n{sections[section].strip()}")
                 
         final_output = '\n\n'.join(formatted_output)
         if not final_output.strip():
             logger.error("Empty formatted output")
             return None
+            
+        # Log final output for debugging
+        logger.info(f"Final formatted output:\n{final_output}")
             
         return final_output
 
