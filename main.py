@@ -3,6 +3,7 @@
 import logging
 import streamlit as st
 import google.generativeai as genai
+import os
 
 from config import GEMINI_MODEL, DEPTH_ITERATIONS
 from utils import validate_topic, sanitize_topic
@@ -190,25 +191,35 @@ if not model:
 
 # Input form
 with st.form("analysis_form"):
+    # Text input
     topic = st.text_area(
         "What would you like to explore?",
         help="Enter your research topic or question. Feel free to provide additional context or specific aspects you'd like to explore.",
         placeholder="e.g., 'Examine the impact of artificial intelligence on healthcare, focusing on diagnostic applications, ethical considerations, and future implications.'"
     )
     
-    depth = depth_slider(
-        value="Balanced",
-        options=list(DEPTH_ITERATIONS.keys()),
-        key="analysis-depth"
-    )
-    
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        submit = st.form_submit_button(
-            "🚀 Start Analysis",
-            use_container_width=True,
-            help="Click to begin the multi-agent analysis process"
+    # Analysis depth selection
+    if not os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), "custom_components/depth_slider/frontend/build")):
+        # Fallback to native select_slider
+        depth = st.select_slider(
+            "Analysis Depth",
+            options=list(DEPTH_ITERATIONS.keys()),
+            value="Balanced"
         )
+    else:
+        # Use custom slider if available
+        depth = depth_slider(
+            value="Balanced",
+            options=list(DEPTH_ITERATIONS.keys()),
+            key="analysis-depth"
+        )
+    
+    # Submit button
+    submit = st.form_submit_button(
+        "🚀 Start Analysis",
+        use_container_width=True,
+        help="Click to begin the multi-agent analysis process"
+    )
 
 # Analysis section
 if submit and topic:
