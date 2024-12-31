@@ -129,9 +129,9 @@ def analyze_topic(model, topic: str, iterations: int = 1):
             status.update(label="💡 Did You Know")
             
         # Display ELI5 section
-        with st.status("ELI5", expanded=True) as status:
+        with st.status("⚡ ELI5", expanded=True) as status:
             st.markdown(insights['eli5'])
-            status.update(label="ELI5")
+            status.update(label="⚡ ELI5")
         
         # Agent 0: Prompt Designer
         with st.status("✍️ Designing optimal prompt...") as status:
@@ -209,7 +209,7 @@ with st.form("analysis_form"):
         max_value=5,
         value=2,
         step=1,
-        help="Choose how many iterations of analysis to perform. More iterations provide deeper insights but take longer."
+        help="Choose 1-5 iterations. More iterations = deeper insights = longer wait."
     )
     
     # Submit button
