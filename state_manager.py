@@ -1,5 +1,6 @@
 """State management for the MARA application."""
 
+import logging
 import streamlit as st
 from typing import Optional, Dict, Any, TypedDict
 from dataclasses import dataclass
@@ -11,6 +12,9 @@ from constants import (
     ERROR_MESSAGES,
     SUCCESS_MESSAGE
 )
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 @dataclass
 class AnalysisState:
