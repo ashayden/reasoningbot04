@@ -32,6 +32,47 @@ st.markdown("""
     width: 100%; 
 }
 
+/* Focus area chips */
+.focus-area-chip {
+    background-color: #1E1E1E;
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin: 4px 0;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.focus-area-chip:hover {
+    background-color: #2a2a2a;
+    border-color: #444;
+}
+
+.focus-area-chip label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.focus-area-chip input[type="checkbox"] {
+    display: none;
+}
+
+.focus-area-chip span {
+    color: #fff;
+    font-size: 0.9em;
+}
+
+.focus-area-chip input[type="checkbox"]:checked + span {
+    color: #0066cc;
+    font-weight: 500;
+}
+
+.focus-area-chip input[type="checkbox"]:checked ~ label {
+    background-color: rgba(0, 102, 204, 0.1);
+}
+
 /* Focus area buttons */
 [data-testid="baseButton-secondary"] {
     background-color: #4a4a4a !important;
@@ -91,38 +132,15 @@ div[data-testid="stNumberInput"] button:hover {
     background-color: #444 !important;
 }
 
-/* Multiselect styling */
-div[data-testid="stMultiSelect"] {
-    margin-bottom: 1rem;
+/* Hide checkbox labels */
+[data-testid="stCheckbox"] > label {
+    display: none !important;
 }
 
-div[data-testid="stMultiSelect"] > div:first-child {
-    background-color: #1E1E1E !important;
-    border: 1px solid #333 !important;
-    border-radius: 4px;
-}
-
-div[data-testid="stMultiSelect"] input {
-    color: #fff !important;
-}
-
-div[data-testid="stMultiSelect"] [data-baseweb="tag"] {
-    background-color: #0066cc !important;
-    border: none !important;
-    margin: 2px !important;
-}
-
-div[data-testid="stMultiSelect"] [data-baseweb="tag"] span {
-    color: #fff !important;
-}
-
-div[data-testid="stMultiSelect"] [data-baseweb="popover"] {
-    background-color: #1E1E1E !important;
-    border: 1px solid #333 !important;
-}
-
-div[data-testid="stMultiSelect"] [data-baseweb="select-option"]:hover {
-    background-color: #333 !important;
+/* Style checkboxes */
+[data-testid="stCheckbox"] {
+    margin: 0 !important;
+    padding: 0 !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -174,14 +192,44 @@ def handle_focus_area_selection(topic: str, prompt_designer):
         st.markdown("### 🎯 Select Focus Areas")
         st.markdown("Choose specific aspects you'd like the analysis to emphasize (optional):")
         
-        # Use multiselect for focus areas
-        selected_areas = st.multiselect(
-            "Focus Areas",
-            options=st.session_state.focus_state['areas'],
-            default=list(st.session_state.focus_state['selected']),
-            key="focus_multiselect",
-            label_visibility="collapsed"
-        )
+        # Create a container for the focus areas
+        focus_container = st.container()
+        
+        # Create a grid layout for focus areas
+        cols = st.columns(3)
+        
+        # Initialize or get the selected areas
+        if 'selected' not in st.session_state.focus_state:
+            st.session_state.focus_state['selected'] = set()
+        
+        # Display focus areas in a grid
+        for i, area in enumerate(st.session_state.focus_state['areas']):
+            col_idx = i % 3
+            # Create a unique key for each checkbox
+            key = f"focus_{i}"
+            
+            # Initialize checkbox state in session state if not exists
+            if key not in st.session_state:
+                st.session_state[key] = area in st.session_state.focus_state['selected']
+            
+            # Display checkbox with custom styling
+            with cols[col_idx]:
+                st.markdown(
+                    f"""
+                    <div class="focus-area-chip">
+                        <label>
+                            <input type="checkbox" {'checked' if st.session_state[key] else ''} 
+                                   onchange="this.form.submit()">
+                            <span>{area}</span>
+                        </label>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+                if st.checkbox(area, key=key, label_visibility="collapsed"):
+                    st.session_state.focus_state['selected'].add(area)
+                else:
+                    st.session_state.focus_state['selected'].discard(area)
         
         # Add some spacing
         st.markdown("---")
@@ -201,7 +249,7 @@ def handle_focus_area_selection(topic: str, prompt_designer):
             return True
         
         # Continue button in right column (disabled if no areas selected)
-        continue_disabled = len(selected_areas) == 0
+        continue_disabled = len(st.session_state.focus_state['selected']) == 0
         if col2.button(
             "Continue",
             key="continue_focus",
@@ -210,13 +258,10 @@ def handle_focus_area_selection(topic: str, prompt_designer):
             type="primary",
             use_container_width=True
         ):
-            # Update selected areas in state
-            st.session_state.focus_state['selected'] = set(selected_areas)
-            
             # Generate enhanced prompt if areas are selected
             st.session_state.focus_state['enhanced_prompt'] = prompt_designer.design_prompt(
                 topic,
-                selected_areas
+                list(st.session_state.focus_state['selected'])
             )
             
             # Show updated prompt in a collapsed section
