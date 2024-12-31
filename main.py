@@ -148,61 +148,42 @@ def toggle_focus_area(area: str):
         st.session_state.focus_state['selected'].add(area)
 
 def handle_focus_area_selection(topic: str, prompt_designer):
-    """Handle the focus area selection process.
-    
-    Returns:
-        bool: True if selection is complete, False if waiting for user input
-    """
-    # Generate focus areas if not already done
+    """Handle the focus area selection process."""
     if st.session_state.focus_state['areas'] is None:
         st.session_state.focus_state['areas'] = prompt_designer.generate_focus_areas(topic)
         
-    # Display focus areas for selection
     if st.session_state.focus_state['areas']:
         st.markdown("### 🎯 Select Focus Areas")
         st.markdown("Choose specific aspects you'd like the analysis to emphasize (optional):")
         
-        # Create a grid layout for focus areas
         cols = st.columns(3)
         
-        # Display focus areas in a grid
         for i, area in enumerate(st.session_state.focus_state['areas']):
-            col_idx = i % 3
-            
-            # Create a unique key for each area
-            key = f"focus_{i}"
-            
-            # Display button in appropriate column
-            with cols[col_idx]:
+            with cols[i % 3]:
                 button_type = "primary" if area in st.session_state.focus_state['selected'] else "secondary"
                 st.button(
                     area,
-                    key=key,
+                    key=f"focus_{i}",
                     type=button_type,
                     on_click=toggle_focus_area,
                     args=(area,),
                     use_container_width=True
                 )
         
-        # Add some spacing
         st.markdown("---")
         
-        # Create two columns for buttons
         col1, col2 = st.columns(2)
         
-        # Skip button in left column
         if col1.button(
             "Skip",
             key="skip_focus",
             help="Proceed with analysis using only the optimized prompt",
             use_container_width=True
         ):
-            # Store state before proceeding
             st.session_state.focus_state['proceed'] = True
             st.session_state.current_analysis['stage'] = 'framework'
             return True
         
-        # Continue button in right column (disabled if no areas selected)
         continue_disabled = len(st.session_state.focus_state['selected']) == 0
         if col2.button(
             "Continue",
@@ -212,28 +193,23 @@ def handle_focus_area_selection(topic: str, prompt_designer):
             type="primary",
             use_container_width=True
         ):
-            # Store selected areas before proceeding
             selected_areas = list(st.session_state.focus_state['selected'])
-            
-            # Generate enhanced prompt if areas are selected
             st.session_state.focus_state['enhanced_prompt'] = prompt_designer.design_prompt(
                 topic,
                 selected_areas
             )
             
-            # Show updated prompt in a collapsed section
             with st.status("✍️ Updated Prompt", expanded=False) as status:
                 st.markdown(st.session_state.focus_state['enhanced_prompt'])
                 status.update(label="✍️ Updated Prompt")
             
-            # Store state before proceeding
             st.session_state.focus_state['proceed'] = True
             st.session_state.current_analysis['stage'] = 'framework'
             return True
         
         return False
     
-    return True  # If no focus areas, continue with analysis
+    return True
 
 # Initialize Gemini
 @st.cache_resource
