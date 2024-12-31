@@ -23,10 +23,24 @@ st.set_page_config(
 # Custom CSS and Logo
 st.markdown("""
 <style>
-.block-container { max-width: 800px; padding: 2rem 1rem; }
-.stButton > button { width: 100%; }
-div[data-testid="stImage"] { text-align: center; }
-div[data-testid="stImage"] > img { max-width: 800px; width: 100%; }
+.block-container { 
+    max-width: 800px; 
+    padding: 2rem 1rem; 
+}
+
+.stButton > button { 
+    width: 100%; 
+}
+
+div[data-testid="stImage"] { 
+    text-align: center; 
+}
+
+div[data-testid="stImage"] > img { 
+    max-width: 800px; 
+    width: 100%; 
+}
+
 textarea {
     font-size: 1.1em !important;
     line-height: 1.5 !important;
@@ -37,51 +51,26 @@ textarea {
     color: #fff !important;
 }
 
-/* Slider Container */
-.stSlider {
-    padding: 1rem 0;
-}
-
-/* Slider Track */
-.stSlider > div > div > div {
-    background-color: rgba(255, 255, 255, 0.2) !important;
-    height: 2px !important;
-}
-
-/* Slider Progress Bar */
-.stSlider > div > div > div > div {
-    background-color: #0066cc !important;
-    height: 2px !important;
-}
-
-/* Slider Handle */
-.stSlider > div > div > div > div:last-child {
-    background-color: #fff !important;
-    border: none !important;
-    width: 24px !important;
-    height: 24px !important;
-    margin-top: -11px !important;
-    border-radius: 50% !important;
-    box-shadow: none !important;
-}
-
-/* Slider Labels */
-.stSlider > div > div > div > div > div {
-    color: #fff !important;
-    font-family: "Source Sans Pro", sans-serif !important;
-    font-size: 14px !important;
-    font-weight: 400 !important;
-    background: transparent !important;
-}
-
-/* Selected Value */
-.stSlider > div > div > div > div > div[data-baseweb="typography"] {
-    color: #0066cc !important;
-}
-
 button[kind="primary"] {
     background-color: #0066cc !important;
     border: none !important;
+}
+
+/* Number input styling */
+div[data-testid="stNumberInput"] input {
+    color: #fff !important;
+    background-color: #1E1E1E !important;
+    border: 1px solid #333 !important;
+}
+
+div[data-testid="stNumberInput"] button {
+    background-color: #333 !important;
+    border: none !important;
+    color: #fff !important;
+}
+
+div[data-testid="stNumberInput"] button:hover {
+    background-color: #444 !important;
 }
 </style>
 """, unsafe_allow_html=True)
