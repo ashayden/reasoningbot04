@@ -72,6 +72,32 @@ div[data-testid="stNumberInput"] button {
 div[data-testid="stNumberInput"] button:hover {
     background-color: #444 !important;
 }
+
+/* Focus area styling */
+div[data-testid="stCheckbox"] {
+    background-color: rgba(70, 70, 70, 0.2);
+    border-radius: 30px;
+    padding: 0.5rem 1rem;
+    margin: 0.25rem 0;
+    transition: background-color 0.2s ease;
+}
+
+div[data-testid="stCheckbox"]:hover {
+    background-color: rgba(70, 70, 70, 0.4);
+}
+
+div[data-testid="stCheckbox"] label {
+    cursor: pointer;
+}
+
+div[data-testid="stCheckbox"] label span {
+    font-size: 0.9em;
+}
+
+div[data-testid="stCheckbox"] label p {
+    margin: 0;
+    padding: 0;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -133,17 +159,48 @@ def analyze_topic(model, topic: str, iterations: int = 1):
             st.markdown(insights['eli5'])
             status.update(label="⚡ ELI5")
         
-        # Agent 0: Prompt Designer
+        # Agent 0: Prompt Designer - First generate the optimized prompt
         with st.status("✍️ Designing optimal prompt...") as status:
-            prompt_design = prompt_designer.design_prompt(topic)
-            if not prompt_design:
+            initial_prompt = prompt_designer.design_prompt(topic)
+            if not initial_prompt:
                 return None, None, None
-            st.markdown(prompt_design)
+            st.markdown(initial_prompt)
             status.update(label="✍️ Optimized Prompt")
+            
+        # Then generate and display focus areas for selection
+        enhanced_prompt = None
+        focus_areas = prompt_designer.generate_focus_areas(topic)
+        if focus_areas:
+            st.markdown("### 🎯 Select Focus Areas")
+            st.markdown("Choose specific aspects you'd like the analysis to emphasize (optional):")
+            
+            # Create columns for better layout
+            cols = st.columns(3)
+            selected_areas = []
+            
+            # Distribute focus areas across columns
+            for i, area in enumerate(focus_areas):
+                col_idx = i % 3
+                if cols[col_idx].checkbox(area, key=f"focus_{i}"):
+                    selected_areas.append(area)
+            
+            # Add some spacing
+            st.markdown("---")
+            
+            # Update prompt with selected focus areas if any were selected
+            if selected_areas:
+                enhanced_prompt = prompt_designer.design_prompt(topic, selected_areas)
+                if not enhanced_prompt:
+                    return None, None, None
+                
+                # Show updated prompt in a new collapsed section
+                with st.status("✍️ Updated Prompt", expanded=False) as status:
+                    st.markdown(enhanced_prompt)
+                    status.update(label="✍️ Updated Prompt")
 
-        # Agent 1: Framework Engineer
+        # Agent 1: Framework Engineer - Pass both prompts
         with st.status("🎯 Creating analysis framework...") as status:
-            framework = framework_engineer.create_framework(prompt_design)
+            framework = framework_engineer.create_framework(initial_prompt, enhanced_prompt)
             if not framework:
                 return None, None, None
             st.markdown(framework)

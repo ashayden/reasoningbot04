@@ -131,22 +131,96 @@ class BaseAgent:
 class PromptDesigner(BaseAgent):
     """Agent responsible for designing optimal prompts."""
     
-    def design_prompt(self, topic: str) -> Optional[str]:
-        """Design an optimal prompt for the given topic."""
-        prompt = f"""As an expert prompt engineer, create a detailed prompt that will guide the development 
-        of a research framework for analyzing '{topic}'. Focus on the essential aspects that need to be 
-        investigated while maintaining analytical rigor and academic standards."""
+    def generate_focus_areas(self, topic: str) -> Optional[list]:
+        """Generate potential focus areas for the topic.
         
-        return self.generate_content(prompt, PROMPT_DESIGN_CONFIG)
+        Args:
+            topic: The topic to analyze
+            
+        Returns:
+            List of potential focus areas, or None if generation fails
+        """
+        try:
+            prompt = f"""Analyze this topic/question and generate a list of 8-12 potential focus areas: '{topic}'
+
+            The focus areas should include:
+            - Core sub-topics within the main topic
+            - Related fields or disciplines
+            - Specific aspects or angles
+            - Relevant issues or challenges
+            - Important considerations
+            - Key applications or implications
+            
+            Each focus area should be:
+            - Concise (2-5 words)
+            - Specific and meaningful
+            - Relevant to the topic
+            - Distinct from other areas
+            
+            Format: Return only a Python list of strings, one focus area per item.
+            Example: ["Machine Learning Applications", "Ethical Implications", "Data Privacy", ...]"""
+            
+            response = self.model.generate_content(prompt)
+            if not response or not response.text:
+                return None
+                
+            # Extract list from response and clean up
+            try:
+                # Remove any markdown code block syntax
+                text = response.text.replace("```python", "").replace("```", "").strip()
+                # Safely evaluate the string as a Python list
+                focus_areas = eval(text)
+                if not isinstance(focus_areas, list):
+                    return None
+                return focus_areas
+            except:
+                logger.error("Failed to parse focus areas response")
+                return None
+            
+        except Exception as e:
+            logger.error(f"Focus areas generation failed: {str(e)}")
+            return None
+    
+    def design_prompt(self, topic: str, selected_focus_areas: Optional[list] = None) -> Optional[str]:
+        """Design an optimal prompt for the given topic.
+        
+        Args:
+            topic: The topic to analyze
+            selected_focus_areas: Optional list of focus areas to emphasize
+        """
+        base_prompt = f"""As an expert prompt engineer, create a detailed prompt that will guide the development 
+        of a research framework for analyzing '{topic}'."""
+        
+        if selected_focus_areas:
+            focus_areas_str = "\n".join(f"- {area}" for area in selected_focus_areas)
+            base_prompt += f"\n\nPay special attention to these selected focus areas:\n{focus_areas_str}"
+        
+        base_prompt += "\nFocus on the essential aspects that need to be investigated while maintaining analytical rigor and academic standards."
+        
+        return self.generate_content(base_prompt, PROMPT_DESIGN_CONFIG)
 
 class FrameworkEngineer(BaseAgent):
     """Agent responsible for creating analysis frameworks."""
     
-    def create_framework(self, prompt_design: str) -> Optional[str]:
-        """Create a research framework based on the prompt design."""
-        prompt = f"""{prompt_design}
+    def create_framework(self, initial_prompt: str, enhanced_prompt: Optional[str] = None) -> Optional[str]:
+        """Create a research framework based on the prompt design.
+        
+        Args:
+            initial_prompt: The initial optimized prompt
+            enhanced_prompt: Optional prompt enhanced with selected focus areas
+        """
+        # Combine prompts if enhanced prompt exists
+        prompt_context = initial_prompt
+        if enhanced_prompt:
+            prompt_context = f"""Initial Prompt:
+            {initial_prompt}
+            
+            Enhanced Prompt with Selected Focus Areas:
+            {enhanced_prompt}"""
+        
+        prompt = f"""{prompt_context}
 
-        Based on this prompt, create a comprehensive research framework that follows this exact structure:
+        Based on these prompts, create a comprehensive research framework that follows this exact structure:
 
         A. Research Objectives:
            1. Primary Research Questions
