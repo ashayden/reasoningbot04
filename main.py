@@ -204,8 +204,68 @@ def reset_state(topic, iterations):
         'show_framework': False,
         'show_analysis': False,
         'show_summary': False,
-        'error': None
+        'error': None,
+        'focus_selection_complete': False  # Track if focus selection is done
     }
+
+def display_stage_header(icon: str, title: str):
+    """Display a consistent stage header in a container."""
+    with st.container():
+        st.markdown(f"""
+        <div style='background-color: #1E1E1E; padding: 1rem; border-radius: 0.5rem; margin: 1rem 0;'>
+            <h3 style='margin: 0;'>{icon} {title}</h3>
+        </div>
+        """, unsafe_allow_html=True)
+
+def display_insights(insights: dict):
+    """Display insights in proper containers."""
+    with st.container():
+        display_stage_header("💡", "Quick Insights")
+        with st.expander("Did You Know?", expanded=True):
+            st.markdown(insights['did_you_know'])
+        
+        display_stage_header("⚡", "ELI5 (Explain Like I'm 5)")
+        with st.expander("Simple Explanation", expanded=True):
+            st.markdown(insights['eli5'])
+
+def display_focus_selection(focus_areas: list, selected_areas: list) -> tuple[bool, list]:
+    """Display focus area selection with proper state handling."""
+    display_stage_header("🎯", "Select Focus Areas")
+    st.markdown("Choose specific aspects you'd like the analysis to emphasize (optional):")
+    
+    # Use a unique key for the multiselect
+    selected = st.multiselect(
+        "Focus Areas",
+        options=focus_areas,
+        default=selected_areas,
+        key=f"focus_select_{hash(str(focus_areas))}",
+        label_visibility="collapsed"
+    )
+    
+    st.markdown("---")
+    
+    # Only show buttons if no selection has been made
+    if not st.session_state.app_state.get('focus_selection_complete'):
+        col1, col2 = st.columns(2)
+        
+        if col1.button("Skip", key="skip_focus", use_container_width=True):
+            st.session_state.app_state['focus_selection_complete'] = True
+            st.session_state.app_state['show_framework'] = True
+            return True, selected
+        
+        continue_disabled = len(selected) == 0
+        if col2.button(
+            "Continue",
+            key="continue_focus",
+            disabled=continue_disabled,
+            type="primary",
+            use_container_width=True
+        ):
+            st.session_state.app_state['focus_selection_complete'] = True
+            st.session_state.app_state['show_framework'] = True
+            return True, selected
+    
+    return False, selected
 
 def main():
     """Main application flow."""
@@ -244,7 +304,7 @@ def main():
             reset_state(sanitized_topic, iterations)
     
     try:
-        # Create containers
+        # Create containers with proper styling
         insights_container = st.container()
         prompt_container = st.container()
         focus_container = st.container()
@@ -264,10 +324,7 @@ def main():
                                 st.session_state.app_state['show_prompt'] = True
                     
                     if st.session_state.app_state['insights']:
-                        st.markdown("### 💡 Quick Insights")
-                        st.markdown(st.session_state.app_state['insights']['did_you_know'])
-                        st.markdown("### ⚡ ELI5 (Explain Like I'm 5)")
-                        st.markdown(st.session_state.app_state['insights']['eli5'])
+                        display_insights(st.session_state.app_state['insights'])
                 except Exception as e:
                     handle_error(e, "insights")
                     return
@@ -283,48 +340,31 @@ def main():
                             st.session_state.app_state['show_focus'] = True
                 
                 if st.session_state.app_state['prompt']:
-                    with st.expander("✍️ Optimized Prompt", expanded=True):
+                    display_stage_header("✍️", "Optimized Prompt")
+                    with st.expander("View Prompt", expanded=True):
                         st.markdown(st.session_state.app_state['prompt'])
         
         # Handle focus areas
         if st.session_state.app_state['show_focus']:
             with focus_container:
                 if not st.session_state.app_state['focus_areas']:
-                    focus_areas = PromptDesigner(model).generate_focus_areas(topic)
-                    if focus_areas:
-                        st.session_state.app_state['focus_areas'] = focus_areas
+                    with st.spinner("🎯 Generating focus areas..."):
+                        focus_areas = PromptDesigner(model).generate_focus_areas(topic)
+                        if focus_areas:
+                            st.session_state.app_state['focus_areas'] = focus_areas
                 
                 if st.session_state.app_state['focus_areas']:
-                    st.markdown("### 🎯 Select Focus Areas")
-                    st.markdown("Choose specific aspects you'd like the analysis to emphasize (optional):")
-                    
-                    selected = st.multiselect(
-                        "Focus Areas",
-                        options=st.session_state.app_state['focus_areas'],
-                        default=st.session_state.app_state['selected_areas'],
-                        label_visibility="collapsed"
+                    proceed, selected = display_focus_selection(
+                        st.session_state.app_state['focus_areas'],
+                        st.session_state.app_state['selected_areas']
                     )
                     st.session_state.app_state['selected_areas'] = selected
                     
-                    st.markdown("---")
-                    col1, col2 = st.columns(2)
-                    
-                    if col1.button("Skip", key="skip_focus", use_container_width=True):
-                        st.session_state.app_state['show_framework'] = True
-                        st.rerun()
-                    
-                    continue_disabled = len(selected) == 0
-                    if col2.button(
-                        "Continue",
-                        key="continue_focus",
-                        disabled=continue_disabled,
-                        type="primary",
-                        use_container_width=True
-                    ):
-                        enhanced_prompt = PromptDesigner(model).design_prompt(topic, selected)
-                        st.session_state.app_state['enhanced_prompt'] = enhanced_prompt
-                        st.session_state.app_state['show_framework'] = True
-                        st.rerun()
+                    if proceed:
+                        with st.spinner("Enhancing prompt with focus areas..."):
+                            enhanced_prompt = PromptDesigner(model).design_prompt(topic, selected)
+                            st.session_state.app_state['enhanced_prompt'] = enhanced_prompt
+                            st.rerun()
         
         # Process framework
         if st.session_state.app_state['show_framework']:
@@ -341,7 +381,8 @@ def main():
                             st.rerun()
                 
                 if st.session_state.app_state['framework']:
-                    with st.expander("🎯 Analysis Framework", expanded=True):
+                    display_stage_header("🎯", "Analysis Framework")
+                    with st.expander("View Framework", expanded=True):
                         st.markdown(st.session_state.app_state['framework'])
         
         # Process analysis
@@ -386,7 +427,8 @@ def main():
                             st.rerun()
                 
                 if st.session_state.app_state['summary']:
-                    with st.expander("📊 Final Report", expanded=True):
+                    display_stage_header("📊", "Final Report")
+                    with st.expander("View Report", expanded=True):
                         st.markdown(st.session_state.app_state['summary'])
                     st.success("✅ Analysis complete! Review the results above.")
     except Exception as e:
