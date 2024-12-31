@@ -144,25 +144,14 @@ def reset_focus_state():
     """Reset the focus area state."""
     if 'focus_state' in st.session_state:
         del st.session_state.focus_state
+    if 'checkbox_states' in st.session_state:
+        del st.session_state.checkbox_states
     st.session_state.focus_state = {
         'areas': None,
         'selected': set(),
         'proceed': False,
         'enhanced_prompt': None
     }
-
-def handle_skip():
-    """Handle skip button click."""
-    st.session_state.focus_state['proceed'] = True
-
-def handle_continue(topic: str, prompt_designer):
-    """Handle continue button click."""
-    st.session_state.focus_state['proceed'] = True
-    if st.session_state.focus_state['selected']:
-        st.session_state.focus_state['enhanced_prompt'] = prompt_designer.design_prompt(
-            topic,
-            list(st.session_state.focus_state['selected'])
-        )
 
 # Initialize Gemini
 @st.cache_resource
@@ -227,62 +216,67 @@ def analyze_topic(model, topic: str, iterations: int = 1):
             st.markdown("### 🎯 Select Focus Areas")
             st.markdown("Choose specific aspects you'd like the analysis to emphasize (optional):")
             
-            # Create columns for better layout
-            cols = st.columns(3)
+            # Initialize checkbox states if not exists
+            if 'checkbox_states' not in st.session_state:
+                st.session_state.checkbox_states = {}
             
-            # Distribute focus areas across columns
-            for i, area in enumerate(st.session_state.focus_state['areas']):
-                col_idx = i % 3
-                # Handle checkbox directly
-                if cols[col_idx].checkbox(
-                    area,
-                    key=f"focus_{i}",  # Use index for key instead of area text
-                    value=area in st.session_state.focus_state['selected']
-                ):
-                    st.session_state.focus_state['selected'].add(area)
-                else:
-                    st.session_state.focus_state['selected'].discard(area)
-            
-            # Add some spacing
-            st.markdown("---")
-            
-            # Create two columns for buttons
-            col1, col2 = st.columns(2)
-            
-            # Skip button in left column
-            if col1.button(
-                "Skip",
-                key="skip_focus",
-                help="Proceed with analysis using only the optimized prompt",
-                on_click=handle_skip
-            ):
+            # Create a form for focus area selection
+            with st.form(key="focus_area_form"):
+                # Create columns for better layout
+                cols = st.columns(3)
+                
+                # Distribute focus areas across columns
+                for i, area in enumerate(st.session_state.focus_state['areas']):
+                    col_idx = i % 3
+                    # Initialize checkbox state if not exists
+                    if f'checkbox_{i}' not in st.session_state.checkbox_states:
+                        st.session_state.checkbox_states[f'checkbox_{i}'] = area in st.session_state.focus_state['selected']
+                    
+                    # Display checkbox in appropriate column
+                    st.session_state.checkbox_states[f'checkbox_{i}'] = cols[col_idx].checkbox(
+                        area,
+                        value=st.session_state.checkbox_states[f'checkbox_{i}'],
+                        key=f'focus_area_{i}'
+                    )
+                
+                # Add some spacing
+                st.markdown("---")
+                
+                # Create two columns for buttons
+                col1, col2 = st.columns(2)
+                
+                # Submit buttons
+                submitted = st.form_submit_button("Continue", type="primary")
+                skipped = st.form_submit_button("Skip")
+                
+            # Handle form submission
+            if submitted or skipped:
+                if submitted:
+                    # Update selected areas based on checkbox states
+                    st.session_state.focus_state['selected'] = {
+                        area for i, area in enumerate(st.session_state.focus_state['areas'])
+                        if st.session_state.checkbox_states[f'checkbox_{i}']
+                    }
+                    
+                    # Generate enhanced prompt if areas are selected
+                    if st.session_state.focus_state['selected']:
+                        st.session_state.focus_state['enhanced_prompt'] = prompt_designer.design_prompt(
+                            topic,
+                            list(st.session_state.focus_state['selected'])
+                        )
+                        
+                        # Show updated prompt in a collapsed section
+                        with st.status("✍️ Updated Prompt", expanded=False) as status:
+                            st.markdown(st.session_state.focus_state['enhanced_prompt'])
+                            status.update(label="✍️ Updated Prompt")
+                
+                # Set proceed flag and continue
+                st.session_state.focus_state['proceed'] = True
                 st.rerun()
             
-            # Continue button in right column (disabled if no areas selected)
-            continue_disabled = len(st.session_state.focus_state['selected']) == 0
-            if col2.button(
-                "Continue",
-                key="continue_focus",
-                disabled=continue_disabled,
-                help="Proceed with analysis using selected focus areas",
-                type="primary",
-                on_click=handle_continue,
-                args=(topic, prompt_designer)
-            ):
-                st.rerun()
-            
-            # Add spacing after buttons
-            st.markdown("---")
-            
-            # Only proceed if either Skip or Continue was clicked
+            # Stop here if form hasn't been submitted
             if not st.session_state.focus_state['proceed']:
-                st.stop()  # Stop execution here until user makes a choice
-            
-            # Show updated prompt if it exists
-            if st.session_state.focus_state['enhanced_prompt']:
-                with st.status("✍️ Updated Prompt", expanded=False) as status:
-                    st.markdown(st.session_state.focus_state['enhanced_prompt'])
-                    status.update(label="✍️ Updated Prompt")
+                st.stop()
 
         # Agent 1: Framework Engineer - Pass both prompts (only reached after user choice)
         with st.status("🎯 Creating analysis framework...") as status:
