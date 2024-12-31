@@ -412,6 +412,11 @@ def initialize_gemini():
         st.error(f"Failed to initialize Gemini API: {str(e)}")
         return None
 
+# Initialize model
+model = initialize_gemini()
+if not model:
+    st.stop()
+
 # Input form
 with st.form("analysis_form"):
     # Text input
