@@ -5,7 +5,7 @@ from functools import wraps
 from typing import Dict, Tuple, Optional
 
 import streamlit as st
-from config import MIN_TOPIC_LENGTH, MAX_TOPIC_LENGTH, MAX_REQUESTS_PER_MINUTE, REQUEST_TIMEOUT
+from config import MIN_TOPIC_LENGTH, MAX_TOPIC_LENGTH, MAX_REQUESTS_PER_MINUTE
 
 class RateLimiter:
     """Simple rate limiter implementation."""

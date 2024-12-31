@@ -11,8 +11,7 @@ from config import (
     PROMPT_DESIGN_CONFIG,
     FRAMEWORK_CONFIG,
     ANALYSIS_CONFIG,
-    SYNTHESIS_CONFIG,
-    REQUEST_TIMEOUT
+    SYNTHESIS_CONFIG
 )
 from utils import rate_limit_decorator, parse_title_content
 
@@ -30,8 +29,7 @@ class BaseAgent:
         try:
             response = self.model.generate_content(
                 prompt,
-                generation_config=GenerationConfig(**config),
-                timeout=REQUEST_TIMEOUT
+                generation_config=GenerationConfig(**config)
             )
             return response.text
         except Exception as e:
