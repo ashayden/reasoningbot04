@@ -103,6 +103,17 @@ class PromptDesigner(BaseAgent):
         """Design an optimal prompt for the given topic."""
         prompt = f"""As an expert prompt engineer, design an optimal prompt to analyze this topic: '{topic}'
 
+        Your response should be structured exactly like this:
+
+        Desired Output:
+        [Write a clear, specific description of what the analysis should accomplish and deliver]
+
+        Avoid:
+        [List specific approaches, biases, and limitations that should be avoided]
+
+        Emphasize:
+        [List key aspects, methods, and perspectives that should be emphasized]
+
         Consider:
         1. Key aspects that need investigation
         2. Potential research angles
@@ -110,17 +121,51 @@ class PromptDesigner(BaseAgent):
         4. Relevant academic disciplines
         5. Methodological approaches
 
-        Structure the prompt to:
-        - Encourage comprehensive analysis
-        - Promote critical thinking
-        - Consider multiple perspectives
-        - Support evidence-based reasoning
-        - Enable systematic investigation
-
+        Make sure each section is clearly labeled and formatted.
+        Focus on making the prompt specific, actionable, and comprehensive.
+        
         Previous thought process (if available):
         {self._last_thoughts if self._last_thoughts else 'Not available'}"""
         
-        return self.generate_content(prompt, PROMPT_DESIGN_CONFIG)
+        result = self.generate_content(prompt, PROMPT_DESIGN_CONFIG)
+        if not result:
+            return None
+            
+        # Extract only the desired sections
+        sections = {}
+        current_section = None
+        section_content = []
+        
+        for line in result.split('\n'):
+            line = line.strip()
+            if not line:
+                continue
+                
+            if line.startswith('Desired Output:'):
+                current_section = 'Desired Output'
+            elif line.startswith('Avoid:'):
+                if current_section and section_content:
+                    sections[current_section] = '\n'.join(section_content)
+                current_section = 'Avoid'
+                section_content = []
+            elif line.startswith('Emphasize:'):
+                if current_section and section_content:
+                    sections[current_section] = '\n'.join(section_content)
+                current_section = 'Emphasize'
+                section_content = []
+            elif current_section and not line.endswith(':'):
+                section_content.append(line)
+                
+        if current_section and section_content:
+            sections[current_section] = '\n'.join(section_content)
+            
+        # Format the final output
+        formatted_output = []
+        for section in ['Desired Output', 'Avoid', 'Emphasize']:
+            if section in sections:
+                formatted_output.append(f"{section}:\n{sections[section]}")
+                
+        return '\n\n'.join(formatted_output)
 
 class FrameworkEngineer(BaseAgent):
     """Agent responsible for creating analysis frameworks."""

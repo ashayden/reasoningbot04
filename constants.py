@@ -2,17 +2,21 @@
 
 # Status Messages
 STATUS_MESSAGES = {
+    'PROMPT_DESIGN': {
+        'start': 'Optimizing prompt for analysis...',
+        'complete': 'Prompt optimization complete.'
+    },
     'FRAMEWORK': {
-        'START': "🎯 Creating analysis framework...",
-        'COMPLETE': "🎯 Analysis Framework"
+        'start': 'Creating analysis framework...',
+        'complete': 'Analysis framework complete.'
     },
     'ANALYSIS': {
-        'START': "🔄 Performing research analysis #{iteration}...",
-        'COMPLETE': "🔄 Research Analysis #{iteration}"
+        'start': 'Conducting research analysis...',
+        'complete': 'Research analysis complete.'
     },
     'SYNTHESIS': {
-        'START': "📊 Generating final report...",
-        'COMPLETE': "📊 Final Report"
+        'start': 'Synthesizing findings...',
+        'complete': 'Final synthesis complete.'
     }
 }
 
@@ -23,6 +27,39 @@ CUSTOM_CSS = """
 .stButton > button { width: 100%; }
 div[data-testid="stImage"] { text-align: center; }
 div[data-testid="stImage"] > img { max-width: 800px; width: 100%; }
+.status-message {
+    padding: 10px;
+    border-radius: 5px;
+    margin: 5px 0;
+}
+.status-running {
+    background-color: #f0f2f6;
+    border-left: 5px solid #1f77b4;
+}
+.status-complete {
+    background-color: #e8f4ea;
+    border-left: 5px solid #28a745;
+}
+.status-error {
+    background-color: #fdf1f1;
+    border-left: 5px solid #dc3545;
+}
+.analysis-title {
+    font-size: 1.5em;
+    font-weight: bold;
+    margin: 15px 0;
+}
+.analysis-subtitle {
+    font-size: 1.2em;
+    font-style: italic;
+    color: #666;
+    margin: 10px 0;
+}
+.section-header {
+    font-size: 1.2em;
+    font-weight: bold;
+    margin: 15px 0 10px 0;
+}
 </style>
 """
 
