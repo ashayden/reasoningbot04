@@ -32,6 +32,29 @@ st.markdown("""
     width: 100%; 
 }
 
+/* Focus area buttons */
+[data-testid="baseButton-secondary"] {
+    background-color: #4a4a4a !important;
+    border-color: #4a4a4a !important;
+    color: white !important;
+}
+
+[data-testid="baseButton-secondary"]:hover {
+    background-color: #5a5a5a !important;
+    border-color: #5a5a5a !important;
+}
+
+[data-testid="baseButton-primary"] {
+    background-color: #0066cc !important;
+    border: none !important;
+}
+
+[data-testid="baseButton-primary"]:disabled {
+    background-color: #1E1E1E !important;
+    color: #4a4a4a !important;
+    cursor: not-allowed;
+}
+
 div[data-testid="stImage"] { 
     text-align: center; 
 }
@@ -49,11 +72,6 @@ textarea {
     background-color: #1E1E1E !important;
     border: 1px solid #333 !important;
     color: #fff !important;
-}
-
-button[kind="primary"] {
-    background-color: #0066cc !important;
-    border: none !important;
 }
 
 /* Number input styling */
@@ -187,8 +205,23 @@ def analyze_topic(model, topic: str, iterations: int = 1):
             # Add some spacing
             st.markdown("---")
             
-            # Update prompt with selected focus areas if any were selected
-            if selected_areas:
+            # Create two columns for buttons
+            col1, col2 = st.columns(2)
+            
+            # Skip button in left column
+            if col1.button("Skip", key="skip_focus", help="Proceed with analysis using only the optimized prompt"):
+                proceed_with_framework = True
+            
+            # Continue button in right column (disabled if no areas selected)
+            continue_disabled = len(selected_areas) == 0
+            if col2.button(
+                "Continue",
+                key="continue_focus",
+                disabled=continue_disabled,
+                help="Proceed with analysis using selected focus areas",
+                type="primary"
+            ):
+                # Update prompt with selected focus areas
                 enhanced_prompt = prompt_designer.design_prompt(topic, selected_areas)
                 if not enhanced_prompt:
                     return None, None, None
@@ -197,6 +230,14 @@ def analyze_topic(model, topic: str, iterations: int = 1):
                 with st.status("✍️ Updated Prompt", expanded=False) as status:
                     st.markdown(enhanced_prompt)
                     status.update(label="✍️ Updated Prompt")
+                proceed_with_framework = True
+            
+            # Add spacing after buttons
+            st.markdown("---")
+            
+            # Only proceed if either Skip or Continue was clicked
+            if not proceed_with_framework:
+                st.stop()  # Stop execution here until user makes a choice
 
         # Agent 1: Framework Engineer - Pass both prompts
         with st.status("🎯 Creating analysis framework...") as status:
