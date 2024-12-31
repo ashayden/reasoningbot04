@@ -445,23 +445,68 @@ with st.form("analysis_form"):
 
 # Analysis section
 if submit and topic:
-    # Initialize or reset state
-    state_reset = initialize_or_reset_state(topic, iterations)
+    # Initialize or reset state if needed
+    if st.session_state.analysis_state['analysis']['topic'] != topic:
+        initialize_or_reset_state(topic, iterations)
+        st.session_state.analysis_state['analysis']['topic'] = topic
+        st.session_state.analysis_state['analysis']['iterations'] = iterations
     
-    if state_reset:
-        st.rerun()
+    # Get current state
+    state = st.session_state.analysis_state
+    current_stage = state['analysis']['stage']
     
-    # Run analysis
-    try:
-        framework, analysis, summary = analyze_topic(model, topic, iterations)
-        
-        # Handle completion
-        if framework and analysis and summary:
-            if st.session_state.analysis_state['analysis']['stage'] == 'complete':
-                st.success("Analysis complete! Review the results above.")
-    except Exception as e:
-        st.error(f"An error occurred during analysis: {str(e)}")
-        logger.error(f"Analysis error: {str(e)}") 
+    # Display status
+    status_placeholder = st.empty()
+    with status_placeholder.status("🚀 Starting analysis...", expanded=True) as status:
+        try:
+            # Process stages
+            if current_stage == 'start':
+                status.update(label="💡 Generating insights...")
+                if process_insights(model, topic):
+                    advance_stage('prompt')
+                    st.rerun()
+                    
+            elif current_stage == 'insights':
+                status.update(label="✍️ Optimizing prompt...")
+                if process_prompt(model, topic):
+                    advance_stage('focus')
+                    st.rerun()
+                    
+            elif current_stage == 'prompt':
+                status.update(label="🎯 Select focus areas")
+                if handle_focus_selection(model, topic):
+                    advance_stage('framework')
+                    st.rerun()
+                    
+            elif current_stage == 'focus':
+                status.update(label="🔨 Building analysis framework...")
+                if process_framework(model, topic):
+                    advance_stage('analysis')
+                    st.rerun()
+                    
+            elif current_stage == 'analysis':
+                status.update(label="🔄 Performing analysis...")
+                if process_analysis_stage(model, topic, iterations):
+                    advance_stage('summary')
+                    st.rerun()
+                    
+            elif current_stage == 'summary':
+                status.update(label="📊 Generating final report...")
+                if process_summary(model, topic):
+                    advance_stage('complete')
+                    status.update(label="✅ Analysis complete!", state="complete")
+                    st.success("Analysis complete! Review the results above.")
+                    
+            # Display completed outputs
+            display_completed_outputs()
+            
+        except Exception as e:
+            logger.error(f"Analysis error: {str(e)}")
+            st.error(f"An error occurred during analysis: {str(e)}")
+            
+        # Log state for debugging
+        logger.info(f"Stage: {current_stage}")
+        logger.info(f"Completed stages: {state['analysis']['completed_stages']}")
 
 def process_framework(model, topic):
     """Process the framework development stage."""
