@@ -13,7 +13,7 @@ PROMPT_DESIGN_CONFIG = {
 FRAMEWORK_CONFIG = {
     "temperature": 0.1,
     "candidate_count": 1,
-    "max_output_tokens": 1024
+    "max_output_tokens": 4096
 }
 
 # Research Analysis temperature range
@@ -24,14 +24,14 @@ ANALYSIS_MAX_TEMP = 0.9
 ANALYSIS_CONFIG = {
     "temperature": ANALYSIS_BASE_TEMP,  # Will be dynamically adjusted
     "candidate_count": 1,
-    "max_output_tokens": 2048
+    "max_output_tokens": 8192
 }
 
 # Synthesis with increased creativity
 SYNTHESIS_CONFIG = {
     "temperature": 0.5,  # Increased from 0.3 for more creative synthesis
     "candidate_count": 1,
-    "max_output_tokens": 4096
+    "max_output_tokens": 8192
 }
 
 # Analysis depth settings

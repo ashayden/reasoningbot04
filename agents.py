@@ -76,11 +76,44 @@ class FrameworkEngineer(BaseAgent):
         """Create a research framework based on the prompt design."""
         prompt = f"""{prompt_design}
 
-        Based on this prompt, create a detailed research framework that:
-        1. Outlines the key areas of investigation
-        2. Specifies methodological approaches
-        3. Defines evaluation criteria
-        4. Sets clear milestones for the analysis process"""
+        Based on this prompt, create a comprehensive research framework that follows this exact structure:
+
+        A. Research Objectives:
+           1. Primary Research Questions
+           2. Secondary Research Questions
+           3. Expected Outcomes
+
+        B. Methodological Approach:
+           1. Research Methods
+           2. Data Collection Strategies
+           3. Analysis Techniques
+
+        C. Investigation Areas:
+           1. Core Topics
+           2. Subtopics
+           3. Cross-cutting Themes
+
+        D. Ethical Considerations:
+           1. Key Ethical Issues
+           2. Stakeholder Analysis
+           3. Risk Assessment
+
+        E. Evaluation Framework:
+           1. Success Metrics
+           2. Quality Indicators
+           3. Validation Methods
+
+        F. Timeline and Milestones:
+           1. Research Phases
+           2. Key Deliverables
+           3. Review Points
+
+        For each section and subsection, provide detailed and specific content relevant to the topic.
+        Ensure each point is thoroughly explained and contextually appropriate.
+        Use clear, academic language while maintaining accessibility.
+        
+        Previous thought process (if available):
+        {self._last_thoughts if self._last_thoughts else 'Not available'}"""
         
         return self.generate_content(prompt, FRAMEWORK_CONFIG)
 
@@ -120,11 +153,45 @@ class ResearchAnalyst(BaseAgent):
             Framework context:
             {framework}
             
-            Start your response with a title in this exact format (including the newlines):
-            Title: Your Main Title Here
-            Subtitle: Your Descriptive Subtitle Here
+            Structure your analysis using this format:
 
-            Then continue with your analysis content."""
+            Start with:
+            Title: [Descriptive title reflecting the main focus]
+            Subtitle: [Specific aspect or approach being analyzed]
+
+            Then provide a comprehensive analysis following this structure:
+
+            1. Introduction
+               - Context and background
+               - Scope of analysis
+               - Key objectives
+
+            2. Methodology Overview
+               - Approach used
+               - Data sources
+               - Analytical methods
+
+            3. Key Findings
+               - Primary discoveries
+               - Supporting evidence
+               - Critical insights
+
+            4. Analysis
+               - Detailed examination of findings
+               - Interpretation of results
+               - Connections and patterns
+
+            5. Implications
+               - Theoretical implications
+               - Practical applications
+               - Future considerations
+
+            6. Limitations and Gaps
+               - Current limitations
+               - Areas needing further research
+               - Potential biases
+
+            Ensure each section is thoroughly developed with specific examples and evidence."""
         else:
             self.iteration_count += 1  # Increment counter for subsequent iterations
             # Include previous agent's thoughts if available
@@ -138,20 +205,48 @@ class ResearchAnalyst(BaseAgent):
             
             {previous_context}
             
-            Based on this previous analysis and the original framework, expand and deepen the research by:
+            For this iteration #{self.iteration_count + 1}, focus on:
             1. Identifying gaps or areas needing more depth
             2. Exploring new connections and implications
             3. Refining and strengthening key arguments
             4. Adding new supporting evidence or perspectives
             
-            Note: As this is iteration {self.iteration_count + 1}, feel free to be more explorative and creative 
-            in your analysis while maintaining academic rigor.
-            
-            Start your response with a title in this exact format (including the newlines):
-            Title: Your Main Title Here
-            Subtitle: Your Descriptive Subtitle Here
+            Structure your analysis using this format:
 
-            Then continue with your analysis content."""
+            Start with:
+            Title: [Descriptive title reflecting the new focus]
+            Subtitle: [Specific aspect being expanded upon]
+
+            Then provide:
+
+            1. Previous Analysis Review
+               - Key points from previous iteration
+               - Areas identified for expansion
+               - New perspectives to explore
+
+            2. Expanded Analysis
+               - Deeper investigation of key themes
+               - New evidence and insights
+               - Advanced interpretations
+
+            3. Novel Connections
+               - Cross-cutting themes
+               - Interdisciplinary insights
+               - Emerging patterns
+
+            4. Critical Evaluation
+               - Strengthened arguments
+               - Counter-arguments addressed
+               - Enhanced evidence base
+
+            5. Synthesis and Integration
+               - Integration with previous findings
+               - Enhanced understanding
+               - Refined conclusions
+
+            Note: As this is iteration {self.iteration_count + 1}, be more explorative and creative 
+            while maintaining academic rigor. Push the boundaries of conventional analysis while 
+            ensuring all claims are well-supported."""
         
         result = self.generate_content(prompt, self._get_analysis_config())
         if result:
