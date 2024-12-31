@@ -44,13 +44,32 @@ div[data-baseweb="select-slider"] > div {
 div[data-baseweb="select-slider"] span {
     color: #fff !important;
     font-family: "Source Sans Pro", sans-serif !important;
-    font-size: 1rem !important;
+    font-size: 14px !important;
+    font-weight: 400 !important;
 }
-.stSlider > div > div > div {
-    background-color: #4B4B4B !important;
+div[data-baseweb="slider"] div[role="slider"] {
+    background: #0066cc !important;
+    border: none !important;
+    width: 12px !important;
+    height: 12px !important;
+    margin-top: -5px !important;
 }
-.stSlider > div > div > div > div {
-    background-color: #0066cc !important;
+div[data-baseweb="slider"] div[data-testid="stSliderBar"] {
+    background: rgba(255, 255, 255, 0.1) !important;
+    height: 2px !important;
+}
+div[data-baseweb="slider"] div[data-testid="stSliderProgress"] {
+    background: #0066cc !important;
+    height: 2px !important;
+}
+div[data-baseweb="select-slider"] div[role="tablist"] span {
+    background: transparent !important;
+    padding: 4px 8px !important;
+    border-radius: 4px !important;
+}
+div[data-baseweb="select-slider"] div[role="tablist"] span[aria-selected="true"] {
+    color: #0066cc !important;
+    background: transparent !important;
 }
 button[kind="primary"] {
     background-color: #0066cc !important;
