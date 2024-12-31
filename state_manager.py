@@ -1,126 +1,113 @@
 """State management for the MARA application."""
 
 import logging
+from typing import Optional, Dict, Any
+
 import streamlit as st
-from typing import Optional, Dict, Any, TypedDict
-from dataclasses import dataclass
 
-from constants import (
-    SESSION_STATE_KEYS,
-    DEFAULT_ANALYSIS_STATE,
-    STATUS_MESSAGES,
-    ERROR_MESSAGES,
-    SUCCESS_MESSAGE
-)
+from constants import STATUS_MESSAGES
 
-# Configure logging
 logger = logging.getLogger(__name__)
-
-@dataclass
-class AnalysisState:
-    """Type-safe analysis state."""
-    topic: Optional[str] = None
-    framework: Optional[str] = None
-    analysis: Optional[list] = None
-    summary: Optional[str] = None
 
 class StateManager:
     """Manages application state and UI updates."""
     
     @staticmethod
-    def validate_state(state: Dict) -> bool:
-        """Validate state structure."""
-        required_keys = ['topic', 'framework', 'analysis', 'summary']
-        return all(key in state for key in required_keys)
+    def init_session_state() -> None:
+        """Initialize session state if not already done."""
+        if 'current_analysis' not in st.session_state:
+            st.session_state.current_analysis = {
+                'topic': None,
+                'framework': None,
+                'analysis': None,
+                'summary': None
+            }
+        if 'analysis_container' not in st.session_state:
+            st.session_state.analysis_container = None
     
     @staticmethod
-    def initialize_session_state():
-        """Initialize or reset session state."""
-        if SESSION_STATE_KEYS['CURRENT_ANALYSIS'] not in st.session_state:
-            st.session_state[SESSION_STATE_KEYS['CURRENT_ANALYSIS']] = AnalysisState()
-    
-    @staticmethod
-    def clear_results():
+    def clear_results() -> None:
         """Clear all analysis results."""
-        st.session_state[SESSION_STATE_KEYS['CURRENT_ANALYSIS']] = AnalysisState()
-        if SESSION_STATE_KEYS['ANALYSIS_CONTAINER'] in st.session_state:
-            st.session_state[SESSION_STATE_KEYS['ANALYSIS_CONTAINER']].empty()
+        st.session_state.current_analysis = {
+            'topic': None,
+            'framework': None,
+            'analysis': None,
+            'summary': None
+        }
+        if 'analysis_container' in st.session_state:
+            st.session_state.analysis_container = None
     
     @staticmethod
-    def update_analysis_results(topic: str, framework: Optional[str] = None, 
-                              analysis: Optional[list] = None, summary: Optional[str] = None):
-        """Update analysis results in session state."""
-        current_state = st.session_state[SESSION_STATE_KEYS['CURRENT_ANALYSIS']]
-        new_state = AnalysisState(
-            topic=topic,
-            framework=framework if framework is not None else current_state.framework,
-            analysis=analysis if analysis is not None else current_state.analysis,
-            summary=summary if summary is not None else current_state.summary
-        )
-        st.session_state[SESSION_STATE_KEYS['CURRENT_ANALYSIS']] = new_state
-    
-    @staticmethod
-    def get_current_topic() -> Optional[str]:
-        """Get the current topic being analyzed."""
-        return st.session_state[SESSION_STATE_KEYS['CURRENT_ANALYSIS']].topic
-    
-    @staticmethod
-    def show_status(status_key: str, iteration: int = 0) -> Any:
-        """Create and return a status object with the appropriate message."""
+    def show_status(phase: str, status: str, iteration: Optional[int] = None) -> None:
+        """Show a status message for the current operation."""
         try:
-            if status_key not in STATUS_MESSAGES:
-                logger.error(f"Invalid status key: {status_key}")
-                return st.status("Processing...")
+            if phase not in STATUS_MESSAGES:
+                logger.error(f"Invalid status phase: {phase}")
+                return
                 
-            message = STATUS_MESSAGES[status_key]['START']
-            if '{iteration}' in message:
-                message = message.format(iteration=iteration)
-            return st.status(message)
+            if status not in ['start', 'complete']:
+                logger.error(f"Invalid status key: {status}")
+                return
+                
+            message = STATUS_MESSAGES[phase][status]
+            
+            # Add iteration number for analysis phase if provided
+            if phase == 'ANALYSIS' and iteration is not None:
+                message = message.replace('...', f' (Iteration {iteration})...')
+            
+            # Create a container for the status message if it doesn't exist
+            if 'status_container' not in st.session_state:
+                st.session_state.status_container = st.empty()
+            
+            # Show the status message with appropriate styling
+            status_class = 'status-running' if status == 'start' else 'status-complete'
+            st.session_state.status_container.markdown(
+                f'<div class="status-message {status_class}">{message}</div>',
+                unsafe_allow_html=True
+            )
+            
         except Exception as e:
             logger.error(f"Error showing status: {str(e)}")
-            return st.status("Processing...")
     
     @staticmethod
-    def update_status(status: Any, status_key: str, iteration: int = 0):
-        """Update a status object with completion message."""
+    def update_analysis(key: str, value: Any) -> None:
+        """Update a specific key in the current analysis."""
         try:
-            if status_key not in STATUS_MESSAGES:
-                logger.error(f"Invalid status key: {status_key}")
-                status.update(label="Complete")
+            if 'current_analysis' not in st.session_state:
+                logger.error("Session state not initialized")
                 return
                 
-            message = STATUS_MESSAGES[status_key]['COMPLETE']
-            if '{iteration}' in message:
-                message = message.format(iteration=iteration)
-            status.update(label=message)
+            st.session_state.current_analysis[key] = value
         except Exception as e:
-            logger.error(f"Error updating status: {str(e)}")
-            status.update(label="Complete")
+            logger.error(f"Error updating analysis: {str(e)}")
     
     @staticmethod
-    def show_error(error_key: str, error: Exception = None):
-        """Display an error message."""
+    def get_analysis(key: str) -> Optional[Any]:
+        """Get a specific value from the current analysis."""
         try:
-            if error_key not in ERROR_MESSAGES:
-                st.error(str(error) if error else "An error occurred")
-                return
+            if 'current_analysis' not in st.session_state:
+                logger.error("Session state not initialized")
+                return None
                 
-            message = ERROR_MESSAGES[error_key]
-            if error and '{error}' in message:
-                message = message.format(error=str(error))
-            st.error(message)
+            return st.session_state.current_analysis.get(key)
         except Exception as e:
-            logger.error(f"Error showing error message: {str(e)}")
-            st.error(str(error) if error else "An error occurred")
+            logger.error(f"Error getting analysis: {str(e)}")
+            return None
     
     @staticmethod
-    def show_success():
-        """Display success message."""
-        st.success(SUCCESS_MESSAGE)
+    def create_container() -> None:
+        """Create a container for analysis output."""
+        try:
+            if 'analysis_container' not in st.session_state:
+                st.session_state.analysis_container = st.container()
+        except Exception as e:
+            logger.error(f"Error creating container: {str(e)}")
     
     @staticmethod
-    def create_analysis_container() -> Any:
-        """Create and store a container for analysis output."""
-        if SESSION_STATE_KEYS['ANALYSIS_CONTAINER'] not in st.session_state:
-            st.session_state[SESSION_STATE_KEYS['ANALYSIS_CONTAINER']] = st.container()
-        return st.session_state[SESSION_STATE_KEYS['ANALYSIS_CONTAINER']] 
+    def get_container():
+        """Get the analysis container."""
+        try:
+            return st.session_state.get('analysis_container')
+        except Exception as e:
+            logger.error(f"Error getting container: {str(e)}")
+            return None 

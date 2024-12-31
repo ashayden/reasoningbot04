@@ -129,6 +129,7 @@ class PromptDesigner(BaseAgent):
         
         result = self.generate_content(prompt, PROMPT_DESIGN_CONFIG)
         if not result:
+            logger.error("Empty result from generate_content")
             return None
             
         # Extract only the desired sections
@@ -142,7 +143,10 @@ class PromptDesigner(BaseAgent):
                 continue
                 
             if line.startswith('Desired Output:'):
+                if current_section and section_content:
+                    sections[current_section] = '\n'.join(section_content)
                 current_section = 'Desired Output'
+                section_content = []
             elif line.startswith('Avoid:'):
                 if current_section and section_content:
                     sections[current_section] = '\n'.join(section_content)
@@ -159,13 +163,24 @@ class PromptDesigner(BaseAgent):
         if current_section and section_content:
             sections[current_section] = '\n'.join(section_content)
             
+        # Verify we have all required sections
+        required_sections = {'Desired Output', 'Avoid', 'Emphasize'}
+        if not all(section in sections for section in required_sections):
+            logger.error(f"Missing required sections. Found: {list(sections.keys())}")
+            return None
+            
         # Format the final output
         formatted_output = []
         for section in ['Desired Output', 'Avoid', 'Emphasize']:
             if section in sections:
                 formatted_output.append(f"{section}:\n{sections[section]}")
                 
-        return '\n\n'.join(formatted_output)
+        final_output = '\n\n'.join(formatted_output)
+        if not final_output.strip():
+            logger.error("Empty formatted output")
+            return None
+            
+        return final_output
 
 class FrameworkEngineer(BaseAgent):
     """Agent responsible for creating analysis frameworks."""
