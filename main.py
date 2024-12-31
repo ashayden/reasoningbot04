@@ -7,6 +7,7 @@ import google.generativeai as genai
 from config import GEMINI_MODEL, DEPTH_ITERATIONS
 from utils import validate_topic, sanitize_topic
 from agents import PromptDesigner, FrameworkEngineer, ResearchAnalyst, SynthesisExpert
+from custom_components.depth_slider import depth_slider
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -36,42 +37,45 @@ textarea {
     color: #fff !important;
 }
 
-/* Slider Styling */
-div[data-testid="stSelectSlider"] {
+/* Slider Container */
+.stSlider {
     padding: 1rem 0;
 }
-div[data-testid="stSelectSlider"] > div {
-    background-color: transparent !important;
-}
-div[data-testid="stSelectSlider"] label {
-    display: none !important;
-}
-div[data-testid="stSelectSlider"] div[role="slider"] {
-    width: 24px !important;
-    height: 24px !important;
-    background: white !important;
-    border: none !important;
-    border-radius: 50% !important;
-    box-shadow: none !important;
-    top: 50% !important;
-    transform: translateY(-50%) !important;
-}
-div[data-testid="stSelectSlider"] div[data-baseweb="track"] {
+
+/* Slider Track */
+.stSlider > div > div > div {
     background-color: rgba(255, 255, 255, 0.2) !important;
     height: 2px !important;
-    margin: 0 !important;
 }
-div[data-testid="stSelectSlider"] div[data-baseweb="track"] div {
+
+/* Slider Progress Bar */
+.stSlider > div > div > div > div {
     background-color: #0066cc !important;
     height: 2px !important;
 }
-div[data-testid="stSelectSlider"] span {
+
+/* Slider Handle */
+.stSlider > div > div > div > div:last-child {
+    background-color: #fff !important;
+    border: none !important;
+    width: 24px !important;
+    height: 24px !important;
+    margin-top: -11px !important;
+    border-radius: 50% !important;
+    box-shadow: none !important;
+}
+
+/* Slider Labels */
+.stSlider > div > div > div > div > div {
     color: #fff !important;
     font-family: "Source Sans Pro", sans-serif !important;
     font-size: 14px !important;
     font-weight: 400 !important;
+    background: transparent !important;
 }
-div[data-testid="stSelectSlider"] span[aria-selected="true"] {
+
+/* Selected Value */
+.stSlider > div > div > div > div > div[data-baseweb="typography"] {
     color: #0066cc !important;
 }
 
@@ -192,10 +196,10 @@ with st.form("analysis_form"):
         placeholder="e.g., 'Examine the impact of artificial intelligence on healthcare, focusing on diagnostic applications, ethical considerations, and future implications.'"
     )
     
-    depth = st.select_slider(
-        "Analysis Depth",
+    depth = depth_slider(
+        value="Balanced",
         options=list(DEPTH_ITERATIONS.keys()),
-        value="Balanced"
+        key="analysis-depth"
     )
     
     col1, col2, col3 = st.columns([1, 2, 1])
