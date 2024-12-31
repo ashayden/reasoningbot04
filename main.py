@@ -152,16 +152,6 @@ if 'focus_state' not in st.session_state:
 
 def reset_focus_state():
     """Reset the focus area state."""
-    # Clear any existing focus-related state
-    if 'focus_state' in st.session_state:
-        del st.session_state.focus_state
-    
-    # Remove any checkbox states
-    keys_to_remove = [key for key in st.session_state.keys() if key.startswith('focus_area_')]
-    for key in keys_to_remove:
-        del st.session_state[key]
-    
-    # Initialize fresh focus state
     st.session_state.focus_state = {
         'areas': None,
         'selected': set(),
@@ -184,19 +174,14 @@ def handle_focus_area_selection(topic: str, prompt_designer):
         st.markdown("### 🎯 Select Focus Areas")
         st.markdown("Choose specific aspects you'd like the analysis to emphasize (optional):")
         
-        # Convert selected set to list for multiselect
-        current_selections = list(st.session_state.focus_state['selected'])
-        
         # Use multiselect for focus areas
         selected_areas = st.multiselect(
             "Focus Areas",
             options=st.session_state.focus_state['areas'],
-            default=current_selections,
-            key="focus_multiselect"
+            default=list(st.session_state.focus_state['selected']),
+            key="focus_multiselect",
+            label_visibility="collapsed"
         )
-        
-        # Update selected areas in state
-        st.session_state.focus_state['selected'] = set(selected_areas)
         
         # Add some spacing
         st.markdown("---")
@@ -225,17 +210,19 @@ def handle_focus_area_selection(topic: str, prompt_designer):
             type="primary",
             use_container_width=True
         ):
+            # Update selected areas in state
+            st.session_state.focus_state['selected'] = set(selected_areas)
+            
             # Generate enhanced prompt if areas are selected
-            if selected_areas:
-                st.session_state.focus_state['enhanced_prompt'] = prompt_designer.design_prompt(
-                    topic,
-                    selected_areas
-                )
-                
-                # Show updated prompt in a collapsed section
-                with st.status("✍️ Updated Prompt", expanded=False) as status:
-                    st.markdown(st.session_state.focus_state['enhanced_prompt'])
-                    status.update(label="✍️ Updated Prompt")
+            st.session_state.focus_state['enhanced_prompt'] = prompt_designer.design_prompt(
+                topic,
+                selected_areas
+            )
+            
+            # Show updated prompt in a collapsed section
+            with st.status("✍️ Updated Prompt", expanded=False) as status:
+                st.markdown(st.session_state.focus_state['enhanced_prompt'])
+                status.update(label="✍️ Updated Prompt")
             
             st.session_state.focus_state['proceed'] = True
             st.session_state.current_analysis['stage'] = 'framework'
