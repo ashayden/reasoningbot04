@@ -198,21 +198,12 @@ with st.form("analysis_form"):
         placeholder="e.g., 'Examine the impact of artificial intelligence on healthcare, focusing on diagnostic applications, ethical considerations, and future implications.'"
     )
     
-    # Analysis depth selection
-    if not os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), "custom_components/depth_slider/frontend/build")):
-        # Fallback to native select_slider
-        depth = st.select_slider(
-            "Analysis Depth",
-            options=list(DEPTH_ITERATIONS.keys()),
-            value="Balanced"
-        )
-    else:
-        # Use custom slider if available
-        depth = depth_slider(
-            value="Balanced",
-            options=list(DEPTH_ITERATIONS.keys()),
-            key="analysis-depth"
-        )
+    # Analysis depth selection using custom slider
+    depth = depth_slider(
+        value="Balanced",
+        options=list(DEPTH_ITERATIONS.keys()),
+        key="analysis-depth"
+    )
     
     # Submit button
     submit = st.form_submit_button(

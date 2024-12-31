@@ -5,6 +5,7 @@ __pycache__/
 *.so
 .Python
 build/
+!custom_components/depth_slider/frontend/build/
 develop-eggs/
 dist/
 downloads/
