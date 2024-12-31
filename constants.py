@@ -71,7 +71,8 @@ TOPIC_INPUT = {
 
 DEPTH_SELECTOR = {
     'LABEL': "Analysis Depth",
-    'DEFAULT': "Balanced"
+    'DEFAULT': "Balanced",
+    'HELP': "Select the depth of analysis. More depth means more thorough analysis but takes longer."
 }
 
 # Success Messages

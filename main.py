@@ -188,12 +188,12 @@ with st.form("analysis_form"):
     
     depth = st.select_slider(
         DEPTH_SELECTOR['LABEL'],
-        options=DEPTH_SELECTOR['OPTIONS'],
+        options=list(DEPTH_ITERATIONS.keys()),
         value=DEPTH_SELECTOR['DEFAULT'],
         help=DEPTH_SELECTOR['HELP']
     )
     
-    submitted = st.form_submit_button("Start Analysis")
+    submitted = st.form_submit_button("Start Analysis", type="primary")
 
 # Create main content area after form
 StateManager.create_container()
