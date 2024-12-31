@@ -140,6 +140,13 @@ def reset_focus_state():
         'enhanced_prompt': None
     }
 
+def toggle_focus_area(area: str):
+    """Toggle focus area selection in session state."""
+    if area in st.session_state.focus_state['selected']:
+        st.session_state.focus_state['selected'].remove(area)
+    else:
+        st.session_state.focus_state['selected'].add(area)
+
 def handle_focus_area_selection(topic: str, prompt_designer):
     """Handle the focus area selection process.
     
@@ -163,27 +170,19 @@ def handle_focus_area_selection(topic: str, prompt_designer):
             col_idx = i % 3
             
             # Create a unique key for each area
-            key = f"focus_{i}"  # Use index for stable keys
-            
-            # Initialize button state if needed
-            if key not in st.session_state:
-                st.session_state[key] = area in st.session_state.focus_state['selected']
+            key = f"focus_{i}"
             
             # Display button in appropriate column
             with cols[col_idx]:
-                if st.button(
+                button_type = "primary" if area in st.session_state.focus_state['selected'] else "secondary"
+                st.button(
                     area,
                     key=key,
-                    type="primary" if st.session_state[key] else "secondary",
+                    type=button_type,
+                    on_click=toggle_focus_area,
+                    args=(area,),
                     use_container_width=True
-                ):
-                    # Toggle selection
-                    if area in st.session_state.focus_state['selected']:
-                        st.session_state.focus_state['selected'].remove(area)
-                    else:
-                        st.session_state.focus_state['selected'].add(area)
-                    st.session_state[key] = not st.session_state[key]
-                    st.rerun()
+                )
         
         # Add some spacing
         st.markdown("---")
@@ -198,6 +197,7 @@ def handle_focus_area_selection(topic: str, prompt_designer):
             help="Proceed with analysis using only the optimized prompt",
             use_container_width=True
         ):
+            # Store state before proceeding
             st.session_state.focus_state['proceed'] = True
             st.session_state.current_analysis['stage'] = 'framework'
             return True
@@ -226,6 +226,7 @@ def handle_focus_area_selection(topic: str, prompt_designer):
                 st.markdown(st.session_state.focus_state['enhanced_prompt'])
                 status.update(label="✍️ Updated Prompt")
             
+            # Store state before proceeding
             st.session_state.focus_state['proceed'] = True
             st.session_state.current_analysis['stage'] = 'framework'
             return True
