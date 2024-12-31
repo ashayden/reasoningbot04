@@ -72,7 +72,7 @@ class PromptDesigner(BaseAgent):
     
     def design_prompt(self, topic: str) -> Optional[str]:
         """Design an optimal prompt for the given topic."""
-        prompt = f"""As an expert prompt engineer, create a concise one-paragraph prompt that will guide the development 
+        prompt = f"""As an expert prompt engineer, create a detailed prompt that will guide the development 
         of a research framework for analyzing '{topic}'. Focus on the essential aspects that need to be 
         investigated while maintaining analytical rigor and academic standards."""
         
