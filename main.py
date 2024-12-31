@@ -455,58 +455,54 @@ if submit and topic:
     state = st.session_state.analysis_state
     current_stage = state['analysis']['stage']
     
-    # Display status
-    status_placeholder = st.empty()
-    with status_placeholder.status("🚀 Starting analysis...", expanded=True) as status:
-        try:
-            # Process stages
-            if current_stage == 'start':
-                status.update(label="💡 Generating insights...")
-                if process_insights(model, topic):
-                    advance_stage('prompt')
-                    st.rerun()
-                    
-            elif current_stage == 'insights':
-                status.update(label="✍️ Optimizing prompt...")
-                if process_prompt(model, topic):
-                    advance_stage('focus')
-                    st.rerun()
-                    
-            elif current_stage == 'prompt':
-                status.update(label="🎯 Select focus areas")
-                if handle_focus_selection(model, topic):
-                    advance_stage('framework')
-                    st.rerun()
-                    
-            elif current_stage == 'focus':
-                status.update(label="🔨 Building analysis framework...")
-                if process_framework(model, topic):
-                    advance_stage('analysis')
-                    st.rerun()
-                    
-            elif current_stage == 'analysis':
-                status.update(label="🔄 Performing analysis...")
-                if process_analysis_stage(model, topic, iterations):
-                    advance_stage('summary')
-                    st.rerun()
-                    
-            elif current_stage == 'summary':
-                status.update(label="📊 Generating final report...")
-                if process_summary(model, topic):
-                    advance_stage('complete')
-                    status.update(label="✅ Analysis complete!", state="complete")
-                    st.success("Analysis complete! Review the results above.")
-                    
-            # Display completed outputs
-            display_completed_outputs()
-            
-        except Exception as e:
-            logger.error(f"Analysis error: {str(e)}")
-            st.error(f"An error occurred during analysis: {str(e)}")
-            
-        # Log state for debugging
-        logger.info(f"Stage: {current_stage}")
-        logger.info(f"Completed stages: {state['analysis']['completed_stages']}")
+    try:
+        # Process stages
+        if current_stage == 'start':
+            st.markdown("💡 Generating insights...")
+            if process_insights(model, topic):
+                advance_stage('prompt')
+                st.rerun()
+                
+        elif current_stage == 'insights':
+            st.markdown("✍️ Optimizing prompt...")
+            if process_prompt(model, topic):
+                advance_stage('focus')
+                st.rerun()
+                
+        elif current_stage == 'prompt':
+            st.markdown("🎯 Select focus areas")
+            if handle_focus_selection(model, topic):
+                advance_stage('framework')
+                st.rerun()
+                
+        elif current_stage == 'focus':
+            st.markdown("🔨 Building analysis framework...")
+            if process_framework(model, topic):
+                advance_stage('analysis')
+                st.rerun()
+                
+        elif current_stage == 'analysis':
+            st.markdown("🔄 Performing analysis...")
+            if process_analysis_stage(model, topic, iterations):
+                advance_stage('summary')
+                st.rerun()
+                
+        elif current_stage == 'summary':
+            st.markdown("📊 Generating final report...")
+            if process_summary(model, topic):
+                advance_stage('complete')
+                st.success("✅ Analysis complete! Review the results above.")
+                
+        # Display completed outputs
+        display_completed_outputs()
+        
+    except Exception as e:
+        logger.error(f"Analysis error: {str(e)}")
+        st.error(f"An error occurred during analysis: {str(e)}")
+        
+    # Log state for debugging
+    logger.info(f"Stage: {current_stage}")
+    logger.info(f"Completed stages: {state['analysis']['completed_stages']}")
 
 def process_framework(model, topic):
     """Process the framework development stage."""
