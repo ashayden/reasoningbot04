@@ -215,17 +215,33 @@ class FrameworkEngineer(BaseAgent):
         prompt = f"""Based on this prompt design:
         {prompt_design}
 
-        Create a comprehensive research framework following this structure:
+        Create a comprehensive research framework following this exact structure.
+        Use markdown formatting for better readability.
+        Each section should be detailed and specific to the topic.
+
+        Framework Template:
         {FRAMEWORK_TEMPLATE}
 
-        For each section and subsection, provide detailed and specific content relevant to the topic.
-        Ensure each point is thoroughly explained and contextually appropriate.
-        Use clear, academic language while maintaining accessibility.
+        Important Guidelines:
+        1. Maintain the exact section structure and numbering
+        2. Use markdown headers (## for sections, # for title)
+        3. Use bullet points (-) for detailed items
+        4. Ensure each point is specific to the topic
+        5. Provide clear, actionable content
+        6. Use academic language while maintaining clarity
         
         Previous thought process (if available):
         {self._last_thoughts if self._last_thoughts else 'Not available'}"""
         
-        return self.generate_content(prompt, FRAMEWORK_CONFIG)
+        result = self.generate_content(prompt, FRAMEWORK_CONFIG)
+        if not result:
+            logger.error("Empty framework result")
+            return None
+            
+        # Log the framework for debugging
+        logger.info(f"Generated framework:\n{result}")
+        
+        return result
 
 class ResearchAnalyst(BaseAgent):
     """Agent responsible for conducting research analysis."""

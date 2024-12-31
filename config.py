@@ -20,8 +20,13 @@ FRAMEWORK_CONFIG = {
     'candidate_count': 1
 }
 
+# Research Analysis temperature range
+ANALYSIS_BASE_TEMP = 0.7
+ANALYSIS_TEMP_INCREMENT = 0.1
+ANALYSIS_MAX_TEMP = 0.9
+
 ANALYSIS_CONFIG = {
-    'temperature': 0.7,
+    'temperature': ANALYSIS_BASE_TEMP,  # Will be dynamically adjusted
     'top_p': 0.8,
     'top_k': 40,
     'max_output_tokens': 8192,
