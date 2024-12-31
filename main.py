@@ -128,7 +128,9 @@ if 'current_analysis' not in st.session_state:
         'topic': None,
         'framework': None,
         'analysis': None,
-        'summary': None
+        'summary': None,
+        'stage': 'start',  # Possible stages: start, insights, prompt, focus_areas, framework, analysis, summary
+        'initial_prompt': None
     }
     
 # Initialize focus area state
@@ -152,6 +154,84 @@ def reset_focus_state():
         'proceed': False,
         'enhanced_prompt': None
     }
+
+def handle_focus_area_selection(topic: str, prompt_designer):
+    """Handle the focus area selection process.
+    
+    Returns:
+        bool: True if selection is complete, False if waiting for user input
+    """
+    # Generate focus areas if not already done
+    if st.session_state.focus_state['areas'] is None:
+        st.session_state.focus_state['areas'] = prompt_designer.generate_focus_areas(topic)
+        
+    # Display focus areas for selection
+    if st.session_state.focus_state['areas']:
+        st.markdown("### 🎯 Select Focus Areas")
+        st.markdown("Choose specific aspects you'd like the analysis to emphasize (optional):")
+        
+        # Initialize checkbox states if not exists
+        if 'checkbox_states' not in st.session_state:
+            st.session_state.checkbox_states = {}
+        
+        # Create a form for focus area selection
+        with st.form(key="focus_area_form"):
+            # Create columns for better layout
+            cols = st.columns(3)
+            
+            # Distribute focus areas across columns
+            for i, area in enumerate(st.session_state.focus_state['areas']):
+                col_idx = i % 3
+                # Initialize checkbox state if not exists
+                if f'checkbox_{i}' not in st.session_state.checkbox_states:
+                    st.session_state.checkbox_states[f'checkbox_{i}'] = area in st.session_state.focus_state['selected']
+                
+                # Display checkbox in appropriate column
+                st.session_state.checkbox_states[f'checkbox_{i}'] = cols[col_idx].checkbox(
+                    area,
+                    value=st.session_state.checkbox_states[f'checkbox_{i}'],
+                    key=f'focus_area_{i}'
+                )
+            
+            # Add some spacing
+            st.markdown("---")
+            
+            # Create two columns for buttons
+            col1, col2 = st.columns(2)
+            
+            # Submit buttons
+            submitted = st.form_submit_button("Continue", type="primary")
+            skipped = st.form_submit_button("Skip")
+            
+        # Handle form submission
+        if submitted or skipped:
+            if submitted:
+                # Update selected areas based on checkbox states
+                st.session_state.focus_state['selected'] = {
+                    area for i, area in enumerate(st.session_state.focus_state['areas'])
+                    if st.session_state.checkbox_states[f'checkbox_{i}']
+                }
+                
+                # Generate enhanced prompt if areas are selected
+                if st.session_state.focus_state['selected']:
+                    st.session_state.focus_state['enhanced_prompt'] = prompt_designer.design_prompt(
+                        topic,
+                        list(st.session_state.focus_state['selected'])
+                    )
+                    
+                    # Show updated prompt in a collapsed section
+                    with st.status("✍️ Updated Prompt", expanded=False) as status:
+                        st.markdown(st.session_state.focus_state['enhanced_prompt'])
+                        status.update(label="✍️ Updated Prompt")
+            
+            # Set proceed flag and update stage
+            st.session_state.focus_state['proceed'] = True
+            st.session_state.current_analysis['stage'] = 'framework'
+            return True
+        
+        return False
+    
+    return True  # If no focus areas, continue with analysis
 
 # Initialize Gemini
 @st.cache_resource
@@ -184,141 +264,91 @@ def analyze_topic(model, topic: str, iterations: int = 1):
         research_analyst = ResearchAnalyst(model)
         synthesis_expert = SynthesisExpert(model)
         
-        # Get quick insights
-        insights = pre_analysis.generate_insights(topic)
-        if not insights:
-            return None, None, None
-        
-        # Display Did You Know section
-        with st.status("💡 Did You Know", expanded=True) as status:
-            st.markdown(insights['did_you_know'])
-            status.update(label="💡 Did You Know")
-            
-        # Display ELI5 section
-        with st.status("⚡ ELI5", expanded=True) as status:
-            st.markdown(insights['eli5'])
-            status.update(label="⚡ ELI5")
-        
-        # Agent 0: Prompt Designer - First generate the optimized prompt
-        with st.status("✍️ Designing optimal prompt...") as status:
-            initial_prompt = prompt_designer.design_prompt(topic)
-            if not initial_prompt:
+        # Stage: Quick Insights
+        if st.session_state.current_analysis['stage'] == 'start':
+            insights = pre_analysis.generate_insights(topic)
+            if not insights:
                 return None, None, None
-            st.markdown(initial_prompt)
-            status.update(label="✍️ Optimized Prompt")
             
-        # Generate focus areas if not already done
-        if st.session_state.focus_state['areas'] is None:
-            st.session_state.focus_state['areas'] = prompt_designer.generate_focus_areas(topic)
+            # Display Did You Know section
+            with st.status("💡 Did You Know", expanded=True) as status:
+                st.markdown(insights['did_you_know'])
+                status.update(label="💡 Did You Know")
+                
+            # Display ELI5 section
+            with st.status("⚡ ELI5", expanded=True) as status:
+                st.markdown(insights['eli5'])
+                status.update(label="⚡ ELI5")
             
-        # Display focus areas for selection
-        if st.session_state.focus_state['areas']:
-            st.markdown("### 🎯 Select Focus Areas")
-            st.markdown("Choose specific aspects you'd like the analysis to emphasize (optional):")
+            st.session_state.current_analysis['stage'] = 'prompt'
             
-            # Initialize checkbox states if not exists
-            if 'checkbox_states' not in st.session_state:
-                st.session_state.checkbox_states = {}
-            
-            # Create a form for focus area selection
-            with st.form(key="focus_area_form"):
-                # Create columns for better layout
-                cols = st.columns(3)
-                
-                # Distribute focus areas across columns
-                for i, area in enumerate(st.session_state.focus_state['areas']):
-                    col_idx = i % 3
-                    # Initialize checkbox state if not exists
-                    if f'checkbox_{i}' not in st.session_state.checkbox_states:
-                        st.session_state.checkbox_states[f'checkbox_{i}'] = area in st.session_state.focus_state['selected']
-                    
-                    # Display checkbox in appropriate column
-                    st.session_state.checkbox_states[f'checkbox_{i}'] = cols[col_idx].checkbox(
-                        area,
-                        value=st.session_state.checkbox_states[f'checkbox_{i}'],
-                        key=f'focus_area_{i}'
-                    )
-                
-                # Add some spacing
-                st.markdown("---")
-                
-                # Create two columns for buttons
-                col1, col2 = st.columns(2)
-                
-                # Submit buttons
-                submitted = st.form_submit_button("Continue", type="primary")
-                skipped = st.form_submit_button("Skip")
-                
-            # Handle form submission
-            if submitted or skipped:
-                if submitted:
-                    # Update selected areas based on checkbox states
-                    st.session_state.focus_state['selected'] = {
-                        area for i, area in enumerate(st.session_state.focus_state['areas'])
-                        if st.session_state.checkbox_states[f'checkbox_{i}']
-                    }
-                    
-                    # Generate enhanced prompt if areas are selected
-                    if st.session_state.focus_state['selected']:
-                        st.session_state.focus_state['enhanced_prompt'] = prompt_designer.design_prompt(
-                            topic,
-                            list(st.session_state.focus_state['selected'])
-                        )
-                        
-                        # Show updated prompt in a collapsed section
-                        with st.status("✍️ Updated Prompt", expanded=False) as status:
-                            st.markdown(st.session_state.focus_state['enhanced_prompt'])
-                            status.update(label="✍️ Updated Prompt")
-                
-                # Set proceed flag
-                st.session_state.focus_state['proceed'] = True
-            
-            # Stop here if form hasn't been submitted
-            if not st.session_state.focus_state['proceed']:
-                st.stop()
-
-        # Agent 1: Framework Engineer - Pass both prompts (only reached after user choice)
-        with st.status("🎯 Creating analysis framework...") as status:
-            framework = framework_engineer.create_framework(
-                initial_prompt,
-                st.session_state.focus_state['enhanced_prompt']
-            )
-            if not framework:
-                return None, None, None
-            st.markdown(framework)
-            status.update(label="🎯 Analysis Framework")
-        
-        # Agent 2: Research Analyst
-        analysis_results = []
-        previous_analysis = None
-        
-        for iteration_num in range(iterations):
-            with st.status(f"🔄 Performing research analysis #{iteration_num + 1}...") as status:
-                st.divider()
-                
-                result = research_analyst.analyze(topic, framework, previous_analysis)
-                if not result:
+        # Stage: Initial Prompt Design
+        if st.session_state.current_analysis['stage'] == 'prompt':
+            with st.status("✍️ Designing optimal prompt...") as status:
+                initial_prompt = prompt_designer.design_prompt(topic)
+                if not initial_prompt:
                     return None, None, None
+                st.markdown(initial_prompt)
+                status.update(label="✍️ Optimized Prompt")
                 
-                if result['title']:
-                    st.markdown(f"# {result['title']}")
-                if result['subtitle']:
-                    st.markdown(f"*{result['subtitle']}*")
-                if result['content']:
-                    st.markdown(result['content'])
-                
-                analysis_results.append(result['content'])
-                previous_analysis = result['content']
-                st.divider()
-                status.update(label=f"🔄 Research Analysis #{iteration_num + 1}")
+                # Store initial prompt and update stage
+                st.session_state.current_analysis['initial_prompt'] = initial_prompt
+                st.session_state.current_analysis['stage'] = 'focus_areas'
         
-        # Agent 3: Synthesis Expert
-        with st.status("📊 Generating final report...") as status:
-            summary = synthesis_expert.synthesize(topic, analysis_results)
-            if not summary:
-                return None, None, None
-            st.markdown(summary)
-            status.update(label="📊 Final Report")
+        # Stage: Focus Area Selection
+        if st.session_state.current_analysis['stage'] == 'focus_areas':
+            if not handle_focus_area_selection(topic, prompt_designer):
+                return None, None, None  # Wait for user input
+        
+        # Stage: Framework Development
+        if st.session_state.current_analysis['stage'] == 'framework':
+            with st.status("🎯 Creating analysis framework...") as status:
+                framework = framework_engineer.create_framework(
+                    st.session_state.current_analysis['initial_prompt'],
+                    st.session_state.focus_state['enhanced_prompt']
+                )
+                if not framework:
+                    return None, None, None
+                st.markdown(framework)
+                status.update(label="🎯 Analysis Framework")
+                st.session_state.current_analysis['stage'] = 'analysis'
+        
+        # Stage: Research Analysis
+        if st.session_state.current_analysis['stage'] == 'analysis':
+            analysis_results = []
+            previous_analysis = None
+            
+            for iteration_num in range(iterations):
+                with st.status(f"🔄 Performing research analysis #{iteration_num + 1}...") as status:
+                    st.divider()
+                    
+                    result = research_analyst.analyze(topic, framework, previous_analysis)
+                    if not result:
+                        return None, None, None
+                    
+                    if result['title']:
+                        st.markdown(f"# {result['title']}")
+                    if result['subtitle']:
+                        st.markdown(f"*{result['subtitle']}*")
+                    if result['content']:
+                        st.markdown(result['content'])
+                    
+                    analysis_results.append(result['content'])
+                    previous_analysis = result['content']
+                    st.divider()
+                    status.update(label=f"🔄 Research Analysis #{iteration_num + 1}")
+            
+            st.session_state.current_analysis['stage'] = 'summary'
+        
+        # Stage: Final Synthesis
+        if st.session_state.current_analysis['stage'] == 'summary':
+            with st.status("📊 Generating final report...") as status:
+                summary = synthesis_expert.synthesize(topic, analysis_results)
+                if not summary:
+                    return None, None, None
+                st.markdown(summary)
+                status.update(label="📊 Final Report")
+                st.session_state.current_analysis['stage'] = 'complete'
             
         return framework, analysis_results, summary
         
