@@ -139,30 +139,31 @@ def display_completed_outputs():
     
     # Display insights if completed
     if outputs['insights']:
-        with st.status("💡 Did You Know", expanded=False) as status:
+        st.markdown("### 💡 Quick Insights")
+        with st.expander("Did You Know?"):
             st.markdown(outputs['insights']['did_you_know'])
-        with st.status("⚡ ELI5", expanded=False) as status:
+        with st.expander("ELI5 (Explain Like I'm 5)"):
             st.markdown(outputs['insights']['eli5'])
     
     # Display prompt if completed
     if outputs['prompt']:
-        with st.status("✍️ Optimized Prompt", expanded=False) as status:
+        with st.expander("✍️ Optimized Prompt"):
             st.markdown(outputs['prompt'])
     
     # Display framework if completed
     if outputs['framework']:
-        with st.status("🎯 Analysis Framework", expanded=False) as status:
+        with st.expander("🎯 Analysis Framework"):
             st.markdown(outputs['framework'])
     
     # Display analysis results if completed
     if outputs['analysis_results']:
         for i, result in enumerate(outputs['analysis_results']):
-            with st.status(f"🔄 Research Analysis #{i + 1}", expanded=False) as status:
+            with st.expander(f"🔄 Research Analysis #{i + 1}"):
                 st.markdown(result)
     
     # Display summary if completed
     if outputs['summary']:
-        with st.status("📊 Final Report", expanded=False) as status:
+        with st.expander("📊 Final Report"):
             st.markdown(outputs['summary'])
 
 def advance_stage(next_stage):
@@ -176,37 +177,46 @@ def process_insights(model, topic):
     """Process the insights stage."""
     state = st.session_state.analysis_state
     
-    with st.status("💡 Generating insights...", expanded=True):
-        pre_analysis = PreAnalysisAgent(model)
-        insights = pre_analysis.generate_insights(topic)
-        
-        if not insights:
-            return False
-        
-        state['outputs']['insights'] = insights
-        
-        with st.status("💡 Did You Know", expanded=True) as status:
-            st.markdown(insights['did_you_know'])
-        with st.status("⚡ ELI5", expanded=True) as status:
-            st.markdown(insights['eli5'])
-        
-        return True
+    # Generate insights
+    pre_analysis = PreAnalysisAgent(model)
+    insights = pre_analysis.generate_insights(topic)
+    
+    if not insights:
+        return False
+    
+    # Store insights
+    state['outputs']['insights'] = insights
+    
+    # Display insights
+    st.markdown("### 💡 Quick Insights")
+    
+    st.markdown("#### Did You Know?")
+    st.markdown(insights['did_you_know'])
+    
+    st.markdown("#### ELI5 (Explain Like I'm 5)")
+    st.markdown(insights['eli5'])
+    
+    return True
 
 def process_prompt(model, topic):
     """Process the prompt optimization stage."""
     state = st.session_state.analysis_state
     
-    with st.status("✍️ Designing optimal prompt...", expanded=True):
-        prompt_designer = PromptDesigner(model)
-        prompt = prompt_designer.design_prompt(topic)
-        
-        if not prompt:
-            return False
-        
-        state['outputs']['prompt'] = prompt
-        st.markdown(prompt)
-        
-        return True
+    # Generate prompt
+    prompt_designer = PromptDesigner(model)
+    prompt = prompt_designer.design_prompt(topic)
+    
+    if not prompt:
+        return False
+    
+    # Store prompt
+    state['outputs']['prompt'] = prompt
+    
+    # Display prompt
+    st.markdown("### ✍️ Optimized Prompt")
+    st.markdown(prompt)
+    
+    return True
 
 def handle_focus_selection(model, topic):
     """Handle focus area selection stage."""
