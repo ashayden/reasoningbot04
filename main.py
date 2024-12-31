@@ -32,49 +32,36 @@ st.markdown("""
     width: 100%; 
 }
 
-/* Focus area styling */
-[data-testid="stCheckbox"] {
-    background-color: #1E1E1E;
+/* Focus area chips */
+.focus-area-chip {
+    background-color: rgba(30, 30, 30, 0.6);
     border: 1px solid #333;
     border-radius: 4px;
-    padding: 8px 12px;
+    padding: 12px 16px;
     margin: 4px 0;
     cursor: pointer;
     transition: all 0.2s ease;
+    text-align: center;
 }
 
-[data-testid="stCheckbox"]:hover {
-    background-color: #2a2a2a;
+.focus-area-chip:hover {
+    background-color: rgba(42, 42, 42, 0.8);
     border-color: #444;
 }
 
-[data-testid="stCheckbox"] label {
-    cursor: pointer;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-}
-
-[data-testid="stCheckbox"] label p {
-    margin: 0;
-    padding: 0;
-    color: #fff;
-    font-size: 0.9em;
-}
-
-[data-testid="stCheckbox"] [data-testid="stMarkdownContainer"] {
-    display: none;
-}
-
-/* Selected state */
-[data-testid="stCheckbox"][aria-checked="true"] {
+.focus-area-chip.selected {
     background-color: rgba(0, 102, 204, 0.1);
     border-color: #0066cc;
 }
 
-[data-testid="stCheckbox"][aria-checked="true"] label p {
+.focus-area-chip.selected span {
     color: #0066cc;
     font-weight: 500;
+}
+
+.focus-area-chip span {
+    color: #fff;
+    font-size: 0.95em;
 }
 
 /* Focus area buttons */
@@ -185,9 +172,6 @@ def handle_focus_area_selection(topic: str, prompt_designer):
         st.markdown("### 🎯 Select Focus Areas")
         st.markdown("Choose specific aspects you'd like the analysis to emphasize (optional):")
         
-        # Create a container for the focus areas
-        focus_container = st.container()
-        
         # Create a grid layout for focus areas
         cols = st.columns(3)
         
@@ -198,25 +182,29 @@ def handle_focus_area_selection(topic: str, prompt_designer):
         # Display focus areas in a grid
         for i, area in enumerate(st.session_state.focus_state['areas']):
             col_idx = i % 3
-            # Create a unique key for each checkbox
+            # Create a unique key for each area
             key = f"focus_{i}"
             
-            # Display checkbox in appropriate column
+            # Check if area is selected
+            is_selected = area in st.session_state.focus_state['selected']
+            selected_class = "selected" if is_selected else ""
+            
+            # Display clickable chip in appropriate column
             with cols[col_idx]:
-                if st.checkbox(
-                    area,
-                    key=key,
-                    value=area in st.session_state.focus_state['selected']
+                if st.markdown(
+                    f"""
+                    <div class="focus-area-chip {selected_class}" 
+                         onclick="this.classList.toggle('selected'); window.streamlit.setComponentValue('{key}', !{str(is_selected).lower()})">
+                        <span>{area}</span>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
                 ):
-                    # Add to selected areas if checked
-                    st.session_state.focus_state['selected'].add(area)
-                elif area in st.session_state.focus_state['selected']:
-                    # Remove from selected areas if unchecked
-                    st.session_state.focus_state['selected'].discard(area)
-                
-                # Display selection status for debugging
-                if area in st.session_state.focus_state['selected']:
-                    st.markdown(f"<div style='display: none;'>{area} is selected</div>", unsafe_allow_html=True)
+                    # Toggle selection state
+                    if is_selected:
+                        st.session_state.focus_state['selected'].discard(area)
+                    else:
+                        st.session_state.focus_state['selected'].add(area)
         
         # Add some spacing
         st.markdown("---")
