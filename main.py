@@ -137,6 +137,8 @@ def reset_focus_state():
         'proceed': False,
         'enhanced_prompt': None
     }
+    if 'selected_areas' in st.session_state:
+        del st.session_state.selected_areas
 
 def toggle_focus_area(area: str):
     """Toggle focus area selection in session state."""
@@ -149,58 +151,66 @@ def toggle_focus_area(area: str):
 
 def handle_focus_area_selection(topic: str, prompt_designer):
     """Handle the focus area selection process."""
+    # Generate focus areas only once and store in session state
     if st.session_state.focus_state['areas'] is None:
         st.session_state.focus_state['areas'] = prompt_designer.generate_focus_areas(topic)
         
     if st.session_state.focus_state['areas']:
-        st.markdown("### 🎯 Select Focus Areas")
-        st.markdown("Choose specific aspects you'd like the analysis to emphasize (optional):")
-        
-        # Use multiselect instead of individual buttons
-        selected_areas = st.multiselect(
-            "Focus Areas",
-            options=st.session_state.focus_state['areas'],
-            default=[],
-            label_visibility="collapsed"
-        )
-        
-        st.markdown("---")
-        
-        col1, col2 = st.columns(2)
-        
-        if col1.button(
-            "Skip",
-            key="skip_focus",
-            help="Proceed with analysis using only the optimized prompt",
-            use_container_width=True
-        ):
-            st.session_state.focus_state['proceed'] = True
-            st.session_state.current_analysis['stage'] = 'framework'
-            return True
-        
-        continue_disabled = len(selected_areas) == 0
-        if col2.button(
-            "Continue",
-            key="continue_focus",
-            disabled=continue_disabled,
-            help="Proceed with analysis using selected focus areas",
-            type="primary",
-            use_container_width=True
-        ):
-            st.session_state.focus_state['enhanced_prompt'] = prompt_designer.design_prompt(
-                topic,
-                selected_areas
+        # Create a container for focus area selection
+        focus_container = st.container()
+        with focus_container:
+            st.markdown("### 🎯 Select Focus Areas")
+            st.markdown("Choose specific aspects you'd like the analysis to emphasize (optional):")
+            
+            # Store selected areas in session state to preserve during reruns
+            if 'selected_areas' not in st.session_state:
+                st.session_state.selected_areas = []
+            
+            # Use multiselect with session state
+            st.session_state.selected_areas = st.multiselect(
+                "Focus Areas",
+                options=st.session_state.focus_state['areas'],
+                default=st.session_state.selected_areas,
+                label_visibility="collapsed"
             )
             
-            with st.status("✍️ Updated Prompt", expanded=False) as status:
-                st.markdown(st.session_state.focus_state['enhanced_prompt'])
-                status.update(label="✍️ Updated Prompt")
+            st.markdown("---")
             
-            st.session_state.focus_state['proceed'] = True
-            st.session_state.current_analysis['stage'] = 'framework'
-            return True
-        
-        return False
+            col1, col2 = st.columns(2)
+            
+            if col1.button(
+                "Skip",
+                key="skip_focus",
+                help="Proceed with analysis using only the optimized prompt",
+                use_container_width=True
+            ):
+                st.session_state.focus_state['proceed'] = True
+                st.session_state.current_analysis['stage'] = 'framework'
+                return True
+            
+            continue_disabled = len(st.session_state.selected_areas) == 0
+            if col2.button(
+                "Continue",
+                key="continue_focus",
+                disabled=continue_disabled,
+                help="Proceed with analysis using selected focus areas",
+                type="primary",
+                use_container_width=True
+            ):
+                st.session_state.focus_state['enhanced_prompt'] = prompt_designer.design_prompt(
+                    topic,
+                    st.session_state.selected_areas
+                )
+                
+                with st.status("✍️ Updated Prompt", expanded=False) as status:
+                    st.markdown(st.session_state.focus_state['enhanced_prompt'])
+                    status.update(label="✍️ Updated Prompt")
+                
+                st.session_state.focus_state['proceed'] = True
+                st.session_state.current_analysis['stage'] = 'framework'
+                return True
+            
+            return False
     
     return True
 
