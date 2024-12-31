@@ -267,23 +267,24 @@ def process_stage(model, topic):
     
     # Process current stage
     if state['analysis']['stage'] == 'start':
+        # Move directly to insights stage
         advance_stage('insights')
-        st.rerun()
+        st.experimental_rerun()
         
     elif state['analysis']['stage'] == 'insights':
         if process_insights(model, topic):
             advance_stage('prompt')
-            st.rerun()
+            st.experimental_rerun()
             
     elif state['analysis']['stage'] == 'prompt':
         if process_prompt(model, topic):
             advance_stage('focus')
-            st.rerun()
+            st.experimental_rerun()
             
     elif state['analysis']['stage'] == 'focus':
         if handle_focus_selection(model, topic):
             advance_stage('framework')
-            st.rerun()
+            st.experimental_rerun()
         st.stop()  # Pause for user input
 
 # Initialize Gemini
@@ -423,9 +424,12 @@ with st.form("analysis_form"):
 
 # Analysis section
 if submit and topic:
+    state = st.session_state.analysis_state
+    
     # Reset state if topic changed or starting new analysis
-    if (st.session_state.analysis_state['analysis']['topic'] != topic or 
-        st.session_state.analysis_state['analysis']['stage'] == 'complete'):
+    if (state['analysis']['topic'] != topic or 
+        state['analysis']['stage'] == 'complete'):
+        
         # Reset analysis state
         st.session_state.analysis_state = {
             'analysis': {
@@ -445,12 +449,20 @@ if submit and topic:
                 'summary': None
             }
         }
-        st.rerun()
+    
+    # Display initial status
+    if state['analysis']['stage'] == 'start':
+        with st.status("🚀 Starting analysis...", expanded=True):
+            st.write("Initializing analysis process...")
     
     # Run analysis
-    framework, analysis, summary = analyze_topic(model, topic, iterations)
-    
-    # Handle completion
-    if framework and analysis and summary:
-        if st.session_state.analysis_state['analysis']['stage'] == 'complete':
-            st.success("Analysis complete! Review the results above.") 
+    try:
+        framework, analysis, summary = analyze_topic(model, topic, iterations)
+        
+        # Handle completion
+        if framework and analysis and summary:
+            if state['analysis']['stage'] == 'complete':
+                st.success("Analysis complete! Review the results above.")
+    except Exception as e:
+        st.error(f"An error occurred during analysis: {str(e)}")
+        logger.error(f"Analysis error: {str(e)}") 
