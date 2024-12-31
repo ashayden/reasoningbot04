@@ -1,6 +1,12 @@
+"""Main application file for MARA."""
+
+import logging
 import streamlit as st
 import google.generativeai as genai
-import logging
+
+from config import GEMINI_MODEL, DEPTH_ITERATIONS
+from utils import validate_topic, sanitize_topic
+from agents import PromptDesigner, FrameworkEngineer, ResearchAnalyst, SynthesisExpert
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -29,161 +35,100 @@ st.image("assets/mara-logo.png", use_container_width=True)
 # Initialize Gemini
 @st.cache_resource
 def initialize_gemini():
+    """Initialize the Gemini model with caching."""
     try:
         api_key = st.secrets["GOOGLE_API_KEY"]
         genai.configure(api_key=api_key)
-        return genai.GenerativeModel("gemini-1.5-pro-latest")
+        return genai.GenerativeModel(GEMINI_MODEL)
     except Exception as e:
+        logger.error(f"Failed to initialize Gemini API: {str(e)}")
         st.error(f"Failed to initialize Gemini API: {str(e)}")
         return None
 
-def analyze_topic(model, topic, iterations=1):
-    """Perform multi-agent analysis of a topic."""
+def analyze_topic(model, topic: str, iterations: int = 1):
+    """Perform multi-agent analysis of a topic.
+    
+    Args:
+        model: The initialized Gemini model
+        topic: The topic to analyze
+        iterations: Number of analysis iterations to perform
+        
+    Returns:
+        Tuple of (framework, analysis_results, summary) or (None, None, None) on error
+    """
     try:
-        # Agent 0: Prompt Designer - Very low temperature for precise prompt engineering
+        # Validate and sanitize input
+        is_valid, error_msg = validate_topic(topic)
+        if not is_valid:
+            st.error(error_msg)
+            return None, None, None
+            
+        topic = sanitize_topic(topic)
+        
+        # Initialize agents
+        prompt_designer = PromptDesigner(model)
+        framework_engineer = FrameworkEngineer(model)
+        research_analyst = ResearchAnalyst(model)
+        synthesis_expert = SynthesisExpert(model)
+        
+        # Agent 0: Prompt Designer
         with st.status("✍️ Designing optimal prompt...") as status:
-            prompt_design = model.generate_content(
-                f"""As an expert prompt engineer, create a concise one-paragraph prompt that will guide the development 
-                of a research framework for analyzing '{topic}'. Focus on the essential aspects that need to be 
-                investigated while maintaining analytical rigor and academic standards.""",
-                generation_config=genai.types.GenerationConfig(
-                    temperature=0.1,  # Very low temperature for precise, consistent output
-                    candidate_count=1,
-                    max_output_tokens=1024
-                )
-            ).text
+            prompt_design = prompt_designer.design_prompt(topic)
+            if not prompt_design:
+                return None, None, None
             st.markdown(prompt_design)
             status.update(label="✍️ Optimized Prompt")
 
-        # Agent 1: Framework - Lower temperature for more focused, structured output
+        # Agent 1: Framework Engineer
         with st.status("🎯 Creating analysis framework...") as status:
-            framework = model.generate_content(
-                f"""{prompt_design}
-
-                Based on this prompt, create a detailed research framework that:
-                1. Outlines the key areas of investigation
-                2. Specifies methodological approaches
-                3. Defines evaluation criteria
-                4. Sets clear milestones for the analysis process""",
-                generation_config=genai.types.GenerationConfig(
-                    temperature=0.1,  # Lower temperature for structured, consistent framework
-                    candidate_count=1,
-                    max_output_tokens=1024
-                )
-            ).text
+            framework = framework_engineer.create_framework(prompt_design)
+            if not framework:
+                return None, None, None
             st.markdown(framework)
             status.update(label="🎯 Analysis Framework")
         
-        # Agent 2: Analysis - Higher temperature for creative, diverse perspectives
-        analysis = []
+        # Agent 2: Research Analyst
+        analysis_results = []
+        previous_analysis = None
+        
         for iteration_num in range(iterations):
             with st.status(f"🔄 Performing research analysis #{iteration_num + 1}...") as status:
-                # Create a new section for each analysis iteration
                 with st.container():
                     st.divider()
-                    # Add the iteration header
                     st.markdown(f"### 🔄 Research Analysis #{iteration_num + 1}")
                     
-                    if iteration_num == 0:
-                        prompt = f"""Acting as a leading expert in topic-related field: Based on the framework above, conduct an initial research analysis of '{topic}'. 
-                        Follow the methodological approaches and evaluation criteria specified in the framework.
-                        Provide detailed findings for each key area of investigation outlined.
-                        
-                        Start your response with a title in this exact format (including the newlines):
-                        Title: Your Main Title Here
-                        Subtitle: Your Descriptive Subtitle Here
-
-                        Then continue with your analysis content."""
-                    else:
-                        prompt = f"""Review the previous research iteration:
-                        {analysis[-1]}
-                        
-                        Based on this previous analysis and the original framework, expand and deepen the research by:
-                        1. Identifying gaps or areas needing more depth
-                        2. Exploring new connections and implications
-                        3. Refining and strengthening key arguments
-                        4. Adding new supporting evidence or perspectives
-                        
-                        Start your response with a title in this exact format (including the newlines):
-                        Title: Your Main Title Here
-                        Subtitle: Your Descriptive Subtitle Here
-
-                        Then continue with your analysis content."""
-
-                    result = model.generate_content(
-                        prompt,
-                        generation_config=genai.types.GenerationConfig(
-                            temperature=0.7,  # Higher temperature for creative analysis
-                            candidate_count=1,
-                            max_output_tokens=2048
-                        )
-                    ).text
+                    result = research_analyst.analyze(topic, framework, previous_analysis)
+                    if not result:
+                        return None, None, None
                     
-                    # Split the result into title, subtitle, and content
-                    lines = result.split('\n')
-                    main_title = ""
-                    subtitle = ""
-                    content_start = 0
+                    if result['title']:
+                        st.markdown(f"# {result['title']}")
+                    if result['subtitle']:
+                        st.markdown(f"*{result['subtitle']}*")
+                    if result['content']:
+                        st.markdown(result['content'])
                     
-                    # Parse the title and subtitle
-                    for i, line in enumerate(lines):
-                        if line.startswith('Title:'):
-                            main_title = line.replace('Title:', '').strip()
-                        elif line.startswith('Subtitle:'):
-                            subtitle = line.replace('Subtitle:', '').strip()
-                            content_start = i + 1
-                            break
-                    
-                    # Get the remaining content
-                    content = '\n'.join(lines[content_start:]).strip()
-                    
-                    # Display formatted title and subtitle
-                    if main_title:
-                        st.markdown(f"# {main_title}")
-                    if subtitle:
-                        st.markdown(f"*{subtitle}*")
-                        st.markdown("\n")  # Add some spacing
-                    if content:
-                        st.markdown(content)
-                    else:
-                        # Fallback if parsing failed
-                        st.markdown(result)
-                    
-                    analysis.append(result)
+                    analysis_results.append(result['content'])
+                    previous_analysis = result['content']
                     st.divider()
                     status.update(label=f"🔄 Research Analysis #{iteration_num + 1}")
         
-        # Agent 3: Summary - Medium-low temperature for balanced, coherent synthesis
+        # Agent 3: Synthesis Expert
         with st.status("📊 Generating final report...") as status:
-            summary = model.generate_content(
-                f"""Synthesize all research from agent 2 on '{topic}' into a Final Report with:
-                1. Executive Summary (2-3 paragraphs)
-                2. Key Insights (bullet points)
-                3. Analysis
-                4. Conclusion
-                5. Further Considerations & Counter-Arguments (where applicable)
-                6. Recommended Readings and Resources
-                
-                Analysis to synthesize: {' '.join(analysis)}""",
-                generation_config=genai.types.GenerationConfig(
-                    temperature=0.3,  # Medium-low temperature for coherent synthesis
-                    candidate_count=1,
-                    max_output_tokens=4096
-                )
-            ).text
+            summary = synthesis_expert.synthesize(topic, analysis_results)
+            if not summary:
+                return None, None, None
             st.markdown(summary)
             status.update(label="📊 Final Report")
             
-        return framework, analysis, summary
+        return framework, analysis_results, summary
         
     except Exception as e:
-        st.error(f"Analysis error: {str(e)}")
         logger.error(f"Analysis error: {str(e)}")
+        st.error(f"Analysis error: {str(e)}")
         return None, None, None
 
 # Main UI
-
-# Sidebar
 with st.sidebar:
     st.markdown("""
     0. ✍️ Prompt Designer
@@ -206,16 +151,14 @@ with st.form("analysis_form"):
     
     depth = st.select_slider(
         "Analysis Depth",
-        options=["Quick", "Balanced", "Deep", "Comprehensive"],
+        options=list(DEPTH_ITERATIONS.keys()),
         value="Balanced"
     )
     
     submit = st.form_submit_button("🚀 Start Analysis")
 
 if submit and topic:
-    depth_iterations = {"Quick": 1, "Balanced": 2, "Deep": 3, "Comprehensive": 4}
-    iterations = depth_iterations[depth]
-    
+    iterations = DEPTH_ITERATIONS[depth]
     framework, analysis, summary = analyze_topic(model, topic, iterations)
     
     if framework and analysis and summary:
