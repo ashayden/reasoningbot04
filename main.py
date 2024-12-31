@@ -230,58 +230,48 @@ def analyze_topic(model, topic: str, iterations: int = 1):
         
         # Stage: Quick Insights
         if state['stage'] == 'start':
-            # Only generate insights if not already stored
-            if not state['outputs']['insights']:
-                insights = pre_analysis.generate_insights(topic)
-                if not insights:
-                    return None, None, None
-                state['outputs']['insights'] = insights
-                transition_to_stage('prompt')
-                st.rerun()
+            insights = pre_analysis.generate_insights(topic)
+            if not insights:
+                return None, None, None
             
-            # Display insights
+            state['outputs']['insights'] = insights
+            
             with st.status("💡 Did You Know", expanded=True) as status:
-                st.markdown(state['outputs']['insights']['did_you_know'])
+                st.markdown(insights['did_you_know'])
                 status.update(label="💡 Did You Know")
                 
             with st.status("⚡ ELI5", expanded=True) as status:
-                st.markdown(state['outputs']['insights']['eli5'])
+                st.markdown(insights['eli5'])
                 status.update(label="⚡ ELI5")
             
-            # Move to next stage
             transition_to_stage('prompt')
-        else:
-            # Display previous insights
-            if state['outputs']['insights']:
-                with st.status("💡 Did You Know", expanded=False) as status:
-                    st.markdown(state['outputs']['insights']['did_you_know'])
-                with st.status("⚡ ELI5", expanded=False) as status:
-                    st.markdown(state['outputs']['insights']['eli5'])
+            st.rerun()
+            
+        # Display previous insights if they exist
+        elif state['outputs']['insights']:
+            with st.status("💡 Did You Know", expanded=False) as status:
+                st.markdown(state['outputs']['insights']['did_you_know'])
+            with st.status("⚡ ELI5", expanded=False) as status:
+                st.markdown(state['outputs']['insights']['eli5'])
         
         # Stage: Initial Prompt Design
         if state['stage'] == 'prompt':
-            # Only generate prompt if not already stored
-            if not state['outputs']['initial_prompt']:
-                with st.status("✍️ Designing optimal prompt...") as status:
-                    initial_prompt = prompt_designer.design_prompt(topic)
-                    if not initial_prompt:
-                        return None, None, None
-                    
-                    state['outputs']['initial_prompt'] = initial_prompt
-                    st.markdown(initial_prompt)
-                    status.update(label="✍️ Optimized Prompt")
-                    
-                    transition_to_stage('focus_areas')
-                    st.rerun()
-            else:
-                with st.status("✍️ Optimized Prompt", expanded=True) as status:
-                    st.markdown(state['outputs']['initial_prompt'])
+            with st.status("✍️ Designing optimal prompt...") as status:
+                initial_prompt = prompt_designer.design_prompt(topic)
+                if not initial_prompt:
+                    return None, None, None
+                
+                state['outputs']['initial_prompt'] = initial_prompt
+                st.markdown(initial_prompt)
+                status.update(label="✍️ Optimized Prompt")
+                
                 transition_to_stage('focus_areas')
-        else:
-            # Display stored prompt
-            if state['outputs']['initial_prompt']:
-                with st.status("✍️ Optimized Prompt", expanded=False) as status:
-                    st.markdown(state['outputs']['initial_prompt'])
+                st.rerun()
+                
+        # Display stored prompt if it exists
+        elif state['outputs']['initial_prompt']:
+            with st.status("✍️ Optimized Prompt", expanded=False) as status:
+                st.markdown(state['outputs']['initial_prompt'])
         
         # Stage: Focus Area Selection
         if state['stage'] == 'focus_areas':
@@ -415,9 +405,8 @@ with st.form("analysis_form"):
 
 # Analysis section
 if submit and topic:
-    # Reset state if topic changed
-    if st.session_state.app_state['topic'] != topic:
-        # Reset analysis state
+    # Reset state if topic changed or starting new analysis
+    if st.session_state.app_state['topic'] != topic or st.session_state.app_state['stage'] == 'complete':
         st.session_state.app_state = {
             'stage': 'start',
             'topic': topic,
@@ -435,14 +424,22 @@ if submit and topic:
                 'focus_selection_complete': False
             }
         }
+        st.rerun()
+    
+    # Display progress indicator
+    if st.session_state.app_state['stage'] == 'start':
+        with st.status("🚀 Starting analysis...", expanded=True):
+            st.write("Initializing analysis process...")
     
     # Run analysis
     framework, analysis, summary = analyze_topic(model, topic, iterations)
     
+    # Handle completion
     if framework and analysis and summary:
         st.session_state.app_state.update({
             'framework': framework,
             'analysis': analysis,
             'summary': summary
         })
-        st.success("Analysis complete! Review the results above.") 
+        if st.session_state.app_state['stage'] == 'complete':
+            st.success("Analysis complete! Review the results above.") 
