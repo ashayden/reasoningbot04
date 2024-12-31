@@ -17,6 +17,67 @@ from utils import rate_limit_decorator, parse_title_content
 
 logger = logging.getLogger(__name__)
 
+class PreAnalysisAgent:
+    """Agent responsible for generating quick insights before main analysis."""
+    
+    def __init__(self, model):
+        """Initialize the agent with a model."""
+        self.model = model
+        
+    def generate_insights(self, topic: str) -> Optional[Dict[str, str]]:
+        """Generate quick insights about the topic.
+        
+        Args:
+            topic: The topic to analyze
+            
+        Returns:
+            Dictionary containing 'did_you_know' and 'eli5' sections,
+            or None if generation fails
+        """
+        try:
+            # Generate fun fact
+            fact_prompt = (
+                "Generate a single sentence interesting fact related to this topic: "
+                f"'{topic}'\n\n"
+                "The fact should:\n"
+                "- Be surprising or fascinating\n"
+                "- Be true and accurate\n"
+                "- Not directly answer or summarize the topic\n"
+                "- Include 1-2 relevant emojis when appropriate\n"
+                "- Be exactly one sentence\n\n"
+                "Respond with just the fact, no additional text."
+            )
+            
+            fact_response = self.model.generate_content(fact_prompt)
+            if not fact_response:
+                return None
+            
+            # Generate ELI5
+            eli5_prompt = (
+                "Explain this topic in extremely simple terms: "
+                f"'{topic}'\n\n"
+                "The explanation should:\n"
+                "- Use very simple, straightforward language\n"
+                "- Be 1-3 sentences maximum\n"
+                "- Include 1-3 relevant emojis when appropriate\n"
+                "- If it's a question, answer it directly\n"
+                "- If it's a topic, give a high-level overview\n\n"
+                "Respond with just the explanation, no additional text."
+            )
+            
+            eli5_response = self.model.generate_content(eli5_prompt)
+            if not eli5_response:
+                return None
+            
+            return {
+                'did_you_know': fact_response.text.strip(),
+                'eli5': eli5_response.text.strip()
+            }
+            
+        except Exception as e:
+            logger.error(f"PreAnalysis generation failed: {str(e)}")
+            return None
+
 class BaseAgent:
     """Base class for all agents."""
     

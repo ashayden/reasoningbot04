@@ -7,7 +7,7 @@ import os
 
 from config import GEMINI_MODEL
 from utils import validate_topic, sanitize_topic
-from agents import PromptDesigner, FrameworkEngineer, ResearchAnalyst, SynthesisExpert
+from agents import PreAnalysisAgent, PromptDesigner, FrameworkEngineer, ResearchAnalyst, SynthesisExpert
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -112,10 +112,27 @@ def analyze_topic(model, topic: str, iterations: int = 1):
         topic = sanitize_topic(topic)
         
         # Initialize agents
+        pre_analysis = PreAnalysisAgent(model)
         prompt_designer = PromptDesigner(model)
         framework_engineer = FrameworkEngineer(model)
         research_analyst = ResearchAnalyst(model)
         synthesis_expert = SynthesisExpert(model)
+        
+        # Pre-Analysis Agent
+        with st.status("🎯 Generating quick insights...") as status:
+            insights = pre_analysis.generate_insights(topic)
+            if not insights:
+                return None, None, None
+                
+            # Display Did You Know section
+            st.markdown("### 💡 Did You Know")
+            st.markdown(insights['did_you_know'])
+            
+            # Display ELI5 section
+            st.markdown("### 🔍 Quick Overview")
+            st.markdown(insights['eli5'])
+            
+            status.update(label="🎯 Quick Insights Generated")
         
         # Agent 0: Prompt Designer
         with st.status("✍️ Designing optimal prompt...") as status:
