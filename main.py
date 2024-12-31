@@ -32,6 +32,15 @@ div[data-testid="stImage"] > img { max-width: 800px; width: 100%; }
 # Logo/Header
 st.image("assets/mara-logo.png", use_container_width=True)
 
+# Initialize session state for results
+if 'current_analysis' not in st.session_state:
+    st.session_state.current_analysis = {
+        'topic': None,
+        'framework': None,
+        'analysis': None,
+        'summary': None
+    }
+
 # Initialize Gemini
 @st.cache_resource
 def initialize_gemini():
@@ -44,6 +53,18 @@ def initialize_gemini():
         logger.error(f"Failed to initialize Gemini API: {str(e)}")
         st.error(f"Failed to initialize Gemini API: {str(e)}")
         return None
+
+def clear_results():
+    """Clear all previous analysis results."""
+    st.session_state.current_analysis = {
+        'topic': None,
+        'framework': None,
+        'analysis': None,
+        'summary': None
+    }
+    # Clear all containers
+    if 'analysis_container' in st.session_state:
+        st.session_state.analysis_container.empty()
 
 def analyze_topic(model, topic: str, iterations: int = 1):
     """Perform multi-agent analysis of a topic.
@@ -71,57 +92,62 @@ def analyze_topic(model, topic: str, iterations: int = 1):
         research_analyst = ResearchAnalyst(model)
         synthesis_expert = SynthesisExpert(model)
         
-        # Agent 0: Prompt Designer
-        with st.status("✍️ Designing optimal prompt...") as status:
-            prompt_design = prompt_designer.design_prompt(topic)
-            if not prompt_design:
-                return None, None, None
-            st.markdown(prompt_design)
-            status.update(label="✍️ Optimized Prompt")
+        # Create a container for analysis output
+        if 'analysis_container' not in st.session_state:
+            st.session_state.analysis_container = st.container()
+        
+        with st.session_state.analysis_container:
+            # Agent 0: Prompt Designer
+            with st.status("✍️ Designing optimal prompt...") as status:
+                prompt_design = prompt_designer.design_prompt(topic)
+                if not prompt_design:
+                    return None, None, None
+                st.markdown(prompt_design)
+                status.update(label="✍️ Optimized Prompt")
 
-        # Agent 1: Framework Engineer
-        with st.status("🎯 Creating analysis framework...") as status:
-            framework = framework_engineer.create_framework(prompt_design)
-            if not framework:
-                return None, None, None
-            st.markdown(framework)
-            status.update(label="🎯 Analysis Framework")
-        
-        # Agent 2: Research Analyst
-        analysis_results = []
-        previous_analysis = None
-        
-        for iteration_num in range(iterations):
-            with st.status(f"🔄 Performing research analysis #{iteration_num + 1}...") as status:
-                with st.container():
-                    st.divider()
-                    
-                    result = research_analyst.analyze(topic, framework, previous_analysis)
-                    if not result:
-                        return None, None, None
-                    
-                    if result['title']:
-                        st.markdown(f"# {result['title']}")
-                    if result['subtitle']:
-                        st.markdown(f"*{result['subtitle']}*")
-                    if result['content']:
-                        st.markdown(result['content'])
-                    
-                    analysis_results.append(result['content'])
-                    previous_analysis = result['content']
-                    st.divider()
-                    status.update(label=f"🔄 Research Analysis #{iteration_num + 1}")
-        
-        # Agent 3: Synthesis Expert
-        with st.status("📊 Generating final report...") as status:
-            summary = synthesis_expert.synthesize(topic, analysis_results)
-            if not summary:
-                return None, None, None
-            st.markdown(summary)
-            status.update(label="📊 Final Report")
+            # Agent 1: Framework Engineer
+            with st.status("🎯 Creating analysis framework...") as status:
+                framework = framework_engineer.create_framework(prompt_design)
+                if not framework:
+                    return None, None, None
+                st.markdown(framework)
+                status.update(label="🎯 Analysis Framework")
             
-        return framework, analysis_results, summary
-        
+            # Agent 2: Research Analyst
+            analysis_results = []
+            previous_analysis = None
+            
+            for iteration_num in range(iterations):
+                with st.status(f"🔄 Performing research analysis #{iteration_num + 1}...") as status:
+                    with st.container():
+                        st.divider()
+                        
+                        result = research_analyst.analyze(topic, framework, previous_analysis)
+                        if not result:
+                            return None, None, None
+                        
+                        if result['title']:
+                            st.markdown(f"# {result['title']}")
+                        if result['subtitle']:
+                            st.markdown(f"*{result['subtitle']}*")
+                        if result['content']:
+                            st.markdown(result['content'])
+                        
+                        analysis_results.append(result['content'])
+                        previous_analysis = result['content']
+                        st.divider()
+                        status.update(label=f"🔄 Research Analysis #{iteration_num + 1}")
+            
+            # Agent 3: Synthesis Expert
+            with st.status("📊 Generating final report...") as status:
+                summary = synthesis_expert.synthesize(topic, analysis_results)
+                if not summary:
+                    return None, None, None
+                st.markdown(summary)
+                status.update(label="📊 Final Report")
+                
+            return framework, analysis_results, summary
+            
     except Exception as e:
         logger.error(f"Analysis error: {str(e)}")
         st.error(f"Analysis error: {str(e)}")
@@ -157,8 +183,18 @@ with st.form("analysis_form"):
     submit = st.form_submit_button("🚀 Start Analysis")
 
 if submit and topic:
+    # Clear previous results when starting new analysis
+    if st.session_state.current_analysis['topic'] != topic:
+        clear_results()
+        st.session_state.current_analysis['topic'] = topic
+    
     iterations = DEPTH_ITERATIONS[depth]
     framework, analysis, summary = analyze_topic(model, topic, iterations)
     
     if framework and analysis and summary:
+        st.session_state.current_analysis.update({
+            'framework': framework,
+            'analysis': analysis,
+            'summary': summary
+        })
         st.success("Analysis complete! Review the results above.") 
