@@ -7,6 +7,15 @@ import google.generativeai as genai
 from config import GEMINI_MODEL, DEPTH_ITERATIONS
 from utils import validate_topic, sanitize_topic
 from agents import PromptDesigner, FrameworkEngineer, ResearchAnalyst, SynthesisExpert
+from state_manager import StateManager
+from constants import (
+    CUSTOM_CSS,
+    SIDEBAR_CONTENT,
+    TOPIC_INPUT,
+    DEPTH_SELECTOR,
+    ERROR_MESSAGES
+)
+from exceptions import MARAException
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -19,27 +28,11 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom CSS and Logo
-st.markdown("""
-<style>
-.block-container { max-width: 800px; padding: 2rem 1rem; }
-.stButton > button { width: 100%; }
-div[data-testid="stImage"] { text-align: center; }
-div[data-testid="stImage"] > img { max-width: 800px; width: 100%; }
-</style>
-""", unsafe_allow_html=True)
+# Custom CSS
+st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
 # Logo/Header
 st.image("assets/mara-logo.png", use_container_width=True)
-
-# Initialize session state for results
-if 'current_analysis' not in st.session_state:
-    st.session_state.current_analysis = {
-        'topic': None,
-        'framework': None,
-        'analysis': None,
-        'summary': None
-    }
 
 # Initialize Gemini
 @st.cache_resource
@@ -50,21 +43,9 @@ def initialize_gemini():
         genai.configure(api_key=api_key)
         return genai.GenerativeModel(GEMINI_MODEL)
     except Exception as e:
-        logger.error(f"Failed to initialize Gemini API: {str(e)}")
-        st.error(f"Failed to initialize Gemini API: {str(e)}")
+        logger.error(ERROR_MESSAGES['API_INIT'].format(error=str(e)))
+        StateManager.show_error('API_INIT', e)
         return None
-
-def clear_results():
-    """Clear all previous analysis results."""
-    st.session_state.current_analysis = {
-        'topic': None,
-        'framework': None,
-        'analysis': None,
-        'summary': None
-    }
-    # Clear all containers
-    if 'analysis_container' in st.session_state:
-        st.session_state.analysis_container.empty()
 
 def analyze_topic(model, topic: str, iterations: int = 1):
     """Perform multi-agent analysis of a topic.
@@ -87,80 +68,71 @@ def analyze_topic(model, topic: str, iterations: int = 1):
         topic = sanitize_topic(topic)
         
         # Initialize agents
-        prompt_designer = PromptDesigner(model)
         framework_engineer = FrameworkEngineer(model)
         research_analyst = ResearchAnalyst(model)
         synthesis_expert = SynthesisExpert(model)
         
-        # Create a container for analysis output
-        if 'analysis_container' not in st.session_state:
-            st.session_state.analysis_container = st.container()
+        # Get analysis container
+        container = StateManager.create_analysis_container()
         
-        with st.session_state.analysis_container:
-            # Agent 0: Prompt Designer
-            with st.status("✍️ Designing optimal prompt...") as status:
-                prompt_design = prompt_designer.design_prompt(topic)
-                if not prompt_design:
-                    return None, None, None
-                st.markdown(prompt_design)
-                status.update(label="✍️ Optimized Prompt")
-
+        with container:
             # Agent 1: Framework Engineer
-            with st.status("🎯 Creating analysis framework...") as status:
-                framework = framework_engineer.create_framework(prompt_design)
+            with StateManager.show_status('FRAMEWORK') as status:
+                framework = framework_engineer.create_framework(topic)
                 if not framework:
                     return None, None, None
                 st.markdown(framework)
-                status.update(label="🎯 Analysis Framework")
+                StateManager.update_status(status, 'FRAMEWORK')
             
             # Agent 2: Research Analyst
             analysis_results = []
             previous_analysis = None
             
             for iteration_num in range(iterations):
-                with st.status(f"🔄 Performing research analysis #{iteration_num + 1}...") as status:
-                    with st.container():
-                        st.divider()
-                        
-                        result = research_analyst.analyze(topic, framework, previous_analysis)
-                        if not result:
-                            return None, None, None
-                        
-                        if result['title']:
-                            st.markdown(f"# {result['title']}")
-                        if result['subtitle']:
-                            st.markdown(f"*{result['subtitle']}*")
-                        if result['content']:
-                            st.markdown(result['content'])
-                        
-                        analysis_results.append(result['content'])
-                        previous_analysis = result['content']
-                        st.divider()
-                        status.update(label=f"🔄 Research Analysis #{iteration_num + 1}")
+                with StateManager.show_status('ANALYSIS', iteration_num + 1) as status:
+                    st.divider()
+                    
+                    result = research_analyst.analyze(topic, framework, previous_analysis)
+                    if not result:
+                        return None, None, None
+                    
+                    if result['title']:
+                        st.markdown(f"# {result['title']}")
+                    if result['subtitle']:
+                        st.markdown(f"*{result['subtitle']}*")
+                    if result['content']:
+                        st.markdown(result['content'])
+                    
+                    analysis_results.append(result['content'])
+                    previous_analysis = result['content']
+                    st.divider()
+                    StateManager.update_status(status, 'ANALYSIS', iteration_num + 1)
             
             # Agent 3: Synthesis Expert
-            with st.status("📊 Generating final report...") as status:
+            with StateManager.show_status('SYNTHESIS') as status:
                 summary = synthesis_expert.synthesize(topic, analysis_results)
                 if not summary:
                     return None, None, None
                 st.markdown(summary)
-                status.update(label="📊 Final Report")
+                StateManager.update_status(status, 'SYNTHESIS')
                 
             return framework, analysis_results, summary
             
-    except Exception as e:
-        logger.error(f"Analysis error: {str(e)}")
-        st.error(f"Analysis error: {str(e)}")
+    except MARAException as e:
+        logger.error(f"MARA error: {str(e)}")
+        st.error(str(e))
         return None, None, None
+    except Exception as e:
+        logger.error(ERROR_MESSAGES['ANALYSIS_ERROR'].format(error=str(e)))
+        StateManager.show_error('ANALYSIS_ERROR', e)
+        return None, None, None
+
+# Initialize session state
+StateManager.initialize_session_state()
 
 # Main UI
 with st.sidebar:
-    st.markdown("""
-    0. ✍️ Prompt Designer
-    1. 🎯 Framework Engineer
-    2. 🔄 Research Analyst
-    3. 📊 Synthesis Expert
-    """)
+    st.markdown(SIDEBAR_CONTENT)
 
 # Initialize model
 model = initialize_gemini()
@@ -170,31 +142,28 @@ if not model:
 # Input form
 with st.form("analysis_form"):
     topic = st.text_input(
-        "What would you like to explore?",
-        placeholder="e.g., 'Artificial Intelligence' or 'Climate Change'"
+        TOPIC_INPUT['LABEL'],
+        placeholder=TOPIC_INPUT['PLACEHOLDER']
     )
     
     depth = st.select_slider(
-        "Analysis Depth",
+        DEPTH_SELECTOR['LABEL'],
         options=list(DEPTH_ITERATIONS.keys()),
-        value="Balanced"
+        value=DEPTH_SELECTOR['DEFAULT']
     )
     
     submit = st.form_submit_button("🚀 Start Analysis")
 
 if submit and topic:
-    # Clear previous results when starting new analysis
-    if st.session_state.current_analysis['topic'] != topic:
-        clear_results()
-        st.session_state.current_analysis['topic'] = topic
+    # Clear previous results if topic changed
+    current_topic = StateManager.get_current_topic()
+    if current_topic != topic:
+        StateManager.clear_results()
+        StateManager.update_analysis_results(topic)
     
     iterations = DEPTH_ITERATIONS[depth]
     framework, analysis, summary = analyze_topic(model, topic, iterations)
     
     if framework and analysis and summary:
-        st.session_state.current_analysis.update({
-            'framework': framework,
-            'analysis': analysis,
-            'summary': summary
-        })
-        st.success("Analysis complete! Review the results above.") 
+        StateManager.update_analysis_results(topic, framework, analysis, summary)
+        StateManager.show_success() 
