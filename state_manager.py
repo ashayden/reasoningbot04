@@ -63,35 +63,51 @@ class StateManager:
     @staticmethod
     def show_status(status_key: str, iteration: int = 0) -> Any:
         """Create and return a status object with the appropriate message."""
-        if status_key not in STATUS_MESSAGES:
-            raise KeyError(f"Invalid status key: {status_key}")
-            
-        message = STATUS_MESSAGES[status_key]['START']
-        if '{iteration}' in message:
-            message = message.format(iteration=iteration)
-        return st.status(message)
+        try:
+            if status_key not in STATUS_MESSAGES:
+                logger.error(f"Invalid status key: {status_key}")
+                return st.status("Processing...")
+                
+            message = STATUS_MESSAGES[status_key]['START']
+            if '{iteration}' in message:
+                message = message.format(iteration=iteration)
+            return st.status(message)
+        except Exception as e:
+            logger.error(f"Error showing status: {str(e)}")
+            return st.status("Processing...")
     
     @staticmethod
     def update_status(status: Any, status_key: str, iteration: int = 0):
         """Update a status object with completion message."""
-        if status_key not in STATUS_MESSAGES:
-            raise KeyError(f"Invalid status key: {status_key}")
-            
-        message = STATUS_MESSAGES[status_key]['COMPLETE']
-        if '{iteration}' in message:
-            message = message.format(iteration=iteration)
-        status.update(label=message)
+        try:
+            if status_key not in STATUS_MESSAGES:
+                logger.error(f"Invalid status key: {status_key}")
+                status.update(label="Complete")
+                return
+                
+            message = STATUS_MESSAGES[status_key]['COMPLETE']
+            if '{iteration}' in message:
+                message = message.format(iteration=iteration)
+            status.update(label=message)
+        except Exception as e:
+            logger.error(f"Error updating status: {str(e)}")
+            status.update(label="Complete")
     
     @staticmethod
     def show_error(error_key: str, error: Exception = None):
         """Display an error message."""
-        if error_key not in ERROR_MESSAGES:
-            raise KeyError(f"Invalid error key: {error_key}")
-            
-        message = ERROR_MESSAGES[error_key]
-        if error and '{error}' in message:
-            message = message.format(error=str(error))
-        st.error(message)
+        try:
+            if error_key not in ERROR_MESSAGES:
+                st.error(str(error) if error else "An error occurred")
+                return
+                
+            message = ERROR_MESSAGES[error_key]
+            if error and '{error}' in message:
+                message = message.format(error=str(error))
+            st.error(message)
+        except Exception as e:
+            logger.error(f"Error showing error message: {str(e)}")
+            st.error(str(error) if error else "An error occurred")
     
     @staticmethod
     def show_success():
