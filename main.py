@@ -162,17 +162,22 @@ def handle_focus_area_selection(topic: str, prompt_designer):
             st.markdown("### 🎯 Select Focus Areas")
             st.markdown("Choose specific aspects you'd like the analysis to emphasize (optional):")
             
-            # Store selected areas in session state to preserve during reruns
+            # Initialize focus areas if needed
+            if st.session_state.focus_state['areas'] is None:
+                st.session_state.focus_state['areas'] = prompt_designer.generate_focus_areas(topic)
+            
+            # Store selected areas in session state
             if 'selected_areas' not in st.session_state:
                 st.session_state.selected_areas = []
             
             # Use multiselect with session state
-            st.session_state.selected_areas = st.multiselect(
+            selected_areas = st.multiselect(
                 "Focus Areas",
                 options=st.session_state.focus_state['areas'],
                 default=st.session_state.selected_areas,
                 label_visibility="collapsed"
             )
+            st.session_state.selected_areas = selected_areas
             
             st.markdown("---")
             
@@ -186,9 +191,9 @@ def handle_focus_area_selection(topic: str, prompt_designer):
             ):
                 st.session_state.focus_state['proceed'] = True
                 st.session_state.current_analysis['stage'] = 'framework'
-                return True
+                st.rerun()
             
-            continue_disabled = len(st.session_state.selected_areas) == 0
+            continue_disabled = len(selected_areas) == 0
             if col2.button(
                 "Continue",
                 key="continue_focus",
@@ -199,7 +204,7 @@ def handle_focus_area_selection(topic: str, prompt_designer):
             ):
                 st.session_state.focus_state['enhanced_prompt'] = prompt_designer.design_prompt(
                     topic,
-                    st.session_state.selected_areas
+                    selected_areas
                 )
                 
                 with st.status("✍️ Updated Prompt", expanded=False) as status:
@@ -208,9 +213,10 @@ def handle_focus_area_selection(topic: str, prompt_designer):
                 
                 st.session_state.focus_state['proceed'] = True
                 st.session_state.current_analysis['stage'] = 'framework'
-                return True
+                st.rerun()
             
-            return False
+            # Stop here to wait for user input
+            st.stop()
     
     return True
 
