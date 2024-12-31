@@ -1,5 +1,12 @@
 # Version History
 
+## Version 1.2 (2023-12-31)
+- Added "Did You Know" and "ELI5" quick insight sections
+- Added lightning bolt emoji for ELI5 section
+- Updated iterations help text to be more concise
+- Improved section organization and visibility
+- Enhanced user interface with expanded sections
+
 ## Version 1.1 (2023-12-31)
 - Replaced custom slider with simple number input for iterations (1-5)
 - Improved input validation and error handling
