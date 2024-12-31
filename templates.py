@@ -17,85 +17,36 @@ References:
 """
 
 FRAMEWORK_TEMPLATE = """
-# Research Framework
+A. Research Objectives:
+   1. Primary Research Questions
+   2. Secondary Research Questions
+   3. Expected Outcomes
 
-## A. Research Objectives
-1. Primary Research Questions
-   - What are the key questions we need to answer?
-   - What specific outcomes are we seeking?
+B. Methodological Approach:
+   1. Research Methods
+   2. Data Collection Strategies
+   3. Analysis Techniques
 
-2. Secondary Research Questions
-   - What supporting questions will help us understand the topic?
-   - What additional aspects need investigation?
+C. Investigation Areas:
+   1. Core Topics
+   2. Subtopics
+   3. Cross-cutting Themes
 
-3. Expected Outcomes
-   - What deliverables will this research produce?
-   - What insights do we hope to gain?
+D. Ethical Considerations:
+   1. Key Ethical Issues
+   2. Stakeholder Analysis
+   3. Risk Assessment
 
-## B. Methodological Approach
-1. Research Methods
-   - What specific methods will we employ?
-   - How will we gather and analyze data?
+E. Evaluation Framework:
+   1. Success Metrics
+   2. Quality Indicators
+   3. Validation Methods
 
-2. Data Collection Strategies
-   - What sources will we use?
-   - How will we ensure data quality?
-
-3. Analysis Techniques
-   - What analytical tools will we use?
-   - How will we process the information?
-
-## C. Investigation Areas
-1. Core Topics
-   - What are the central themes?
-   - What key concepts need exploration?
-
-2. Subtopics
-   - What related areas require investigation?
-   - How do these connect to core topics?
-
-3. Cross-cutting Themes
-   - What themes span multiple areas?
-   - How do different aspects interconnect?
-
-## D. Ethical Considerations
-1. Key Ethical Issues
-   - What ethical challenges might arise?
-   - How will we address them?
-
-2. Stakeholder Analysis
-   - Who are the key stakeholders?
-   - How might they be affected?
-
-3. Risk Assessment
-   - What potential risks exist?
-   - How can we mitigate them?
-
-## E. Evaluation Framework
-1. Success Metrics
-   - How will we measure success?
-   - What indicators will we track?
-
-2. Quality Indicators
-   - How will we ensure research quality?
-   - What standards will we apply?
-
-3. Validation Methods
-   - How will we validate findings?
-   - What verification processes will we use?
-
-## F. Timeline and Milestones
-1. Research Phases
-   - What are the main phases?
-   - How long will each take?
-
-2. Key Deliverables
-   - What will we produce at each stage?
-   - What are the critical outputs?
-
-3. Review Points
-   - When will we review progress?
-   - How will we incorporate feedback?"""
+F. Timeline and Milestones:
+   1. Research Phases
+   2. Key Deliverables
+   3. Review Points
+"""
 
 INITIAL_ANALYSIS_STRUCTURE = """
 1. Introduction
