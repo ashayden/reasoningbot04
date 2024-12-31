@@ -1,7 +1,8 @@
 """State management for the MARA application."""
 
 import streamlit as st
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, TypedDict
+from dataclasses import dataclass
 
 from constants import (
     SESSION_STATE_KEYS,
@@ -11,19 +12,33 @@ from constants import (
     SUCCESS_MESSAGE
 )
 
+@dataclass
+class AnalysisState:
+    """Type-safe analysis state."""
+    topic: Optional[str] = None
+    framework: Optional[str] = None
+    analysis: Optional[list] = None
+    summary: Optional[str] = None
+
 class StateManager:
     """Manages application state and UI updates."""
+    
+    @staticmethod
+    def validate_state(state: Dict) -> bool:
+        """Validate state structure."""
+        required_keys = ['topic', 'framework', 'analysis', 'summary']
+        return all(key in state for key in required_keys)
     
     @staticmethod
     def initialize_session_state():
         """Initialize or reset session state."""
         if SESSION_STATE_KEYS['CURRENT_ANALYSIS'] not in st.session_state:
-            st.session_state[SESSION_STATE_KEYS['CURRENT_ANALYSIS']] = DEFAULT_ANALYSIS_STATE.copy()
+            st.session_state[SESSION_STATE_KEYS['CURRENT_ANALYSIS']] = AnalysisState()
     
     @staticmethod
     def clear_results():
         """Clear all analysis results."""
-        st.session_state[SESSION_STATE_KEYS['CURRENT_ANALYSIS']] = DEFAULT_ANALYSIS_STATE.copy()
+        st.session_state[SESSION_STATE_KEYS['CURRENT_ANALYSIS']] = AnalysisState()
         if SESSION_STATE_KEYS['ANALYSIS_CONTAINER'] in st.session_state:
             st.session_state[SESSION_STATE_KEYS['ANALYSIS_CONTAINER']].empty()
     
@@ -31,21 +46,26 @@ class StateManager:
     def update_analysis_results(topic: str, framework: Optional[str] = None, 
                               analysis: Optional[list] = None, summary: Optional[str] = None):
         """Update analysis results in session state."""
-        st.session_state[SESSION_STATE_KEYS['CURRENT_ANALYSIS']].update({
-            'topic': topic,
-            'framework': framework if framework is not None else None,
-            'analysis': analysis if analysis is not None else None,
-            'summary': summary if summary is not None else None
-        })
+        current_state = st.session_state[SESSION_STATE_KEYS['CURRENT_ANALYSIS']]
+        new_state = AnalysisState(
+            topic=topic,
+            framework=framework if framework is not None else current_state.framework,
+            analysis=analysis if analysis is not None else current_state.analysis,
+            summary=summary if summary is not None else current_state.summary
+        )
+        st.session_state[SESSION_STATE_KEYS['CURRENT_ANALYSIS']] = new_state
     
     @staticmethod
     def get_current_topic() -> Optional[str]:
         """Get the current topic being analyzed."""
-        return st.session_state[SESSION_STATE_KEYS['CURRENT_ANALYSIS']]['topic']
+        return st.session_state[SESSION_STATE_KEYS['CURRENT_ANALYSIS']].topic
     
     @staticmethod
     def show_status(status_key: str, iteration: int = 0) -> Any:
         """Create and return a status object with the appropriate message."""
+        if status_key not in STATUS_MESSAGES:
+            raise KeyError(f"Invalid status key: {status_key}")
+            
         message = STATUS_MESSAGES[status_key]['START']
         if '{iteration}' in message:
             message = message.format(iteration=iteration)
@@ -54,6 +74,9 @@ class StateManager:
     @staticmethod
     def update_status(status: Any, status_key: str, iteration: int = 0):
         """Update a status object with completion message."""
+        if status_key not in STATUS_MESSAGES:
+            raise KeyError(f"Invalid status key: {status_key}")
+            
         message = STATUS_MESSAGES[status_key]['COMPLETE']
         if '{iteration}' in message:
             message = message.format(iteration=iteration)
@@ -62,6 +85,9 @@ class StateManager:
     @staticmethod
     def show_error(error_key: str, error: Exception = None):
         """Display an error message."""
+        if error_key not in ERROR_MESSAGES:
+            raise KeyError(f"Invalid error key: {error_key}")
+            
         message = ERROR_MESSAGES[error_key]
         if error and '{error}' in message:
             message = message.format(error=str(error))
