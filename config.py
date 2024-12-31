@@ -1,23 +1,19 @@
 """Configuration settings for the MARA application."""
 
-# Model Configuration
+# Model configurations
 GEMINI_MODEL = "gemini-2.0-flash-thinking-exp-1219"
 
-# Generation Configurations
+# Generation configurations
 PROMPT_DESIGN_CONFIG = {
-    'temperature': 0.7,
-    'top_p': 0.8,
-    'top_k': 40,
-    'max_output_tokens': 2048,
-    'candidate_count': 1
+    "temperature": 0.1,
+    "candidate_count": 1,
+    "max_output_tokens": 1024
 }
 
 FRAMEWORK_CONFIG = {
-    'temperature': 0.7,
-    'top_p': 0.8,
-    'top_k': 40,
-    'max_output_tokens': 4096,
-    'candidate_count': 1
+    "temperature": 0.1,
+    "candidate_count": 1,
+    "max_output_tokens": 4096
 }
 
 # Research Analysis temperature range
@@ -26,27 +22,24 @@ ANALYSIS_TEMP_INCREMENT = 0.1
 ANALYSIS_MAX_TEMP = 0.9
 
 ANALYSIS_CONFIG = {
-    'temperature': ANALYSIS_BASE_TEMP,  # Will be dynamically adjusted
-    'top_p': 0.8,
-    'top_k': 40,
-    'max_output_tokens': 8192,
-    'candidate_count': 1
+    "temperature": ANALYSIS_BASE_TEMP,  # Will be dynamically adjusted
+    "candidate_count": 1,
+    "max_output_tokens": 8192
 }
 
+# Synthesis with increased creativity
 SYNTHESIS_CONFIG = {
-    'temperature': 0.5,
-    'top_p': 0.8,
-    'top_k': 40,
-    'max_output_tokens': 8192,
-    'candidate_count': 1
+    "temperature": 0.5,  # Increased from 0.3 for more creative synthesis
+    "candidate_count": 1,
+    "max_output_tokens": 8192
 }
 
-# Analysis Depth Settings
+# Analysis depth settings
 DEPTH_ITERATIONS = {
-    'Quick': 1,
-    'Balanced': 2,
-    'Deep': 3,
-    'Comprehensive': 4
+    "Quick": 1,
+    "Balanced": 2,
+    "Deep": 3,
+    "Comprehensive": 4
 }
 
 # Input validation

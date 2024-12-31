@@ -2,17 +2,10 @@
 
 import logging
 from typing import Dict, Any, Optional, Tuple
-import os
-import sys
 
 import google.generativeai as genai
 import streamlit as st
 from google.generativeai.types import GenerationConfig
-
-# Add the current directory to Python path
-current_dir = os.path.dirname(os.path.abspath(__file__))
-if current_dir not in sys.path:
-    sys.path.append(current_dir)
 
 from config import (
     PROMPT_DESIGN_CONFIG,
@@ -53,159 +46,28 @@ class BaseAgent:
                 generation_config=GenerationConfig(**config)
             )
             
-            if not response:
+            if not response or not response.text:
                 logger.error("Empty response from model")
                 return None
+                
+            logger.info(f"Raw response length: {len(response.text)}")
             
-            # Handle the new response format
-            try:
-                # Try to get text from parts
-                text = ""
-                for part in response.parts:
-                    if hasattr(part, 'text'):
-                        text += part.text
-                
-                if not text:
-                    logger.error("No text content in response parts")
-                    return None
-                
-                logger.info(f"Raw response length: {len(text)}")
-                
-                # Split response into thoughts and actual content
-                parts = text.split("\n\n", 1)
-                
-                if len(parts) > 1 and "Thoughts" in parts[0]:
-                    self._last_thoughts = parts[0]
-                    content = parts[1].strip()
-                    logger.info(f"Extracted content length: {len(content)}")
-                    return content
-                else:
-                    logger.info("No thoughts section found, returning full response")
-                    return text.strip()
-                    
-            except Exception as e:
-                logger.error(f"Error processing response parts: {str(e)}")
-                # Fallback to candidates if parts access fails
-                if hasattr(response, 'candidates') and response.candidates:
-                    text = response.candidates[0].content.text
-                    return text.strip()
-                return None
+            # Split response into thoughts and actual content
+            parts = response.text.split("\n\n", 1)
+            
+            if len(parts) > 1 and "Thoughts" in parts[0]:
+                self._last_thoughts = parts[0]
+                content = parts[1].strip()
+                logger.info(f"Extracted content length: {len(content)}")
+                return content
+            else:
+                logger.info("No thoughts section found, returning full response")
+                return response.text.strip()
                 
         except Exception as e:
             logger.error(f"Content generation error: {str(e)}")
             st.error(f"Error generating content: {str(e)}")
             return None
-
-class PromptDesigner(BaseAgent):
-    """Agent responsible for designing optimal prompts."""
-    
-    def design_prompt(self, topic: str) -> Optional[str]:
-        """Design an optimal prompt for the given topic."""
-        prompt = f"""As an expert prompt engineer, design an optimal prompt to analyze this topic: '{topic}'
-
-        Your response MUST contain these EXACT section headers:
-
-        Desired Output:
-        [Write a clear, specific description of what the analysis should accomplish and deliver]
-
-        Avoid:
-        [List specific approaches, biases, and limitations that should be avoided]
-
-        Emphasize:
-        [List key aspects, methods, and perspectives that should be emphasized]
-
-        Consider these aspects in your response:
-        1. Key aspects that need investigation
-        2. Potential research angles
-        3. Important contextual factors
-        4. Relevant academic disciplines
-        5. Methodological approaches
-
-        IMPORTANT: Each section MUST start with the exact header (e.g., "Desired Output:", "Avoid:", "Emphasize:").
-        Make each section clear, specific, and actionable.
-        
-        Previous thought process (if available):
-        {self._last_thoughts if self._last_thoughts else 'Not available'}"""
-        
-        result = self.generate_content(prompt, PROMPT_DESIGN_CONFIG)
-        if not result:
-            logger.error("Empty result from generate_content")
-            return None
-            
-        # Extract only the desired sections
-        sections = {}
-        current_section = None
-        section_content = []
-        
-        # Split into lines and clean up
-        lines = [line.strip() for line in result.split('\n') if line.strip()]
-        
-        # Log the raw response for debugging
-        logger.info(f"Raw response:\n{result}")
-        
-        for line in lines:
-            # Check for section headers with exact matches
-            if "Desired Output:" in line:
-                if current_section and section_content:
-                    sections[current_section] = '\n'.join(section_content)
-                current_section = 'Desired Output'
-                section_content = []
-                # If there's content after the header on the same line
-                content_after_header = line.split("Desired Output:", 1)[1].strip()
-                if content_after_header:
-                    section_content.append(content_after_header)
-            elif "Avoid:" in line:
-                if current_section and section_content:
-                    sections[current_section] = '\n'.join(section_content)
-                current_section = 'Avoid'
-                section_content = []
-                # If there's content after the header on the same line
-                content_after_header = line.split("Avoid:", 1)[1].strip()
-                if content_after_header:
-                    section_content.append(content_after_header)
-            elif "Emphasize:" in line:
-                if current_section and section_content:
-                    sections[current_section] = '\n'.join(section_content)
-                current_section = 'Emphasize'
-                section_content = []
-                # If there's content after the header on the same line
-                content_after_header = line.split("Emphasize:", 1)[1].strip()
-                if content_after_header:
-                    section_content.append(content_after_header)
-            elif current_section and not any(header in line for header in ["Consider:", "Previous thought process:"]):
-                section_content.append(line)
-                
-        # Add the last section
-        if current_section and section_content:
-            sections[current_section] = '\n'.join(section_content)
-            
-        # Log found sections for debugging
-        logger.info(f"Found sections: {list(sections.keys())}")
-        logger.info("Section contents:")
-        for section, content in sections.items():
-            logger.info(f"{section}:\n{content}\n")
-            
-        # Verify we have all required sections
-        required_sections = {'Desired Output', 'Avoid', 'Emphasize'}
-        if not all(section in sections for section in required_sections):
-            logger.error(f"Missing required sections. Found: {list(sections.keys())}")
-            return None
-            
-        # Format the final output
-        formatted_output = []
-        for section in ['Desired Output', 'Avoid', 'Emphasize']:
-            if section in sections and sections[section].strip():
-                formatted_output.append(f"{section}:\n{sections[section].strip()}")
-                
-        final_output = '\n\n'.join(formatted_output)
-        if not final_output.strip():
-            logger.error("Empty formatted output")
-            return None
-            
-        # Log final output for debugging
-        logger.info(f"Final formatted output:\n{final_output}")
-            
-        return final_output
 
 class FrameworkEngineer(BaseAgent):
     """Agent responsible for creating analysis frameworks."""
@@ -215,33 +77,17 @@ class FrameworkEngineer(BaseAgent):
         prompt = f"""Based on this prompt design:
         {prompt_design}
 
-        Create a comprehensive research framework following this exact structure.
-        Use markdown formatting for better readability.
-        Each section should be detailed and specific to the topic.
-
-        Framework Template:
+        Create a comprehensive research framework following this structure:
         {FRAMEWORK_TEMPLATE}
 
-        Important Guidelines:
-        1. Maintain the exact section structure and numbering
-        2. Use markdown headers (## for sections, # for title)
-        3. Use bullet points (-) for detailed items
-        4. Ensure each point is specific to the topic
-        5. Provide clear, actionable content
-        6. Use academic language while maintaining clarity
+        For each section and subsection, provide detailed and specific content relevant to the topic.
+        Ensure each point is thoroughly explained and contextually appropriate.
+        Use clear, academic language while maintaining accessibility.
         
         Previous thought process (if available):
         {self._last_thoughts if self._last_thoughts else 'Not available'}"""
         
-        result = self.generate_content(prompt, FRAMEWORK_CONFIG)
-        if not result:
-            logger.error("Empty framework result")
-            return None
-            
-        # Log the framework for debugging
-        logger.info(f"Generated framework:\n{result}")
-        
-        return result
+        return self.generate_content(prompt, FRAMEWORK_CONFIG)
 
 class ResearchAnalyst(BaseAgent):
     """Agent responsible for conducting research analysis."""

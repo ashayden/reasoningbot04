@@ -1,41 +1,52 @@
 """Main application file for MARA."""
 
 import logging
-import os
-from typing import Optional, Dict, Any
-
-import google.generativeai as genai
 import streamlit as st
+import google.generativeai as genai
 
-from config import (
-    GEMINI_MODEL,
-    DEPTH_ITERATIONS
-)
-from constants import (
-    CUSTOM_CSS,
-    TOPIC_INPUT,
-    DEPTH_SELECTOR
-)
-from agents import (
-    PromptDesigner,
-    FrameworkEngineer,
-    ResearchAnalyst,
-    SynthesisExpert
-)
-from state_manager import StateManager
+from config import GEMINI_MODEL, DEPTH_ITERATIONS
+from utils import validate_topic, sanitize_topic
+from agents import PromptDesigner, FrameworkEngineer, ResearchAnalyst, SynthesisExpert
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def initialize_gemini() -> Optional[Any]:
-    """Initialize the Gemini model."""
+# Page configuration
+st.set_page_config(
+    page_title="M.A.R.A. - Multi-Agent Reasoning Assistant",
+    page_icon="🤖",
+    layout="wide"
+)
+
+# Custom CSS and Logo
+st.markdown("""
+<style>
+.block-container { max-width: 800px; padding: 2rem 1rem; }
+.stButton > button { width: 100%; }
+div[data-testid="stImage"] { text-align: center; }
+div[data-testid="stImage"] > img { max-width: 800px; width: 100%; }
+</style>
+""", unsafe_allow_html=True)
+
+# Logo/Header
+st.image("assets/mara-logo.png", use_container_width=True)
+
+# Initialize session state for results
+if 'current_analysis' not in st.session_state:
+    st.session_state.current_analysis = {
+        'topic': None,
+        'framework': None,
+        'analysis': None,
+        'summary': None
+    }
+
+# Initialize Gemini
+@st.cache_resource
+def initialize_gemini():
+    """Initialize the Gemini model with caching."""
     try:
-        api_key = os.getenv('GOOGLE_API_KEY')
-        if not api_key:
-            st.error("Google API key not found. Please set the GOOGLE_API_KEY environment variable.")
-            return None
-            
+        api_key = st.secrets["GOOGLE_API_KEY"]
         genai.configure(api_key=api_key)
         return genai.GenerativeModel(GEMINI_MODEL)
     except Exception as e:
@@ -43,11 +54,37 @@ def initialize_gemini() -> Optional[Any]:
         st.error(f"Failed to initialize Gemini API: {str(e)}")
         return None
 
-def run_analysis(model: Any, topic: str, depth: str) -> None:
-    """Run the complete analysis process."""
+def clear_results():
+    """Clear all previous analysis results."""
+    st.session_state.current_analysis = {
+        'topic': None,
+        'framework': None,
+        'analysis': None,
+        'summary': None
+    }
+    # Clear all containers
+    if 'analysis_container' in st.session_state:
+        st.session_state.analysis_container.empty()
+
+def analyze_topic(model, topic: str, iterations: int = 1):
+    """Perform multi-agent analysis of a topic.
+    
+    Args:
+        model: The initialized Gemini model
+        topic: The topic to analyze
+        iterations: Number of analysis iterations to perform
+        
+    Returns:
+        Tuple of (framework, analysis_results, summary) or (None, None, None) on error
+    """
     try:
-        # Clear previous results
-        StateManager.clear_results()
+        # Validate and sanitize input
+        is_valid, error_msg = validate_topic(topic)
+        if not is_valid:
+            st.error(error_msg)
+            return None, None, None
+            
+        topic = sanitize_topic(topic)
         
         # Initialize agents
         prompt_designer = PromptDesigner(model)
@@ -55,126 +92,77 @@ def run_analysis(model: Any, topic: str, depth: str) -> None:
         research_analyst = ResearchAnalyst(model)
         synthesis_expert = SynthesisExpert(model)
         
-        # Design prompt
-        StateManager.show_status('PROMPT_DESIGN', 'start')
-        prompt = prompt_designer.design_prompt(topic)
-        if not prompt:
-            raise ValueError("Empty prompt received")
-        StateManager.update_analysis('prompt', prompt)
-        StateManager.show_status('PROMPT_DESIGN', 'complete')
+        # Create a container for analysis output
+        if 'analysis_container' not in st.session_state:
+            st.session_state.analysis_container = st.container()
         
-        # Create framework
-        StateManager.show_status('FRAMEWORK', 'start')
-        framework = framework_engineer.create_framework(prompt)
-        if not framework:
-            raise ValueError("Empty framework received")
-        StateManager.update_analysis('framework', framework)
-        StateManager.show_status('FRAMEWORK', 'complete')
-        
-        # Perform iterative analysis
-        analyses = []
-        previous_analysis = None
-        iterations = DEPTH_ITERATIONS[depth]
-        
-        for i in range(iterations):
-            StateManager.show_status('ANALYSIS', 'start', i + 1)
-            
-            result = research_analyst.analyze(topic, framework, previous_analysis)
-            if not result:
-                raise ValueError(f"Empty analysis received for iteration {i + 1}")
-                
-            # Validate analysis result structure
-            if not isinstance(result, dict) or not all(k in result for k in ['title', 'subtitle', 'content']):
-                raise ValueError(f"Invalid analysis result structure in iteration {i + 1}")
-                
-            analyses.append(result)
-            previous_analysis = result.get('content')
-            StateManager.show_status('ANALYSIS', 'complete', i + 1)
-        
-        # Generate final synthesis
-        StateManager.show_status('SYNTHESIS', 'start')
-        analysis_contents = [a['content'] for a in analyses if a and isinstance(a, dict) and 'content' in a]
-        synthesis = synthesis_expert.synthesize(topic, analysis_contents)
-        if not synthesis:
-            raise ValueError("Empty synthesis received")
-        
-        # Update analysis results
-        StateManager.update_analysis('topic', topic)
-        StateManager.update_analysis('analysis', analyses)
-        StateManager.update_analysis('summary', synthesis)
-        StateManager.show_status('SYNTHESIS', 'complete')
-        
-    except Exception as e:
-        logger.error(f"MARA error: {str(e)}")
-        st.error(f"MARA error: {str(e)}")
-        # Clear status on error
-        if 'status_container' in st.session_state:
-            st.session_state.status_container.empty()
+        with st.session_state.analysis_container:
+            # Agent 0: Prompt Designer
+            with st.status("✍️ Designing optimal prompt...") as status:
+                prompt_design = prompt_designer.design_prompt(topic)
+                if not prompt_design:
+                    return None, None, None
+                st.markdown(prompt_design)
+                status.update(label="✍️ Optimized Prompt")
 
-def display_results() -> None:
-    """Display analysis results in the UI."""
-    try:
-        container = StateManager.get_container()
-        if not container:
-            return
-            
-        with container:
-            # Display optimized prompt
-            prompt = StateManager.get_analysis('prompt')
-            if prompt:
-                st.markdown("### Optimized Prompt")
-                st.markdown(prompt)
-                st.markdown("---")
-            
-            # Display framework
-            framework = StateManager.get_analysis('framework')
-            if framework:
-                st.markdown("### Analysis Framework")
+            # Agent 1: Framework Engineer
+            with st.status("🎯 Creating analysis framework...") as status:
+                framework = framework_engineer.create_framework(prompt_design)
+                if not framework:
+                    return None, None, None
                 st.markdown(framework)
-                st.markdown("---")
+                status.update(label="🎯 Analysis Framework")
             
-            # Display analyses
-            analyses = StateManager.get_analysis('analysis')
-            if analyses and isinstance(analyses, list):
-                st.markdown("### Research Analysis")
-                for i, analysis in enumerate(analyses, 1):
-                    if (analysis and isinstance(analysis, dict) and 
-                        all(k in analysis for k in ['title', 'subtitle', 'content'])):
-                        title = analysis.get('title', f'Analysis {i}')
-                        subtitle = analysis.get('subtitle', '')
-                        content = analysis.get('content', '')
+            # Agent 2: Research Analyst
+            analysis_results = []
+            previous_analysis = None
+            
+            for iteration_num in range(iterations):
+                with st.status(f"🔄 Performing research analysis #{iteration_num + 1}...") as status:
+                    with st.container():
+                        st.divider()
                         
-                        st.markdown(f"#### {title}")
-                        if subtitle:
-                            st.markdown(f"*{subtitle}*")
-                        st.markdown(content)
-                        st.markdown("---")
+                        result = research_analyst.analyze(topic, framework, previous_analysis)
+                        if not result:
+                            return None, None, None
+                        
+                        if result['title']:
+                            st.markdown(f"# {result['title']}")
+                        if result['subtitle']:
+                            st.markdown(f"*{result['subtitle']}*")
+                        if result['content']:
+                            st.markdown(result['content'])
+                        
+                        analysis_results.append(result['content'])
+                        previous_analysis = result['content']
+                        st.divider()
+                        status.update(label=f"🔄 Research Analysis #{iteration_num + 1}")
             
-            # Display synthesis
-            synthesis = StateManager.get_analysis('summary')
-            if synthesis:
-                st.markdown("### Final Report")
-                st.markdown(synthesis)
+            # Agent 3: Synthesis Expert
+            with st.status("📊 Generating final report...") as status:
+                summary = synthesis_expert.synthesize(topic, analysis_results)
+                if not summary:
+                    return None, None, None
+                st.markdown(summary)
+                status.update(label="📊 Final Report")
                 
+            return framework, analysis_results, summary
+            
     except Exception as e:
-        logger.error(f"Error displaying results: {str(e)}")
-        st.error(f"Error displaying results: {str(e)}")
+        logger.error(f"Analysis error: {str(e)}")
+        st.error(f"Analysis error: {str(e)}")
+        return None, None, None
 
-# Set page config
-st.set_page_config(
-    page_title="MARA - Multi-Agent Reasoning & Analysis",
-    page_icon="🤖",
-    layout="centered"
-)
+# Main UI
+with st.sidebar:
+    st.markdown("""
+    0. ✍️ Prompt Designer
+    1. 🎯 Framework Engineer
+    2. 🔄 Research Analyst
+    3. 📊 Synthesis Expert
+    """)
 
-# Apply custom CSS
-st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
-
-# Display logo
-st.image("assets/mara-logo.png", use_container_width=True)
-
-# Initialize session state and model
-StateManager.init_session_state()
+# Initialize model
 model = initialize_gemini()
 if not model:
     st.stop()
@@ -182,25 +170,31 @@ if not model:
 # Input form
 with st.form("analysis_form"):
     topic = st.text_input(
-        TOPIC_INPUT['LABEL'],
-        placeholder=TOPIC_INPUT['PLACEHOLDER']
+        "What would you like to explore?",
+        placeholder="e.g., 'Artificial Intelligence' or 'Climate Change'"
     )
     
     depth = st.select_slider(
-        DEPTH_SELECTOR['LABEL'],
+        "Analysis Depth",
         options=list(DEPTH_ITERATIONS.keys()),
-        value=DEPTH_SELECTOR['DEFAULT'],
-        help=DEPTH_SELECTOR['HELP']
+        value="Balanced"
     )
     
-    submitted = st.form_submit_button("Start Analysis", type="primary")
+    submit = st.form_submit_button("🚀 Start Analysis")
 
-# Create main content area after form
-StateManager.create_container()
+if submit and topic:
+    # Clear previous results when starting new analysis
+    if st.session_state.current_analysis['topic'] != topic:
+        clear_results()
+        st.session_state.current_analysis['topic'] = topic
     
-# Run analysis if form submitted
-if submitted and topic:
-    run_analysis(model, topic, depth)
-
-# Display results
-display_results() 
+    iterations = DEPTH_ITERATIONS[depth]
+    framework, analysis, summary = analyze_topic(model, topic, iterations)
+    
+    if framework and analysis and summary:
+        st.session_state.current_analysis.update({
+            'framework': framework,
+            'analysis': analysis,
+            'summary': summary
+        })
+        st.success("Analysis complete! Review the results above.") 
