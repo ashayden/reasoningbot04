@@ -142,6 +142,8 @@ if 'focus_state' not in st.session_state:
 
 def reset_focus_state():
     """Reset the focus area state."""
+    if 'focus_state' in st.session_state:
+        del st.session_state.focus_state
     st.session_state.focus_state = {
         'areas': None,
         'selected': set(),
@@ -149,26 +151,18 @@ def reset_focus_state():
         'enhanced_prompt': None
     }
 
-def handle_area_selection(area: str):
-    """Handle focus area selection/deselection."""
-    if area in st.session_state.focus_state['selected']:
-        st.session_state.focus_state['selected'].remove(area)
-    else:
-        st.session_state.focus_state['selected'].add(area)
-
 def handle_skip():
     """Handle skip button click."""
     st.session_state.focus_state['proceed'] = True
 
 def handle_continue(topic: str, prompt_designer):
     """Handle continue button click."""
+    st.session_state.focus_state['proceed'] = True
     if st.session_state.focus_state['selected']:
-        enhanced_prompt = prompt_designer.design_prompt(
+        st.session_state.focus_state['enhanced_prompt'] = prompt_designer.design_prompt(
             topic,
             list(st.session_state.focus_state['selected'])
         )
-        st.session_state.focus_state['enhanced_prompt'] = enhanced_prompt
-        st.session_state.focus_state['proceed'] = True
 
 # Initialize Gemini
 @st.cache_resource
@@ -239,14 +233,15 @@ def analyze_topic(model, topic: str, iterations: int = 1):
             # Distribute focus areas across columns
             for i, area in enumerate(st.session_state.focus_state['areas']):
                 col_idx = i % 3
-                # Handle checkbox with callback
-                cols[col_idx].checkbox(
+                # Handle checkbox directly
+                if cols[col_idx].checkbox(
                     area,
-                    key=f"focus_{area}",  # Use area as part of key for uniqueness
-                    value=area in st.session_state.focus_state['selected'],
-                    on_change=handle_area_selection,
-                    args=(area,)
-                )
+                    key=f"focus_{i}",  # Use index for key instead of area text
+                    value=area in st.session_state.focus_state['selected']
+                ):
+                    st.session_state.focus_state['selected'].add(area)
+                else:
+                    st.session_state.focus_state['selected'].discard(area)
             
             # Add some spacing
             st.markdown("---")
