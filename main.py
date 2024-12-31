@@ -264,11 +264,23 @@ def analyze_topic(model, topic: str, iterations: int = 1):
         research_analyst = ResearchAnalyst(model)
         synthesis_expert = SynthesisExpert(model)
         
+        # Initialize stage outputs in session state if not exists
+        if 'stage_outputs' not in st.session_state:
+            st.session_state.stage_outputs = {
+                'insights': None,
+                'framework': None,
+                'analysis_results': [],
+                'summary': None
+            }
+        
         # Stage: Quick Insights
         if st.session_state.current_analysis['stage'] == 'start':
             insights = pre_analysis.generate_insights(topic)
             if not insights:
                 return None, None, None
+            
+            # Store insights in session state
+            st.session_state.stage_outputs['insights'] = insights
             
             # Display Did You Know section
             with st.status("💡 Did You Know", expanded=True) as status:
@@ -281,6 +293,16 @@ def analyze_topic(model, topic: str, iterations: int = 1):
                 status.update(label="⚡ ELI5")
             
             st.session_state.current_analysis['stage'] = 'prompt'
+        else:
+            # Restore and display previous insights if they exist
+            if st.session_state.stage_outputs['insights']:
+                insights = st.session_state.stage_outputs['insights']
+                with st.status("💡 Did You Know", expanded=True) as status:
+                    st.markdown(insights['did_you_know'])
+                    status.update(label="💡 Did You Know")
+                with st.status("⚡ ELI5", expanded=True) as status:
+                    st.markdown(insights['eli5'])
+                    status.update(label="⚡ ELI5")
             
         # Stage: Initial Prompt Design
         if st.session_state.current_analysis['stage'] == 'prompt':
@@ -294,6 +316,12 @@ def analyze_topic(model, topic: str, iterations: int = 1):
                 # Store initial prompt and update stage
                 st.session_state.current_analysis['initial_prompt'] = initial_prompt
                 st.session_state.current_analysis['stage'] = 'focus_areas'
+        else:
+            # Display stored prompt if it exists
+            if st.session_state.current_analysis['initial_prompt']:
+                with st.status("✍️ Optimized Prompt", expanded=False) as status:
+                    st.markdown(st.session_state.current_analysis['initial_prompt'])
+                    status.update(label="✍️ Optimized Prompt")
         
         # Stage: Focus Area Selection
         if st.session_state.current_analysis['stage'] == 'focus_areas':
@@ -309,9 +337,19 @@ def analyze_topic(model, topic: str, iterations: int = 1):
                 )
                 if not framework:
                     return None, None, None
+                    
+                # Store framework in session state
+                st.session_state.stage_outputs['framework'] = framework
+                
                 st.markdown(framework)
                 status.update(label="🎯 Analysis Framework")
                 st.session_state.current_analysis['stage'] = 'analysis'
+        else:
+            # Display stored framework if it exists
+            if st.session_state.stage_outputs['framework']:
+                with st.status("🎯 Analysis Framework", expanded=False) as status:
+                    st.markdown(st.session_state.stage_outputs['framework'])
+                    status.update(label="🎯 Analysis Framework")
         
         # Stage: Research Analysis
         if st.session_state.current_analysis['stage'] == 'analysis':
@@ -322,7 +360,11 @@ def analyze_topic(model, topic: str, iterations: int = 1):
                 with st.status(f"🔄 Performing research analysis #{iteration_num + 1}...") as status:
                     st.divider()
                     
-                    result = research_analyst.analyze(topic, framework, previous_analysis)
+                    result = research_analyst.analyze(
+                        topic, 
+                        st.session_state.stage_outputs['framework'],
+                        previous_analysis
+                    )
                     if not result:
                         return None, None, None
                     
@@ -338,19 +380,45 @@ def analyze_topic(model, topic: str, iterations: int = 1):
                     st.divider()
                     status.update(label=f"🔄 Research Analysis #{iteration_num + 1}")
             
+            # Store analysis results in session state
+            st.session_state.stage_outputs['analysis_results'] = analysis_results
             st.session_state.current_analysis['stage'] = 'summary'
+        else:
+            # Display stored analysis results if they exist
+            if st.session_state.stage_outputs['analysis_results']:
+                for i, content in enumerate(st.session_state.stage_outputs['analysis_results']):
+                    with st.status(f"🔄 Research Analysis #{i + 1}", expanded=False) as status:
+                        st.markdown(content)
+                        status.update(label=f"🔄 Research Analysis #{i + 1}")
         
         # Stage: Final Synthesis
         if st.session_state.current_analysis['stage'] == 'summary':
             with st.status("📊 Generating final report...") as status:
-                summary = synthesis_expert.synthesize(topic, analysis_results)
+                summary = synthesis_expert.synthesize(
+                    topic,
+                    st.session_state.stage_outputs['analysis_results']
+                )
                 if not summary:
                     return None, None, None
+                    
+                # Store summary in session state
+                st.session_state.stage_outputs['summary'] = summary
+                
                 st.markdown(summary)
                 status.update(label="📊 Final Report")
                 st.session_state.current_analysis['stage'] = 'complete'
+        else:
+            # Display stored summary if it exists
+            if st.session_state.stage_outputs['summary']:
+                with st.status("📊 Final Report", expanded=False) as status:
+                    st.markdown(st.session_state.stage_outputs['summary'])
+                    status.update(label="📊 Final Report")
             
-        return framework, analysis_results, summary
+        return (
+            st.session_state.stage_outputs['framework'],
+            st.session_state.stage_outputs['analysis_results'],
+            st.session_state.stage_outputs['summary']
+        )
         
     except Exception as e:
         logger.error(f"Analysis error: {str(e)}")
@@ -392,6 +460,7 @@ with st.form("analysis_form"):
 if submit and topic:
     # Reset state if topic changed
     if st.session_state.current_analysis['topic'] != topic:
+        # Reset analysis state
         st.session_state.current_analysis = {
             'topic': topic,
             'framework': None,
@@ -399,6 +468,13 @@ if submit and topic:
             'summary': None,
             'stage': 'start',  # Reset to initial stage
             'initial_prompt': None
+        }
+        # Reset stage outputs
+        st.session_state.stage_outputs = {
+            'insights': None,
+            'framework': None,
+            'analysis_results': [],
+            'summary': None
         }
         # Reset focus area state
         reset_focus_state()
