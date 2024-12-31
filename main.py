@@ -230,22 +230,26 @@ def analyze_topic(model, topic: str, iterations: int = 1):
         
         # Stage: Quick Insights
         if state['stage'] == 'start':
-            insights = pre_analysis.generate_insights(topic)
-            if not insights:
-                return None, None, None
+            # Only generate insights if not already stored
+            if not state['outputs']['insights']:
+                insights = pre_analysis.generate_insights(topic)
+                if not insights:
+                    return None, None, None
+                state['outputs']['insights'] = insights
+                transition_to_stage('prompt')
+                st.rerun()
             
-            state['outputs']['insights'] = insights
-            
+            # Display insights
             with st.status("💡 Did You Know", expanded=True) as status:
-                st.markdown(insights['did_you_know'])
+                st.markdown(state['outputs']['insights']['did_you_know'])
                 status.update(label="💡 Did You Know")
                 
             with st.status("⚡ ELI5", expanded=True) as status:
-                st.markdown(insights['eli5'])
+                st.markdown(state['outputs']['insights']['eli5'])
                 status.update(label="⚡ ELI5")
             
+            # Move to next stage
             transition_to_stage('prompt')
-            st.rerun()
         else:
             # Display previous insights
             if state['outputs']['insights']:
@@ -256,17 +260,23 @@ def analyze_topic(model, topic: str, iterations: int = 1):
         
         # Stage: Initial Prompt Design
         if state['stage'] == 'prompt':
-            with st.status("✍️ Designing optimal prompt...") as status:
-                initial_prompt = prompt_designer.design_prompt(topic)
-                if not initial_prompt:
-                    return None, None, None
-                
-                state['outputs']['initial_prompt'] = initial_prompt
-                st.markdown(initial_prompt)
-                status.update(label="✍️ Optimized Prompt")
-                
+            # Only generate prompt if not already stored
+            if not state['outputs']['initial_prompt']:
+                with st.status("✍️ Designing optimal prompt...") as status:
+                    initial_prompt = prompt_designer.design_prompt(topic)
+                    if not initial_prompt:
+                        return None, None, None
+                    
+                    state['outputs']['initial_prompt'] = initial_prompt
+                    st.markdown(initial_prompt)
+                    status.update(label="✍️ Optimized Prompt")
+                    
+                    transition_to_stage('focus_areas')
+                    st.rerun()
+            else:
+                with st.status("✍️ Optimized Prompt", expanded=True) as status:
+                    st.markdown(state['outputs']['initial_prompt'])
                 transition_to_stage('focus_areas')
-                st.rerun()
         else:
             # Display stored prompt
             if state['outputs']['initial_prompt']:
