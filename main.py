@@ -462,3 +462,94 @@ if submit and topic:
     except Exception as e:
         st.error(f"An error occurred during analysis: {str(e)}")
         logger.error(f"Analysis error: {str(e)}") 
+
+def process_framework(model, topic):
+    """Process the framework development stage."""
+    state = st.session_state.analysis_state
+    
+    # Generate framework
+    framework_engineer = FrameworkEngineer(model)
+    framework = framework_engineer.create_framework(
+        state['outputs']['prompt'],
+        state['outputs']['enhanced_prompt']
+    )
+    
+    if not framework:
+        return False
+    
+    # Store framework
+    state['outputs']['framework'] = framework
+    
+    # Display framework
+    process_stage_output(
+        "🎯 Analysis Framework",
+        framework,
+        expanded=True
+    )
+    
+    return True
+
+def process_analysis_stage(model, topic, iterations):
+    """Process the analysis stage."""
+    state = st.session_state.analysis_state
+    
+    research_analyst = ResearchAnalyst(model)
+    analysis_results = []
+    previous_analysis = None
+    
+    for iteration_num in range(iterations):
+        result = research_analyst.analyze(
+            topic, 
+            state['outputs']['framework'],
+            previous_analysis
+        )
+        
+        if not result:
+            return False
+        
+        content = ""
+        if result['title']:
+            content += f"# {result['title']}\n\n"
+        if result['subtitle']:
+            content += f"*{result['subtitle']}*\n\n"
+        if result['content']:
+            content += result['content']
+        
+        analysis_results.append(content)
+        previous_analysis = result['content']
+        
+        # Display each iteration result
+        process_stage_output(
+            f"🔄 Research Analysis #{iteration_num + 1}",
+            content,
+            expanded=True
+        )
+    
+    # Store analysis results
+    state['outputs']['analysis_results'] = analysis_results
+    return True
+
+def process_summary(model, topic):
+    """Process the summary stage."""
+    state = st.session_state.analysis_state
+    
+    synthesis_expert = SynthesisExpert(model)
+    summary = synthesis_expert.synthesize(
+        topic,
+        state['outputs']['analysis_results']
+    )
+    
+    if not summary:
+        return False
+    
+    # Store summary
+    state['outputs']['summary'] = summary
+    
+    # Display summary
+    process_stage_output(
+        "📊 Final Report",
+        summary,
+        expanded=True
+    )
+    
+    return True 
