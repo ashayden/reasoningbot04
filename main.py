@@ -126,7 +126,6 @@ if 'current_analysis' not in st.session_state:
 if 'focus_state' not in st.session_state:
     st.session_state.focus_state = {
         'areas': None,
-        'selected': set(),
         'proceed': False,
         'enhanced_prompt': None
     }
@@ -135,13 +134,14 @@ def reset_focus_state():
     """Reset the focus area state."""
     st.session_state.focus_state = {
         'areas': None,
-        'selected': set(),
         'proceed': False,
         'enhanced_prompt': None
     }
 
 def toggle_focus_area(area: str):
     """Toggle focus area selection in session state."""
+    if not st.session_state.focus_state['initialized']:
+        st.session_state.focus_state['initialized'] = True
     if area in st.session_state.focus_state['selected']:
         st.session_state.focus_state['selected'].remove(area)
     else:
@@ -156,19 +156,13 @@ def handle_focus_area_selection(topic: str, prompt_designer):
         st.markdown("### 🎯 Select Focus Areas")
         st.markdown("Choose specific aspects you'd like the analysis to emphasize (optional):")
         
-        cols = st.columns(3)
-        
-        for i, area in enumerate(st.session_state.focus_state['areas']):
-            with cols[i % 3]:
-                button_type = "primary" if area in st.session_state.focus_state['selected'] else "secondary"
-                st.button(
-                    area,
-                    key=f"focus_{i}",
-                    type=button_type,
-                    on_click=toggle_focus_area,
-                    args=(area,),
-                    use_container_width=True
-                )
+        # Use multiselect instead of individual buttons
+        selected_areas = st.multiselect(
+            "Focus Areas",
+            options=st.session_state.focus_state['areas'],
+            default=[],
+            label_visibility="collapsed"
+        )
         
         st.markdown("---")
         
@@ -184,7 +178,7 @@ def handle_focus_area_selection(topic: str, prompt_designer):
             st.session_state.current_analysis['stage'] = 'framework'
             return True
         
-        continue_disabled = len(st.session_state.focus_state['selected']) == 0
+        continue_disabled = len(selected_areas) == 0
         if col2.button(
             "Continue",
             key="continue_focus",
@@ -193,7 +187,6 @@ def handle_focus_area_selection(topic: str, prompt_designer):
             type="primary",
             use_container_width=True
         ):
-            selected_areas = list(st.session_state.focus_state['selected'])
             st.session_state.focus_state['enhanced_prompt'] = prompt_designer.design_prompt(
                 topic,
                 selected_areas
