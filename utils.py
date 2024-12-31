@@ -1,40 +1,31 @@
 """Utility functions for the MARA application."""
 
-import logging
 import time
 from functools import wraps
-from typing import Dict, Tuple, Optional, Union, List
+from typing import Dict, Tuple, Optional
 
 import streamlit as st
 from config import MIN_TOPIC_LENGTH, MAX_TOPIC_LENGTH, MAX_REQUESTS_PER_MINUTE
 
-logger = logging.getLogger(__name__)
-
 class RateLimiter:
     """Simple rate limiter implementation."""
     def __init__(self, max_requests: int, time_window: int = 60):
-        if not isinstance(max_requests, int) or max_requests <= 0:
-            raise ValueError("max_requests must be a positive integer")
-        if not isinstance(time_window, int) or time_window <= 0:
-            raise ValueError("time_window must be a positive integer")
-            
         self.max_requests = max_requests
         self.time_window = time_window
-        self.requests: List[float] = []
+        self.requests = []
 
     def can_proceed(self) -> bool:
         """Check if a new request can proceed."""
         current_time = time.time()
-        # Remove old requests in one pass
-        cutoff_time = current_time - self.time_window
-        self.requests = [req for req in self.requests if req > cutoff_time]
+        # Remove old requests
+        self.requests = [req_time for req_time in self.requests 
+                        if current_time - req_time < self.time_window]
         
         if len(self.requests) < self.max_requests:
             self.requests.append(current_time)
             return True
         return False
 
-# Initialize rate limiter as a singleton
 rate_limiter = RateLimiter(MAX_REQUESTS_PER_MINUTE)
 
 def rate_limit_decorator(func):
@@ -55,18 +46,13 @@ def validate_topic(topic: str) -> Tuple[bool, Optional[str]]:
     Returns:
         Tuple of (is_valid, error_message)
     """
-    if not isinstance(topic, str):
-        return False, "Topic must be a string."
-        
-    topic = topic.strip()
-    if not topic:
+    if not topic or not topic.strip():
         return False, "Topic cannot be empty."
     
-    topic_length = len(topic)
-    if topic_length < MIN_TOPIC_LENGTH:
+    if len(topic) < MIN_TOPIC_LENGTH:
         return False, f"Topic must be at least {MIN_TOPIC_LENGTH} characters long."
     
-    if topic_length > MAX_TOPIC_LENGTH:
+    if len(topic) > MAX_TOPIC_LENGTH:
         return False, f"Topic must be no more than {MAX_TOPIC_LENGTH} characters long."
     
     return True, None
@@ -80,36 +66,48 @@ def parse_title_content(text: str) -> Dict[str, str]:
     Returns:
         Dictionary containing 'title', 'subtitle', and 'content'.
     """
-    if not isinstance(text, str):
-        logger.error("Input to parse_title_content must be a string")
-        return {'title': '', 'subtitle': '', 'content': ''}
-
-    text = text.strip()
     if not text:
-        return {'title': '', 'subtitle': '', 'content': ''}
+        return {
+            'title': '',
+            'subtitle': '',
+            'content': ''
+        }
 
     try:
-        # Split only once to get lines more efficiently
         lines = text.split('\n')
-        result = {'title': '', 'subtitle': '', 'content': text}  # Default to full text as content
+        result = {
+            'title': '',
+            'subtitle': '',
+            'content': ''
+        }
         
-        # Use enumerate sparingly and break early when possible
+        content_start = 0
+        
         for i, line in enumerate(lines):
-            line = line.strip()
             if line.startswith('Title:'):
-                result['title'] = line[6:].strip()  # More efficient than replace
+                result['title'] = line.replace('Title:', '').strip()
             elif line.startswith('Subtitle:'):
-                result['subtitle'] = line[9:].strip()  # More efficient than replace
-                # We found both title and subtitle, use rest as content
-                if result['title']:  # Only if we also found a title
-                    result['content'] = '\n'.join(lines[i+1:]).strip()
+                result['subtitle'] = line.replace('Subtitle:', '').strip()
+                content_start = i + 1
                 break
-                
-        return result
+        
+        # If we found a title/subtitle, get the remaining content
+        if content_start > 0:
+            result['content'] = '\n'.join(lines[content_start:]).strip()
+        else:
+            # If no title/subtitle found, treat entire text as content
+            result['content'] = text.strip()
+        
+        # Ensure we never return None values
+        return {k: v if v is not None else '' for k, v in result.items()}
         
     except Exception as e:
         logger.error(f"Error parsing content: {str(e)}")
-        return {'title': '', 'subtitle': '', 'content': text}
+        return {
+            'title': '',
+            'subtitle': '',
+            'content': text if text else ''
+        }
 
 def sanitize_topic(topic: str) -> str:
     """Sanitize the topic string for safe use in prompts.
@@ -120,10 +118,5 @@ def sanitize_topic(topic: str) -> str:
     Returns:
         Sanitized topic string.
     """
-    if not isinstance(topic, str):
-        logger.error("Input to sanitize_topic must be a string")
-        return ""
-        
-    # Use set for more efficient character filtering
-    allowed_chars = set('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,!?-_()')
-    return ''.join(c for c in topic if c in allowed_chars) 
+    # Remove any potentially harmful characters
+    return ''.join(c for c in topic if c.isalnum() or c.isspace() or c in '.,!?-_()') 

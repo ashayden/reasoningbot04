@@ -14,14 +14,6 @@ from config import (
     SYNTHESIS_CONFIG
 )
 from utils import rate_limit_decorator, parse_title_content
-from templates import (
-    CITATION_REQUIREMENTS,
-    REFERENCES_SECTION,
-    FRAMEWORK_TEMPLATE,
-    INITIAL_ANALYSIS_STRUCTURE,
-    ITERATION_ANALYSIS_STRUCTURE,
-    SYNTHESIS_STRUCTURE
-)
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +31,12 @@ class BaseAgent:
     
     @rate_limit_decorator
     def generate_content(self, prompt: str, config: Dict[str, Any]) -> Optional[str]:
-        """Generate content with rate limiting and error handling."""
+        """Generate content with rate limiting and error handling.
+        
+        The new Gemini 2.0 model returns both thoughts and response.
+        This method extracts only the response for user display while
+        storing the thoughts for internal use.
+        """
         try:
             response = self.model.generate_content(
                 prompt,
@@ -61,6 +58,7 @@ class BaseAgent:
                 logger.info(f"Extracted content length: {len(content)}")
                 return content
             else:
+                # If no clear separation, return the whole response
                 logger.info("No thoughts section found, returning full response")
                 return response.text.strip()
                 
@@ -69,16 +67,55 @@ class BaseAgent:
             st.error(f"Error generating content: {str(e)}")
             return None
 
+class PromptDesigner(BaseAgent):
+    """Agent responsible for designing optimal prompts."""
+    
+    def design_prompt(self, topic: str) -> Optional[str]:
+        """Design an optimal prompt for the given topic."""
+        prompt = f"""As an expert prompt engineer, create a concise one-paragraph prompt that will guide the development 
+        of a research framework for analyzing '{topic}'. Focus on the essential aspects that need to be 
+        investigated while maintaining analytical rigor and academic standards."""
+        
+        return self.generate_content(prompt, PROMPT_DESIGN_CONFIG)
+
 class FrameworkEngineer(BaseAgent):
     """Agent responsible for creating analysis frameworks."""
     
     def create_framework(self, prompt_design: str) -> Optional[str]:
         """Create a research framework based on the prompt design."""
-        prompt = f"""Based on this prompt design:
-        {prompt_design}
+        prompt = f"""{prompt_design}
 
-        Create a comprehensive research framework following this structure:
-        {FRAMEWORK_TEMPLATE}
+        Based on this prompt, create a comprehensive research framework that follows this exact structure:
+
+        A. Research Objectives:
+           1. Primary Research Questions
+           2. Secondary Research Questions
+           3. Expected Outcomes
+
+        B. Methodological Approach:
+           1. Research Methods
+           2. Data Collection Strategies
+           3. Analysis Techniques
+
+        C. Investigation Areas:
+           1. Core Topics
+           2. Subtopics
+           3. Cross-cutting Themes
+
+        D. Ethical Considerations:
+           1. Key Ethical Issues
+           2. Stakeholder Analysis
+           3. Risk Assessment
+
+        E. Evaluation Framework:
+           1. Success Metrics
+           2. Quality Indicators
+           3. Validation Methods
+
+        F. Timeline and Milestones:
+           1. Research Phases
+           2. Key Deliverables
+           3. Review Points
 
         For each section and subsection, provide detailed and specific content relevant to the topic.
         Ensure each point is thoroughly explained and contextually appropriate.
@@ -106,6 +143,7 @@ class ResearchAnalyst(BaseAgent):
         )
         
         config = ANALYSIS_CONFIG.copy()
+        # Increase temperature with each iteration, but cap at max
         temp = min(
             ANALYSIS_BASE_TEMP + (self.iteration_count * ANALYSIS_TEMP_INCREMENT),
             ANALYSIS_MAX_TEMP
@@ -119,6 +157,7 @@ class ResearchAnalyst(BaseAgent):
             self.iteration_count = 0  # Reset counter for new analysis
             prompt = f"""Acting as a leading expert in topic-related field: Based on the framework above, conduct an initial research analysis of '{topic}'. 
             Follow the methodological approaches and evaluation criteria specified in the framework.
+            Provide detailed findings for each key area of investigation outlined.
             
             Framework context:
             {framework}
@@ -130,14 +169,53 @@ class ResearchAnalyst(BaseAgent):
             Subtitle: [Specific aspect or approach being analyzed]
 
             Then provide a comprehensive analysis following this structure:
-            {INITIAL_ANALYSIS_STRUCTURE}
 
-            {CITATION_REQUIREMENTS}
-            {REFERENCES_SECTION}
+            1. Introduction
+               - Context and background
+               - Scope of analysis
+               - Key objectives
+
+            2. Methodology Overview
+               - Approach used
+               - Data sources
+               - Analytical methods
+
+            3. Key Findings
+               - Primary discoveries (with citations)
+               - Supporting evidence (with citations)
+               - Critical insights
+
+            4. Analysis
+               - Detailed examination of findings (with citations)
+               - Interpretation of results
+               - Connections and patterns
+
+            5. Implications
+               - Theoretical implications
+               - Practical applications
+               - Future considerations
+
+            6. Limitations and Gaps
+               - Current limitations
+               - Areas needing further research
+               - Potential biases
+
+            7. References
+               - List all cited works in APA format
+               - Include DOIs where available
+               - Ensure all citations in the text have corresponding references
+
+            Important:
+            - Use in-text citations in APA format (Author, Year) for all major claims and findings
+            - Each section should have at least 2-3 relevant citations
+            - Ensure citations are from reputable academic sources
+            - Include a mix of seminal works and recent research (last 5 years)
+            - All citations must have corresponding entries in the References section
 
             Ensure each section is thoroughly developed with specific examples and evidence."""
         else:
-            self.iteration_count += 1
+            self.iteration_count += 1  # Increment counter for subsequent iterations
+            # Include previous agent's thoughts if available
             previous_context = f"""Previous analysis context:
             {previous_analysis}
             
@@ -161,10 +239,43 @@ class ResearchAnalyst(BaseAgent):
             Subtitle: [Specific aspect being expanded upon]
 
             Then provide:
-            {ITERATION_ANALYSIS_STRUCTURE}
 
-            {CITATION_REQUIREMENTS}
-            {REFERENCES_SECTION}
+            1. Previous Analysis Review
+               - Key points from previous iteration
+               - Areas identified for expansion
+               - New perspectives to explore
+
+            2. Expanded Analysis
+               - Deeper investigation of key themes (with citations)
+               - New evidence and insights (with citations)
+               - Advanced interpretations
+
+            3. Novel Connections
+               - Cross-cutting themes (with citations)
+               - Interdisciplinary insights
+               - Emerging patterns
+
+            4. Critical Evaluation
+               - Strengthened arguments (with citations)
+               - Counter-arguments addressed
+               - Enhanced evidence base
+
+            5. Synthesis and Integration
+               - Integration with previous findings
+               - Enhanced understanding
+               - Refined conclusions
+
+            6. References
+               - List all new citations in APA format
+               - Include DOIs where available
+               - Ensure all citations have corresponding references
+
+            Important:
+            - Use in-text citations in APA format (Author, Year) for all major claims and findings
+            - Each section should have at least 2-3 relevant citations
+            - Ensure citations are from reputable academic sources
+            - Include a mix of seminal works and recent research (last 5 years)
+            - All citations must have corresponding entries in the References section
 
             Note: As this is iteration {self.iteration_count + 1}, be more explorative and creative 
             while maintaining academic rigor. Push the boundaries of conventional analysis while 
@@ -180,11 +291,48 @@ class SynthesisExpert(BaseAgent):
     
     def synthesize(self, topic: str, analyses: list) -> Optional[str]:
         """Synthesize all research analyses into a final report."""
-        prompt = f"""Synthesize all research from previous analyses on '{topic}' into a Final Report.
+        prompt = f"""Synthesize all research from agent 2 on '{topic}' into a Final Report with:
         
-        {SYNTHESIS_STRUCTURE}
-
-        {CITATION_REQUIREMENTS}
+        1. Executive Summary (2-3 paragraphs)
+           - Include key citations for major findings
+           - Highlight most significant discoveries
+        
+        2. Key Insights (bullet points)
+           - Support each insight with relevant citations
+           - Include methodology used to derive insights
+        
+        3. Analysis
+           - Comprehensive synthesis of findings with citations
+           - Integration of multiple perspectives
+           - Critical evaluation of evidence
+        
+        4. Conclusion
+           - Summary of main findings
+           - Implications for theory and practice
+           - Future research directions
+        
+        5. Further Considerations & Counter-Arguments
+           - Alternative viewpoints with citations
+           - Limitations of current research
+           - Areas of uncertainty or debate
+        
+        6. Recommended Readings and Resources
+           - Key papers and their main contributions
+           - Seminal works in the field
+           - Recent significant publications
+        
+        7. Works Cited
+           - Comprehensive bibliography in APA format
+           - Include all sources cited in the report
+           - Organize by primary sources, secondary sources, and additional resources
+           - Include DOIs where available
+        
+        Important:
+        - Use in-text citations in APA format (Author, Year)
+        - Ensure all citations have corresponding entries in Works Cited
+        - Include both seminal works and recent research
+        - Maintain academic rigor while being accessible
+        - Cross-reference findings from different analyses
         
         Analysis to synthesize: {' '.join(analyses)}"""
         
