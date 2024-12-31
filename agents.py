@@ -87,9 +87,32 @@ class FrameworkEngineer(BaseAgent):
 class ResearchAnalyst(BaseAgent):
     """Agent responsible for conducting research analysis."""
     
+    def __init__(self, model: Any):
+        super().__init__(model)
+        self.iteration_count = 0
+        
+    def _get_analysis_config(self) -> Dict[str, Any]:
+        """Get analysis configuration with dynamic temperature scaling."""
+        from config import (
+            ANALYSIS_CONFIG, 
+            ANALYSIS_BASE_TEMP, 
+            ANALYSIS_TEMP_INCREMENT,
+            ANALYSIS_MAX_TEMP
+        )
+        
+        config = ANALYSIS_CONFIG.copy()
+        # Increase temperature with each iteration, but cap at max
+        temp = min(
+            ANALYSIS_BASE_TEMP + (self.iteration_count * ANALYSIS_TEMP_INCREMENT),
+            ANALYSIS_MAX_TEMP
+        )
+        config["temperature"] = temp
+        return config
+    
     def analyze(self, topic: str, framework: str, previous_analysis: Optional[str] = None) -> Optional[Dict[str, str]]:
         """Conduct research analysis."""
         if previous_analysis is None:
+            self.iteration_count = 0  # Reset counter for new analysis
             prompt = f"""Acting as a leading expert in topic-related field: Based on the framework above, conduct an initial research analysis of '{topic}'. 
             Follow the methodological approaches and evaluation criteria specified in the framework.
             Provide detailed findings for each key area of investigation outlined.
@@ -103,6 +126,7 @@ class ResearchAnalyst(BaseAgent):
 
             Then continue with your analysis content."""
         else:
+            self.iteration_count += 1  # Increment counter for subsequent iterations
             # Include previous agent's thoughts if available
             previous_context = f"""Previous analysis context:
             {previous_analysis}
@@ -120,13 +144,16 @@ class ResearchAnalyst(BaseAgent):
             3. Refining and strengthening key arguments
             4. Adding new supporting evidence or perspectives
             
+            Note: As this is iteration {self.iteration_count + 1}, feel free to be more explorative and creative 
+            in your analysis while maintaining academic rigor.
+            
             Start your response with a title in this exact format (including the newlines):
             Title: Your Main Title Here
             Subtitle: Your Descriptive Subtitle Here
 
             Then continue with your analysis content."""
         
-        result = self.generate_content(prompt, ANALYSIS_CONFIG)
+        result = self.generate_content(prompt, self._get_analysis_config())
         if result:
             return parse_title_content(result)
         return None
