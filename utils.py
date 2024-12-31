@@ -1,11 +1,14 @@
 """Utility functions for the MARA application."""
 
+import logging
 import time
 from functools import wraps
 from typing import Dict, Tuple, Optional
 
 import streamlit as st
 from config import MIN_TOPIC_LENGTH, MAX_TOPIC_LENGTH, MAX_REQUESTS_PER_MINUTE
+
+logger = logging.getLogger(__name__)
 
 class RateLimiter:
     """Simple rate limiter implementation."""
@@ -17,7 +20,6 @@ class RateLimiter:
     def can_proceed(self) -> bool:
         """Check if a new request can proceed."""
         current_time = time.time()
-        # Remove old requests
         self.requests = [req_time for req_time in self.requests 
                         if current_time - req_time < self.time_window]
         
@@ -44,7 +46,7 @@ def validate_topic(topic: str) -> Tuple[bool, Optional[str]]:
         topic: The input topic string to validate.
         
     Returns:
-        Tuple of (is_valid, error_message)
+        Tuple of (is_valid, error_message). If valid, error_message is None.
     """
     if not topic or not topic.strip():
         return False, "Topic cannot be empty."
@@ -65,6 +67,7 @@ def parse_title_content(text: str) -> Dict[str, str]:
         
     Returns:
         Dictionary containing 'title', 'subtitle', and 'content'.
+        If parsing fails, returns text as content with empty title/subtitle.
     """
     if not text:
         return {
@@ -91,14 +94,11 @@ def parse_title_content(text: str) -> Dict[str, str]:
                 content_start = i + 1
                 break
         
-        # If we found a title/subtitle, get the remaining content
         if content_start > 0:
             result['content'] = '\n'.join(lines[content_start:]).strip()
         else:
-            # If no title/subtitle found, treat entire text as content
             result['content'] = text.strip()
         
-        # Ensure we never return None values
         return {k: v if v is not None else '' for k, v in result.items()}
         
     except Exception as e:
@@ -116,7 +116,6 @@ def sanitize_topic(topic: str) -> str:
         topic: The raw topic string.
         
     Returns:
-        Sanitized topic string.
+        Sanitized topic string with only alphanumeric, space, and basic punctuation.
     """
-    # Remove any potentially harmful characters
     return ''.join(c for c in topic if c.isalnum() or c.isspace() or c in '.,!?-_()') 

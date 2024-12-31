@@ -16,20 +16,19 @@ FRAMEWORK_CONFIG = {
     "max_output_tokens": 4096
 }
 
-# Research Analysis temperature range
+# Research Analysis settings
 ANALYSIS_BASE_TEMP = 0.7
 ANALYSIS_TEMP_INCREMENT = 0.1
 ANALYSIS_MAX_TEMP = 0.9
 
 ANALYSIS_CONFIG = {
-    "temperature": ANALYSIS_BASE_TEMP,  # Will be dynamically adjusted
+    "temperature": ANALYSIS_BASE_TEMP,
     "candidate_count": 1,
     "max_output_tokens": 8192
 }
 
-# Synthesis with increased creativity
 SYNTHESIS_CONFIG = {
-    "temperature": 0.5,  # Increased from 0.3 for more creative synthesis
+    "temperature": 0.5,
     "candidate_count": 1,
     "max_output_tokens": 8192
 }
