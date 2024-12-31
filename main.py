@@ -32,59 +32,42 @@ st.markdown("""
     width: 100%; 
 }
 
-/* Focus area chips */
-.focus-area-chip {
-    background-color: rgba(30, 30, 30, 0.6);
-    border: 1px solid #333;
-    border-radius: 4px;
-    padding: 12px 16px;
-    margin: 4px 0;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    text-align: center;
-}
-
-.focus-area-chip:hover {
-    background-color: rgba(42, 42, 42, 0.8);
-    border-color: #444;
-}
-
-.focus-area-chip.selected {
-    background-color: rgba(0, 102, 204, 0.1);
-    border-color: #0066cc;
-}
-
-.focus-area-chip.selected span {
-    color: #0066cc;
-    font-weight: 500;
-}
-
-.focus-area-chip span {
-    color: #fff;
-    font-size: 0.95em;
-}
-
 /* Focus area buttons */
 [data-testid="baseButton-secondary"] {
-    background-color: #4a4a4a !important;
-    border-color: #4a4a4a !important;
+    background-color: rgba(30, 30, 30, 0.6) !important;
+    border: 1px solid #333 !important;
     color: white !important;
+    padding: 0.75rem !important;
+    min-height: 3rem !important;
+    transition: all 0.2s ease !important;
 }
 
 [data-testid="baseButton-secondary"]:hover {
-    background-color: #5a5a5a !important;
-    border-color: #5a5a5a !important;
+    background-color: rgba(42, 42, 42, 0.8) !important;
+    border-color: #444 !important;
 }
 
 [data-testid="baseButton-primary"] {
-    background-color: #0066cc !important;
-    border: none !important;
+    background-color: rgba(0, 102, 204, 0.2) !important;
+    border: 1px solid #0066cc !important;
+    box-shadow: 0 0 0 1px #0066cc !important;
+    color: #0066cc !important;
+    font-weight: 500 !important;
+    padding: 0.75rem !important;
+    min-height: 3rem !important;
+    transition: all 0.2s ease !important;
+}
+
+[data-testid="baseButton-primary"]:hover {
+    background-color: rgba(0, 102, 204, 0.3) !important;
 }
 
 [data-testid="baseButton-primary"]:disabled {
     background-color: #1E1E1E !important;
+    border-color: #333 !important;
+    box-shadow: none !important;
     color: #4a4a4a !important;
-    cursor: not-allowed;
+    cursor: not-allowed !important;
 }
 
 div[data-testid="stImage"] { 
@@ -187,24 +170,21 @@ def handle_focus_area_selection(topic: str, prompt_designer):
             
             # Check if area is selected
             is_selected = area in st.session_state.focus_state['selected']
-            selected_class = "selected" if is_selected else ""
             
-            # Display clickable chip in appropriate column
+            # Display button in appropriate column
             with cols[col_idx]:
-                if st.markdown(
-                    f"""
-                    <div class="focus-area-chip {selected_class}" 
-                         onclick="this.classList.toggle('selected'); window.streamlit.setComponentValue('{key}', !{str(is_selected).lower()})">
-                        <span>{area}</span>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
+                if st.button(
+                    area,
+                    key=key,
+                    type="secondary" if not is_selected else "primary",
+                    use_container_width=True
                 ):
-                    # Toggle selection state
+                    # Toggle selection
                     if is_selected:
                         st.session_state.focus_state['selected'].discard(area)
                     else:
                         st.session_state.focus_state['selected'].add(area)
+                    st.rerun()
         
         # Add some spacing
         st.markdown("---")
