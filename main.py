@@ -95,7 +95,6 @@ def analyze_topic(model, topic: str, iterations: int = 1):
             with st.status(f"🔄 Performing research analysis #{iteration_num + 1}...") as status:
                 with st.container():
                     st.divider()
-                    st.markdown(f"### 🔄 Research Analysis #{iteration_num + 1}")
                     
                     result = research_analyst.analyze(topic, framework, previous_analysis)
                     if not result:
