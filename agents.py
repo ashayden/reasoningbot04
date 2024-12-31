@@ -1,7 +1,7 @@
 """Agent implementations for the MARA application."""
 
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Tuple
 
 import google.generativeai as genai
 import streamlit as st
@@ -22,16 +22,37 @@ class BaseAgent:
     
     def __init__(self, model: Any):
         self.model = model
+        self._last_thoughts = None
+    
+    @property
+    def last_thoughts(self) -> Optional[str]:
+        """Get the last model's thoughts for debugging or chaining."""
+        return self._last_thoughts
     
     @rate_limit_decorator
     def generate_content(self, prompt: str, config: Dict[str, Any]) -> Optional[str]:
-        """Generate content with rate limiting and error handling."""
+        """Generate content with rate limiting and error handling.
+        
+        The new Gemini 2.0 model returns both thoughts and response.
+        This method extracts only the response for user display while
+        storing the thoughts for internal use.
+        """
         try:
             response = self.model.generate_content(
                 prompt,
                 generation_config=GenerationConfig(**config)
             )
-            return response.text
+            
+            # Split response into thoughts and actual content
+            parts = response.text.split("\n\n", 1)
+            
+            if len(parts) > 1 and "Thoughts" in parts[0]:
+                self._last_thoughts = parts[0]
+                return parts[1].strip()
+            else:
+                # If no clear separation, return the whole response
+                return response.text
+                
         except Exception as e:
             logger.error(f"Content generation error: {str(e)}")
             st.error(f"Error generating content: {str(e)}")
@@ -73,14 +94,25 @@ class ResearchAnalyst(BaseAgent):
             Follow the methodological approaches and evaluation criteria specified in the framework.
             Provide detailed findings for each key area of investigation outlined.
             
+            Framework context:
+            {framework}
+            
             Start your response with a title in this exact format (including the newlines):
             Title: Your Main Title Here
             Subtitle: Your Descriptive Subtitle Here
 
             Then continue with your analysis content."""
         else:
-            prompt = f"""Review the previous research iteration:
+            # Include previous agent's thoughts if available
+            previous_context = f"""Previous analysis context:
             {previous_analysis}
+            
+            Previous agent's thought process:
+            {self._last_thoughts if self._last_thoughts else 'Not available'}"""
+            
+            prompt = f"""Review the previous research iteration and expand the analysis.
+            
+            {previous_context}
             
             Based on this previous analysis and the original framework, expand and deepen the research by:
             1. Identifying gaps or areas needing more depth
