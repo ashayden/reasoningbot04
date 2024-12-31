@@ -186,10 +186,11 @@ with st.form("analysis_form"):
         placeholder=TOPIC_INPUT['PLACEHOLDER']
     )
     
-    depth = st.selectbox(
+    depth = st.select_slider(
         DEPTH_SELECTOR['LABEL'],
-        options=list(DEPTH_ITERATIONS.keys()),
-        index=list(DEPTH_ITERATIONS.keys()).index(DEPTH_SELECTOR['DEFAULT'])
+        options=DEPTH_SELECTOR['OPTIONS'],
+        value=DEPTH_SELECTOR['DEFAULT'],
+        help=DEPTH_SELECTOR['HELP']
     )
     
     submitted = st.form_submit_button("Start Analysis")

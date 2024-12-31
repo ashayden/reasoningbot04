@@ -18,24 +18,30 @@ class StateManager:
         if 'current_analysis' not in st.session_state:
             st.session_state.current_analysis = {
                 'topic': None,
+                'prompt': None,
                 'framework': None,
                 'analysis': None,
                 'summary': None
             }
         if 'analysis_container' not in st.session_state:
             st.session_state.analysis_container = None
+        if 'status_container' not in st.session_state:
+            st.session_state.status_container = None
     
     @staticmethod
     def clear_results() -> None:
         """Clear all analysis results."""
         st.session_state.current_analysis = {
             'topic': None,
+            'prompt': None,
             'framework': None,
             'analysis': None,
             'summary': None
         }
         if 'analysis_container' in st.session_state:
             st.session_state.analysis_container = None
+        if 'status_container' in st.session_state:
+            st.session_state.status_container = None
     
     @staticmethod
     def show_status(phase: str, status: str, iteration: Optional[int] = None) -> None:
@@ -58,6 +64,8 @@ class StateManager:
             # Create a container for the status message if it doesn't exist
             if 'status_container' not in st.session_state:
                 st.session_state.status_container = st.empty()
+            elif st.session_state.status_container is None:
+                st.session_state.status_container = st.empty()
             
             # Show the status message with appropriate styling
             status_class = 'status-running' if status == 'start' else 'status-complete'
@@ -68,6 +76,12 @@ class StateManager:
             
         except Exception as e:
             logger.error(f"Error showing status: {str(e)}")
+            # Try to show a basic status message without styling
+            try:
+                if 'status_container' in st.session_state and st.session_state.status_container:
+                    st.session_state.status_container.text(message)
+            except:
+                pass
     
     @staticmethod
     def update_analysis(key: str, value: Any) -> None:
@@ -75,7 +89,7 @@ class StateManager:
         try:
             if 'current_analysis' not in st.session_state:
                 logger.error("Session state not initialized")
-                return
+                StateManager.init_session_state()
                 
             st.session_state.current_analysis[key] = value
         except Exception as e:
@@ -100,6 +114,8 @@ class StateManager:
         try:
             if 'analysis_container' not in st.session_state:
                 st.session_state.analysis_container = st.container()
+            elif st.session_state.analysis_container is None:
+                st.session_state.analysis_container = st.container()
         except Exception as e:
             logger.error(f"Error creating container: {str(e)}")
     
@@ -107,7 +123,11 @@ class StateManager:
     def get_container():
         """Get the analysis container."""
         try:
-            return st.session_state.get('analysis_container')
+            container = st.session_state.get('analysis_container')
+            if container is None:
+                StateManager.create_container()
+                container = st.session_state.get('analysis_container')
+            return container
         except Exception as e:
             logger.error(f"Error getting container: {str(e)}")
             return None 
