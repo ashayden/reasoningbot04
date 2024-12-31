@@ -130,6 +130,45 @@ if 'current_analysis' not in st.session_state:
         'analysis': None,
         'summary': None
     }
+    
+# Initialize focus area state
+if 'focus_state' not in st.session_state:
+    st.session_state.focus_state = {
+        'areas': None,
+        'selected': set(),
+        'proceed': False,
+        'enhanced_prompt': None
+    }
+
+def reset_focus_state():
+    """Reset the focus area state."""
+    st.session_state.focus_state = {
+        'areas': None,
+        'selected': set(),
+        'proceed': False,
+        'enhanced_prompt': None
+    }
+
+def handle_area_selection(area: str):
+    """Handle focus area selection/deselection."""
+    if area in st.session_state.focus_state['selected']:
+        st.session_state.focus_state['selected'].remove(area)
+    else:
+        st.session_state.focus_state['selected'].add(area)
+
+def handle_skip():
+    """Handle skip button click."""
+    st.session_state.focus_state['proceed'] = True
+
+def handle_continue(topic: str, prompt_designer):
+    """Handle continue button click."""
+    if st.session_state.focus_state['selected']:
+        enhanced_prompt = prompt_designer.design_prompt(
+            topic,
+            list(st.session_state.focus_state['selected'])
+        )
+        st.session_state.focus_state['enhanced_prompt'] = enhanced_prompt
+        st.session_state.focus_state['proceed'] = True
 
 # Initialize Gemini
 @st.cache_resource
@@ -185,15 +224,12 @@ def analyze_topic(model, topic: str, iterations: int = 1):
             st.markdown(initial_prompt)
             status.update(label="✍️ Optimized Prompt")
             
-        # Initialize session state for focus areas if not exists
-        if 'focus_areas' not in st.session_state:
-            st.session_state.focus_areas = prompt_designer.generate_focus_areas(topic)
-            st.session_state.selected_areas = set()  # Using a set for better handling
-            st.session_state.proceed_with_framework = False
-            st.session_state.enhanced_prompt = None
+        # Generate focus areas if not already done
+        if st.session_state.focus_state['areas'] is None:
+            st.session_state.focus_state['areas'] = prompt_designer.generate_focus_areas(topic)
             
-        # Then display focus areas for selection
-        if st.session_state.focus_areas:
+        # Display focus areas for selection
+        if st.session_state.focus_state['areas']:
             st.markdown("### 🎯 Select Focus Areas")
             st.markdown("Choose specific aspects you'd like the analysis to emphasize (optional):")
             
@@ -201,22 +237,16 @@ def analyze_topic(model, topic: str, iterations: int = 1):
             cols = st.columns(3)
             
             # Distribute focus areas across columns
-            for i, area in enumerate(st.session_state.focus_areas):
+            for i, area in enumerate(st.session_state.focus_state['areas']):
                 col_idx = i % 3
-                # Create a unique key for each checkbox's state
-                checkbox_key = f"focus_checkbox_{i}"
-                if checkbox_key not in st.session_state:
-                    st.session_state[checkbox_key] = area in st.session_state.selected_areas
-                
-                # Handle checkbox
-                if cols[col_idx].checkbox(
+                # Handle checkbox with callback
+                cols[col_idx].checkbox(
                     area,
-                    key=checkbox_key,
-                    value=st.session_state[checkbox_key]
-                ):
-                    st.session_state.selected_areas.add(area)
-                else:
-                    st.session_state.selected_areas.discard(area)
+                    key=f"focus_{area}",  # Use area as part of key for uniqueness
+                    value=area in st.session_state.focus_state['selected'],
+                    on_change=handle_area_selection,
+                    args=(area,)
+                )
             
             # Add some spacing
             st.markdown("---")
@@ -225,47 +255,46 @@ def analyze_topic(model, topic: str, iterations: int = 1):
             col1, col2 = st.columns(2)
             
             # Skip button in left column
-            if col1.button("Skip", key="skip_focus", help="Proceed with analysis using only the optimized prompt"):
-                st.session_state.proceed_with_framework = True
+            if col1.button(
+                "Skip",
+                key="skip_focus",
+                help="Proceed with analysis using only the optimized prompt",
+                on_click=handle_skip
+            ):
                 st.rerun()
             
             # Continue button in right column (disabled if no areas selected)
-            continue_disabled = len(st.session_state.selected_areas) == 0
+            continue_disabled = len(st.session_state.focus_state['selected']) == 0
             if col2.button(
                 "Continue",
                 key="continue_focus",
                 disabled=continue_disabled,
                 help="Proceed with analysis using selected focus areas",
-                type="primary"
+                type="primary",
+                on_click=handle_continue,
+                args=(topic, prompt_designer)
             ):
-                # Update prompt with selected focus areas
-                st.session_state.enhanced_prompt = prompt_designer.design_prompt(
-                    topic, 
-                    list(st.session_state.selected_areas)  # Convert set to list
-                )
-                if not st.session_state.enhanced_prompt:
-                    return None, None, None
-                
-                # Show updated prompt in a new collapsed section
-                with st.status("✍️ Updated Prompt", expanded=False) as status:
-                    st.markdown(st.session_state.enhanced_prompt)
-                    status.update(label="✍️ Updated Prompt")
-                st.session_state.proceed_with_framework = True
                 st.rerun()
             
             # Add spacing after buttons
             st.markdown("---")
             
             # Only proceed if either Skip or Continue was clicked
-            if not st.session_state.proceed_with_framework:
+            if not st.session_state.focus_state['proceed']:
                 st.stop()  # Stop execution here until user makes a choice
-        else:
-            # If no focus areas were generated, proceed with just the initial prompt
-            st.session_state.proceed_with_framework = True
+            
+            # Show updated prompt if it exists
+            if st.session_state.focus_state['enhanced_prompt']:
+                with st.status("✍️ Updated Prompt", expanded=False) as status:
+                    st.markdown(st.session_state.focus_state['enhanced_prompt'])
+                    status.update(label="✍️ Updated Prompt")
 
         # Agent 1: Framework Engineer - Pass both prompts (only reached after user choice)
         with st.status("🎯 Creating analysis framework...") as status:
-            framework = framework_engineer.create_framework(initial_prompt, st.session_state.enhanced_prompt)
+            framework = framework_engineer.create_framework(
+                initial_prompt,
+                st.session_state.focus_state['enhanced_prompt']
+            )
             if not framework:
                 return None, None, None
             st.markdown(framework)
@@ -352,15 +381,7 @@ if submit and topic:
             'summary': None
         }
         # Reset focus area state
-        if 'focus_areas' in st.session_state:
-            # Clear all focus area related states
-            keys_to_delete = [key for key in st.session_state.keys() if key.startswith('focus_')]
-            for key in keys_to_delete:
-                del st.session_state[key]
-            del st.session_state.focus_areas
-            del st.session_state.selected_areas
-            del st.session_state.proceed_with_framework
-            del st.session_state.enhanced_prompt
+        reset_focus_state()
     
     # Run analysis
     framework, analysis, summary = analyze_topic(model, topic, iterations)
