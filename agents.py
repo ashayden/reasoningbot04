@@ -2,10 +2,17 @@
 
 import logging
 from typing import Dict, Any, Optional, Tuple
+import os
+import sys
 
 import google.generativeai as genai
 import streamlit as st
 from google.generativeai.types import GenerationConfig
+
+# Add the current directory to Python path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.append(current_dir)
 
 from config import (
     PROMPT_DESIGN_CONFIG,
@@ -46,23 +53,43 @@ class BaseAgent:
                 generation_config=GenerationConfig(**config)
             )
             
-            if not response or not response.text:
+            if not response:
                 logger.error("Empty response from model")
                 return None
+            
+            # Handle the new response format
+            try:
+                # Try to get text from parts
+                text = ""
+                for part in response.parts:
+                    if hasattr(part, 'text'):
+                        text += part.text
                 
-            logger.info(f"Raw response length: {len(response.text)}")
-            
-            # Split response into thoughts and actual content
-            parts = response.text.split("\n\n", 1)
-            
-            if len(parts) > 1 and "Thoughts" in parts[0]:
-                self._last_thoughts = parts[0]
-                content = parts[1].strip()
-                logger.info(f"Extracted content length: {len(content)}")
-                return content
-            else:
-                logger.info("No thoughts section found, returning full response")
-                return response.text.strip()
+                if not text:
+                    logger.error("No text content in response parts")
+                    return None
+                
+                logger.info(f"Raw response length: {len(text)}")
+                
+                # Split response into thoughts and actual content
+                parts = text.split("\n\n", 1)
+                
+                if len(parts) > 1 and "Thoughts" in parts[0]:
+                    self._last_thoughts = parts[0]
+                    content = parts[1].strip()
+                    logger.info(f"Extracted content length: {len(content)}")
+                    return content
+                else:
+                    logger.info("No thoughts section found, returning full response")
+                    return text.strip()
+                    
+            except Exception as e:
+                logger.error(f"Error processing response parts: {str(e)}")
+                # Fallback to candidates if parts access fails
+                if hasattr(response, 'candidates') and response.candidates:
+                    text = response.candidates[0].content.text
+                    return text.strip()
+                return None
                 
         except Exception as e:
             logger.error(f"Content generation error: {str(e)}")
