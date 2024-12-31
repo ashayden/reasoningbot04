@@ -35,24 +35,16 @@ textarea {
     border: 1px solid #333 !important;
     color: #fff !important;
 }
-.input-description {
-    font-size: 0.9em;
-    color: #666;
-    margin-bottom: 0.5em;
-}
 div[data-baseweb="select-slider"] {
     padding: 1rem 0;
 }
 div[data-baseweb="select-slider"] > div {
-    background-color: #1E1E1E !important;
+    background-color: transparent !important;
 }
 div[data-baseweb="select-slider"] span {
     color: #fff !important;
-}
-.depth-description {
-    font-size: 0.9em;
-    color: #666;
-    margin-top: 0.5rem;
+    font-family: "Source Sans Pro", sans-serif !important;
+    font-size: 1rem !important;
 }
 .stSlider > div > div > div {
     background-color: #4B4B4B !important;
@@ -171,39 +163,16 @@ if not model:
 
 # Input form
 with st.form("analysis_form"):
-    st.markdown("""
-        <div class="input-description">
-        Enter your research topic or question. Feel free to provide additional context or specific aspects you'd like to explore.
-        </div>
-        """, 
-        unsafe_allow_html=True
-    )
-    
     topic = st.text_area(
         "What would you like to explore?",
-        placeholder="e.g., 'Examine the impact of artificial intelligence on healthcare, focusing on diagnostic applications, ethical considerations, and future implications.'",
-        help="You can provide a detailed description of your topic. Include specific aspects or questions you'd like to explore."
+        help="Enter your research topic or question. Feel free to provide additional context or specific aspects you'd like to explore.",
+        placeholder="e.g., 'Examine the impact of artificial intelligence on healthcare, focusing on diagnostic applications, ethical considerations, and future implications.'"
     )
     
     depth = st.select_slider(
         "Analysis Depth",
         options=list(DEPTH_ITERATIONS.keys()),
         value="Balanced"
-    )
-    
-    depth_descriptions = {
-        "Quick": "Basic overview with 1 research iteration",
-        "Balanced": "Moderate depth with 2 research iterations",
-        "Deep": "Detailed analysis with 3 research iterations",
-        "Comprehensive": "Exhaustive research with 4 iterations"
-    }
-    
-    st.markdown(f"""
-        <div class="depth-description">
-        {depth_descriptions[depth]}
-        </div>
-        """, 
-        unsafe_allow_html=True
     )
     
     col1, col2, col3 = st.columns([1, 2, 1])
