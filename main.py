@@ -270,9 +270,8 @@ def analyze_topic(model, topic: str, iterations: int = 1):
                             st.markdown(st.session_state.focus_state['enhanced_prompt'])
                             status.update(label="✍️ Updated Prompt")
                 
-                # Set proceed flag and continue
+                # Set proceed flag
                 st.session_state.focus_state['proceed'] = True
-                st.rerun()
             
             # Stop here if form hasn't been submitted
             if not st.session_state.focus_state['proceed']:
