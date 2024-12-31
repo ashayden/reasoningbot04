@@ -32,8 +32,8 @@ st.markdown("""
     width: 100%; 
 }
 
-/* Focus area chips */
-.focus-area-chip {
+/* Focus area styling */
+[data-testid="stCheckbox"] {
     background-color: #1E1E1E;
     border: 1px solid #333;
     border-radius: 4px;
@@ -43,34 +43,38 @@ st.markdown("""
     transition: all 0.2s ease;
 }
 
-.focus-area-chip:hover {
+[data-testid="stCheckbox"]:hover {
     background-color: #2a2a2a;
     border-color: #444;
 }
 
-.focus-area-chip label {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+[data-testid="stCheckbox"] label {
     cursor: pointer;
+    width: 100%;
+    margin: 0;
+    padding: 0;
 }
 
-.focus-area-chip input[type="checkbox"] {
-    display: none;
-}
-
-.focus-area-chip span {
+[data-testid="stCheckbox"] label p {
+    margin: 0;
+    padding: 0;
     color: #fff;
     font-size: 0.9em;
 }
 
-.focus-area-chip input[type="checkbox"]:checked + span {
-    color: #0066cc;
-    font-weight: 500;
+[data-testid="stCheckbox"] [data-testid="stMarkdownContainer"] {
+    display: none;
 }
 
-.focus-area-chip input[type="checkbox"]:checked ~ label {
+/* Selected state */
+[data-testid="stCheckbox"][aria-checked="true"] {
     background-color: rgba(0, 102, 204, 0.1);
+    border-color: #0066cc;
+}
+
+[data-testid="stCheckbox"][aria-checked="true"] label p {
+    color: #0066cc;
+    font-weight: 500;
 }
 
 /* Focus area buttons */
@@ -130,17 +134,6 @@ div[data-testid="stNumberInput"] button {
 
 div[data-testid="stNumberInput"] button:hover {
     background-color: #444 !important;
-}
-
-/* Hide checkbox labels */
-[data-testid="stCheckbox"] > label {
-    display: none !important;
-}
-
-/* Style checkboxes */
-[data-testid="stCheckbox"] {
-    margin: 0 !important;
-    padding: 0 !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -208,28 +201,22 @@ def handle_focus_area_selection(topic: str, prompt_designer):
             # Create a unique key for each checkbox
             key = f"focus_{i}"
             
-            # Initialize checkbox state in session state if not exists
-            if key not in st.session_state:
-                st.session_state[key] = area in st.session_state.focus_state['selected']
-            
-            # Display checkbox with custom styling
+            # Display checkbox in appropriate column
             with cols[col_idx]:
-                st.markdown(
-                    f"""
-                    <div class="focus-area-chip">
-                        <label>
-                            <input type="checkbox" {'checked' if st.session_state[key] else ''} 
-                                   onchange="this.form.submit()">
-                            <span>{area}</span>
-                        </label>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
-                if st.checkbox(area, key=key, label_visibility="collapsed"):
+                if st.checkbox(
+                    area,
+                    key=key,
+                    value=area in st.session_state.focus_state['selected']
+                ):
+                    # Add to selected areas if checked
                     st.session_state.focus_state['selected'].add(area)
-                else:
+                elif area in st.session_state.focus_state['selected']:
+                    # Remove from selected areas if unchecked
                     st.session_state.focus_state['selected'].discard(area)
+                
+                # Display selection status for debugging
+                if area in st.session_state.focus_state['selected']:
+                    st.markdown(f"<div style='display: none;'>{area} is selected</div>", unsafe_allow_html=True)
         
         # Add some spacing
         st.markdown("---")
