@@ -158,32 +158,31 @@ def handle_focus_area_selection(topic: str, prompt_designer):
         # Create a grid layout for focus areas
         cols = st.columns(3)
         
-        # Initialize or get the selected areas
-        if 'selected' not in st.session_state.focus_state:
-            st.session_state.focus_state['selected'] = set()
-        
         # Display focus areas in a grid
         for i, area in enumerate(st.session_state.focus_state['areas']):
             col_idx = i % 3
-            # Create a unique key for each area
-            key = f"focus_{i}"
             
-            # Check if area is selected
-            is_selected = area in st.session_state.focus_state['selected']
+            # Create a unique key for each area
+            key = f"focus_{i}"  # Use index for stable keys
+            
+            # Initialize button state if needed
+            if key not in st.session_state:
+                st.session_state[key] = area in st.session_state.focus_state['selected']
             
             # Display button in appropriate column
             with cols[col_idx]:
                 if st.button(
                     area,
                     key=key,
-                    type="secondary" if not is_selected else "primary",
+                    type="primary" if st.session_state[key] else "secondary",
                     use_container_width=True
                 ):
                     # Toggle selection
-                    if is_selected:
-                        st.session_state.focus_state['selected'].discard(area)
+                    if area in st.session_state.focus_state['selected']:
+                        st.session_state.focus_state['selected'].remove(area)
                     else:
                         st.session_state.focus_state['selected'].add(area)
+                    st.session_state[key] = not st.session_state[key]
                     st.rerun()
         
         # Add some spacing
@@ -213,10 +212,13 @@ def handle_focus_area_selection(topic: str, prompt_designer):
             type="primary",
             use_container_width=True
         ):
+            # Store selected areas before proceeding
+            selected_areas = list(st.session_state.focus_state['selected'])
+            
             # Generate enhanced prompt if areas are selected
             st.session_state.focus_state['enhanced_prompt'] = prompt_designer.design_prompt(
                 topic,
-                list(st.session_state.focus_state['selected'])
+                selected_areas
             )
             
             # Show updated prompt in a collapsed section
