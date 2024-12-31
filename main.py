@@ -37,11 +37,54 @@ textarea {
     color: #666;
     margin-bottom: 0.5em;
 }
+.agent-progress {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 1rem 0;
+    padding: 1rem;
+    background-color: #f8f9fa;
+    border-radius: 0.5rem;
+}
+.agent-step {
+    text-align: center;
+    padding: 0.5rem;
+    flex: 1;
+}
+.agent-step.active {
+    font-weight: bold;
+    color: #0066cc;
+}
+.depth-slider {
+    padding: 1rem 0;
+    background-color: #f8f9fa;
+    border-radius: 0.5rem;
+    margin: 1rem 0;
+}
+.depth-slider label {
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+.depth-description {
+    font-size: 0.9em;
+    color: #666;
+    margin-top: 0.5rem;
+}
 </style>
 """, unsafe_allow_html=True)
 
 # Logo/Header
 st.image("assets/mara-logo.png", use_container_width=True)
+
+# Agent Progress Tracking
+st.markdown("""
+<div class="agent-progress">
+    <div class="agent-step">✍️<br>Prompt<br>Designer</div>
+    <div class="agent-step">🎯<br>Framework<br>Engineer</div>
+    <div class="agent-step">🔄<br>Research<br>Analyst</div>
+    <div class="agent-step">📊<br>Synthesis<br>Expert</div>
+</div>
+""", unsafe_allow_html=True)
 
 # Initialize session state
 if 'current_analysis' not in st.session_state:
@@ -82,7 +125,30 @@ def analyze_topic(model, topic: str, iterations: int = 1):
         research_analyst = ResearchAnalyst(model)
         synthesis_expert = SynthesisExpert(model)
         
+        # Update progress indicators
+        progress_container = st.empty()
+        
+        def update_progress(step):
+            progress_html = f"""
+            <div class="agent-progress">
+                <div class="agent-step{'active' if step == 0 else ''}">
+                    ✍️<br>Prompt<br>Designer
+                </div>
+                <div class="agent-step{'active' if step == 1 else ''}">
+                    🎯<br>Framework<br>Engineer
+                </div>
+                <div class="agent-step{'active' if step == 2 else ''}">
+                    🔄<br>Research<br>Analyst
+                </div>
+                <div class="agent-step{'active' if step == 3 else ''}">
+                    📊<br>Synthesis<br>Expert
+                </div>
+            </div>
+            """
+            progress_container.markdown(progress_html, unsafe_allow_html=True)
+        
         # Agent 0: Prompt Designer
+        update_progress(0)
         with st.status("✍️ Designing optimal prompt...") as status:
             prompt_design = prompt_designer.design_prompt(topic)
             if not prompt_design:
@@ -91,6 +157,7 @@ def analyze_topic(model, topic: str, iterations: int = 1):
             status.update(label="✍️ Optimized Prompt")
 
         # Agent 1: Framework Engineer
+        update_progress(1)
         with st.status("🎯 Creating analysis framework...") as status:
             framework = framework_engineer.create_framework(prompt_design)
             if not framework:
@@ -99,6 +166,7 @@ def analyze_topic(model, topic: str, iterations: int = 1):
             status.update(label="🎯 Analysis Framework")
         
         # Agent 2: Research Analyst
+        update_progress(2)
         analysis_results = []
         previous_analysis = None
         
@@ -123,6 +191,7 @@ def analyze_topic(model, topic: str, iterations: int = 1):
                 status.update(label=f"🔄 Research Analysis #{iteration_num + 1}")
         
         # Agent 3: Synthesis Expert
+        update_progress(3)
         with st.status("📊 Generating final report...") as status:
             summary = synthesis_expert.synthesize(topic, analysis_results)
             if not summary:
@@ -136,20 +205,6 @@ def analyze_topic(model, topic: str, iterations: int = 1):
         logger.error(f"Analysis error: {str(e)}")
         st.error(f"Analysis error: {str(e)}")
         return None, None, None
-
-# Main UI
-with st.sidebar:
-    st.markdown("""
-    0. ✍️ Prompt Designer
-    1. 🎯 Framework Engineer
-    2. 🔄 Research Analyst
-    3. 📊 Synthesis Expert
-    """)
-
-# Initialize model
-model = initialize_gemini()
-if not model:
-    st.stop()
 
 # Input form
 with st.form("analysis_form"):
@@ -167,12 +222,28 @@ with st.form("analysis_form"):
         help="You can provide a detailed description of your topic. Include specific aspects or questions you'd like to explore."
     )
     
+    st.markdown('<div class="depth-slider">', unsafe_allow_html=True)
     depth = st.select_slider(
         "Analysis Depth",
         options=list(DEPTH_ITERATIONS.keys()),
-        value="Balanced",
-        help="Quick: Basic overview (1 iteration)\nBalanced: Moderate depth (2 iterations)\nDeep: Detailed analysis (3 iterations)\nComprehensive: Exhaustive research (4 iterations)"
+        value="Balanced"
     )
+    
+    depth_descriptions = {
+        "Quick": "Basic overview with 1 research iteration",
+        "Balanced": "Moderate depth with 2 research iterations",
+        "Deep": "Detailed analysis with 3 research iterations",
+        "Comprehensive": "Exhaustive research with 4 iterations"
+    }
+    
+    st.markdown(f"""
+        <div class="depth-description">
+        {depth_descriptions[depth]}
+        </div>
+        """, 
+        unsafe_allow_html=True
+    )
+    st.markdown('</div>', unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
