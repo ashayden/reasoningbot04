@@ -118,21 +118,20 @@ def analyze_topic(model, topic: str, iterations: int = 1):
         research_analyst = ResearchAnalyst(model)
         synthesis_expert = SynthesisExpert(model)
         
-        # Pre-Analysis Agent
-        with st.status("🎯 Generating quick insights...") as status:
-            insights = pre_analysis.generate_insights(topic)
-            if not insights:
-                return None, None, None
-                
-            # Display Did You Know section
-            st.markdown("### 💡 Did You Know")
+        # Get quick insights
+        insights = pre_analysis.generate_insights(topic)
+        if not insights:
+            return None, None, None
+        
+        # Display Did You Know section
+        with st.status("💡 Did You Know", expanded=True) as status:
             st.markdown(insights['did_you_know'])
+            status.update(label="💡 Did You Know")
             
-            # Display ELI5 section
-            st.markdown("### 🔍 Quick Overview")
+        # Display ELI5 section
+        with st.status("ELI5", expanded=True) as status:
             st.markdown(insights['eli5'])
-            
-            status.update(label="🎯 Quick Insights Generated")
+            status.update(label="ELI5")
         
         # Agent 0: Prompt Designer
         with st.status("✍️ Designing optimal prompt...") as status:
