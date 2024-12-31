@@ -131,13 +131,6 @@ if 'current_analysis' not in st.session_state:
         'summary': None
     }
 
-def toggle_focus_area(area: str):
-    """Helper function to toggle focus areas in session state."""
-    if area in st.session_state.selected_areas:
-        st.session_state.selected_areas.remove(area)
-    else:
-        st.session_state.selected_areas.append(area)
-
 # Initialize Gemini
 @st.cache_resource
 def initialize_gemini():
@@ -195,14 +188,11 @@ def analyze_topic(model, topic: str, iterations: int = 1):
         # Initialize session state for focus areas if not exists
         if 'focus_areas' not in st.session_state:
             st.session_state.focus_areas = prompt_designer.generate_focus_areas(topic)
-            st.session_state.selected_areas = []
+            st.session_state.selected_areas = set()  # Using a set for better handling
             st.session_state.proceed_with_framework = False
             st.session_state.enhanced_prompt = None
             
         # Then display focus areas for selection
-        enhanced_prompt = st.session_state.enhanced_prompt
-        proceed_with_framework = st.session_state.proceed_with_framework
-        
         if st.session_state.focus_areas:
             st.markdown("### 🎯 Select Focus Areas")
             st.markdown("Choose specific aspects you'd like the analysis to emphasize (optional):")
@@ -213,16 +203,20 @@ def analyze_topic(model, topic: str, iterations: int = 1):
             # Distribute focus areas across columns
             for i, area in enumerate(st.session_state.focus_areas):
                 col_idx = i % 3
+                # Create a unique key for each checkbox's state
+                checkbox_key = f"focus_checkbox_{i}"
+                if checkbox_key not in st.session_state:
+                    st.session_state[checkbox_key] = area in st.session_state.selected_areas
+                
+                # Handle checkbox
                 if cols[col_idx].checkbox(
                     area,
-                    key=f"focus_{i}",
-                    value=area in st.session_state.selected_areas,
-                    on_change=lambda a=area: toggle_focus_area(a)
+                    key=checkbox_key,
+                    value=st.session_state[checkbox_key]
                 ):
-                    if area not in st.session_state.selected_areas:
-                        st.session_state.selected_areas.append(area)
-                elif area in st.session_state.selected_areas:
-                    st.session_state.selected_areas.remove(area)
+                    st.session_state.selected_areas.add(area)
+                else:
+                    st.session_state.selected_areas.discard(area)
             
             # Add some spacing
             st.markdown("---")
@@ -245,7 +239,10 @@ def analyze_topic(model, topic: str, iterations: int = 1):
                 type="primary"
             ):
                 # Update prompt with selected focus areas
-                st.session_state.enhanced_prompt = prompt_designer.design_prompt(topic, st.session_state.selected_areas)
+                st.session_state.enhanced_prompt = prompt_designer.design_prompt(
+                    topic, 
+                    list(st.session_state.selected_areas)  # Convert set to list
+                )
                 if not st.session_state.enhanced_prompt:
                     return None, None, None
                 
@@ -356,6 +353,10 @@ if submit and topic:
         }
         # Reset focus area state
         if 'focus_areas' in st.session_state:
+            # Clear all focus area related states
+            keys_to_delete = [key for key in st.session_state.keys() if key.startswith('focus_')]
+            for key in keys_to_delete:
+                del st.session_state[key]
             del st.session_state.focus_areas
             del st.session_state.selected_areas
             del st.session_state.proceed_with_framework
