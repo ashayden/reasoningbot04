@@ -232,29 +232,32 @@ def process_insights(model, topic):
     """Process the insights stage."""
     state = st.session_state.analysis_state
     
+    # Check if we already have insights
+    if state['outputs']['insights']:
+        st.markdown("### 💡 Quick Insights")
+        st.markdown(state['outputs']['insights']['did_you_know'])
+        st.markdown("### ⚡ ELI5 (Explain Like I'm 5)")
+        st.markdown(state['outputs']['insights']['eli5'])
+        return True
+    
     # Generate insights
-    pre_analysis = PreAnalysisAgent(model)
-    insights = pre_analysis.generate_insights(topic)
-    
-    if not insights:
-        return False
-    
-    # Store insights
-    state['outputs']['insights'] = insights
-    
-    # Display insights
-    process_stage_output(
-        "💡 Did You Know?",
-        insights['did_you_know'],
-        expanded=True
-    )
-    process_stage_output(
-        "⚡ ELI5 (Explain Like I'm 5)",
-        insights['eli5'],
-        expanded=True
-    )
-    
-    return True
+    with st.spinner("💡 Generating insights..."):
+        pre_analysis = PreAnalysisAgent(model)
+        insights = pre_analysis.generate_insights(topic)
+        
+        if not insights:
+            return False
+        
+        # Store insights
+        state['outputs']['insights'] = insights
+        
+        # Display insights
+        st.markdown("### 💡 Quick Insights")
+        st.markdown(insights['did_you_know'])
+        st.markdown("### ⚡ ELI5 (Explain Like I'm 5)")
+        st.markdown(insights['eli5'])
+        
+        return True
 
 def process_prompt(model, topic):
     """Process the prompt optimization stage."""
