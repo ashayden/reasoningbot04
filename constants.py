@@ -2,10 +2,6 @@
 
 # Status Messages
 STATUS_MESSAGES = {
-    'PROMPT_DESIGN': {
-        'START': "✍️ Designing optimal prompt...",
-        'COMPLETE': "✍️ Optimized Prompt"
-    },
     'FRAMEWORK': {
         'START': "🎯 Creating analysis framework...",
         'COMPLETE': "🎯 Analysis Framework"
@@ -21,13 +17,6 @@ STATUS_MESSAGES = {
 }
 
 # UI Elements
-SIDEBAR_CONTENT = """
-0. ✍️ Prompt Designer
-1. 🎯 Framework Engineer
-2. 🔄 Research Analyst
-3. 📊 Synthesis Expert
-"""
-
 CUSTOM_CSS = """
 <style>
 .block-container { max-width: 800px; padding: 2rem 1rem; }

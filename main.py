@@ -6,11 +6,10 @@ import google.generativeai as genai
 
 from config import GEMINI_MODEL, DEPTH_ITERATIONS
 from utils import validate_topic, sanitize_topic
-from agents import PromptDesigner, FrameworkEngineer, ResearchAnalyst, SynthesisExpert
+from agents import FrameworkEngineer, ResearchAnalyst, SynthesisExpert
 from state_manager import StateManager
 from constants import (
     CUSTOM_CSS,
-    SIDEBAR_CONTENT,
     TOPIC_INPUT,
     DEPTH_SELECTOR,
     ERROR_MESSAGES
@@ -130,40 +129,46 @@ def analyze_topic(model, topic: str, iterations: int = 1):
 # Initialize session state
 StateManager.initialize_session_state()
 
-# Main UI
-with st.sidebar:
-    st.markdown(SIDEBAR_CONTENT)
-
 # Initialize model
 model = initialize_gemini()
 if not model:
     st.stop()
 
+# Create main content area
+main_content = st.container()
+
 # Input form
-with st.form("analysis_form"):
+with st.form(key="analysis_form"):
     topic = st.text_input(
         TOPIC_INPUT['LABEL'],
-        placeholder=TOPIC_INPUT['PLACEHOLDER']
+        placeholder=TOPIC_INPUT['PLACEHOLDER'],
+        key="topic_input"
     )
     
     depth = st.select_slider(
         DEPTH_SELECTOR['LABEL'],
         options=list(DEPTH_ITERATIONS.keys()),
-        value=DEPTH_SELECTOR['DEFAULT']
+        value=DEPTH_SELECTOR['DEFAULT'],
+        key="depth_selector"
     )
     
     submit = st.form_submit_button("🚀 Start Analysis")
 
 if submit and topic:
-    # Clear previous results if topic changed
-    current_topic = StateManager.get_current_topic()
-    if current_topic != topic:
-        StateManager.clear_results()
-        StateManager.update_analysis_results(topic)
-    
-    iterations = DEPTH_ITERATIONS[depth]
-    framework, analysis, summary = analyze_topic(model, topic, iterations)
-    
-    if framework and analysis and summary:
-        StateManager.update_analysis_results(topic, framework, analysis, summary)
-        StateManager.show_success() 
+    try:
+        # Clear previous results if topic changed
+        current_topic = StateManager.get_current_topic()
+        if current_topic != topic:
+            StateManager.clear_results()
+            StateManager.update_analysis_results(topic)
+        
+        with main_content:
+            iterations = DEPTH_ITERATIONS[depth]
+            framework, analysis, summary = analyze_topic(model, topic, iterations)
+            
+            if framework and analysis and summary:
+                StateManager.update_analysis_results(topic, framework, analysis, summary)
+                StateManager.show_success()
+    except Exception as e:
+        logger.error(f"Form submission error: {str(e)}")
+        StateManager.show_error('ANALYSIS_ERROR', e) 
