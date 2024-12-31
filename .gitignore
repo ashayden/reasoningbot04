@@ -23,6 +23,7 @@ wheels/
 
 # Virtual Environment
 venv/
+.venv/
 ENV/
 
 # IDE
@@ -31,6 +32,14 @@ ENV/
 *.swp
 *.swo
 
-# Environment variables
+# Environment variables and secrets
 .env
-.env.local 
+.env.local
+.streamlit/secrets.toml
+
+# Streamlit
+.streamlit/config.toml
+
+# OS
+.DS_Store
+Thumbs.db 
