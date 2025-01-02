@@ -62,14 +62,14 @@ class BaseAgent:
             in_thought_block = False
             
             thought_starters = [
-                "first i will", "i will", "thoughts", "thinking process", "let me",
-                "i need to", "i'll", "step 1", "step 2", "the user wants",
-                "draft answer", "self-critique", "i am thinking", "i should",
-                "my approach", "i'm going to", "let's", "here's how", "my plan",
-                "i understand", "to answer this", "to respond", "my response",
-                "my analysis", "i can see", "i notice", "i observe",
-                "first, ", "second, ", "third, ", "finally, ", "next, ",
-                "to start", "to begin", "i must", "i have to"
+                "first i will", "i will", "thoughts:", "thinking process:", "let me",
+                "i need to", "i'll", "step 1:", "step 2:", "the user wants",
+                "draft answer:", "self-critique:", "i am thinking", "i should",
+                "my approach:", "i'm going to", "let's", "here's how", "my plan:",
+                "i understand", "to answer this", "to respond", "my response:",
+                "my analysis:", "i can see", "i notice", "i observe",
+                "first,", "second,", "third,", "finally,", "next,",
+                "to start,", "to begin,", "i must", "i have to"
             ]
             
             for line in lines:
@@ -78,7 +78,7 @@ class BaseAgent:
                     continue
                 
                 # Check if this line starts a thought block
-                if any(line.lower().startswith(starter) for starter in thought_starters):
+                if any(line.lower().startswith(starter.lower()) for starter in thought_starters):
                     in_thought_block = True
                     self._last_thoughts = line
                     continue
@@ -87,18 +87,14 @@ class BaseAgent:
                 if any(marker in line.lower() for marker in [
                     "i will", "i'll", "i should", "i need", "i must",
                     "i have to", "i am", "i'm", "let me", "let's"
-                ]):
+                ]) and not any(marker in line for marker in ["🌟", "💡", "🔍", "📝", "🎯", "⚡"]):
                     in_thought_block = True
                     self._last_thoughts = line
                     continue
                 
-                # If we're not in a thought block and the line doesn't look like a thought,
-                # add it to content
-                if not in_thought_block:
+                # If we're not in a thought block or we hit a content marker, add the line
+                if not in_thought_block or any(marker in line for marker in ["🌟", "💡", "🔍", "📝", "🎯", "⚡"]):
                     content_lines.append(line)
-                
-                # Reset thought block if we hit a clear content marker
-                if any(marker in line for marker in ["🌟", "💡", "🔍", "📝", "🎯", "⚡"]):
                     in_thought_block = False
             
             # Join the content lines, preserving paragraph structure
