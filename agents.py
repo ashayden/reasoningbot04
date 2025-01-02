@@ -449,13 +449,12 @@ class SynthesisExpert(BaseAgent):
                 current_section.append(f"# {section_title}")
                 continue
             
-            # Handle subsections and bullet points
-            if line.startswith('-'):
-                # Indent bullet points under their sections
-                line = '  • ' + line[1:].strip()
-            elif line.startswith('•'):
-                # Convert bullet points to consistent format
-                line = '  • ' + line[1:].strip()
+            # Handle bullet points and subsections
+            if line.startswith('-') or line.startswith('•'):
+                # Clean up the line and ensure proper bullet point formatting
+                cleaned_line = line.lstrip('-•').strip()
+                # Add proper indentation and bullet point
+                line = f"* {cleaned_line}"
             
             # Special handling for references section
             if "Works Cited" in line:
@@ -467,18 +466,25 @@ class SynthesisExpert(BaseAgent):
             
             # Format citations in references section
             if in_references and line.strip() and not line.startswith('#'):
-                # Ensure proper spacing and formatting for references
-                if not line.endswith('.'):
-                    line += '.'
-                if not line.startswith('  '):
-                    line = '  ' + line
+                # Clean up the citation line
+                citation = line.strip()
+                if not citation.endswith('.'):
+                    citation += '.'
+                # Format as a reference list item
+                line = f"* {citation}"
             
             current_section.append(line)
         
         if current_section:
             formatted_sections.append('\n'.join(current_section))
         
-        return '\n\n'.join(formatted_sections)
+        # Join sections with double newlines for proper markdown spacing
+        formatted_text = '\n\n'.join(formatted_sections)
+        
+        # Ensure proper spacing between sections and lists
+        formatted_text = formatted_text.replace('\n*', '\n\n*')
+        
+        return formatted_text
     
     def synthesize(self, topic: str, analyses: list) -> Optional[str]:
         """Synthesize all research analyses into a final report."""
@@ -537,6 +543,8 @@ class SynthesisExpert(BaseAgent):
         - Balance classic and recent works
         - Maintain scholarly tone
         - Cross-reference analyses
+        - Ensure proper formatting of citations
+        - Include DOIs for all recent works
         
         Analysis to synthesize: {' '.join(analyses)}"""
         

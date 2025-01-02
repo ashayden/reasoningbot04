@@ -239,16 +239,18 @@ def display_focus_selection(focus_areas: list, selected_areas: list) -> tuple[bo
         with st.expander("🎯 Focus Areas", expanded=st.session_state.focus_area_expanded):
             st.markdown("Choose specific aspects you'd like the analysis to emphasize (optional):")
             
-            # Use multiselect with max_selections parameter to allow multiple selections
-            selected = st.multiselect(
-                "Focus Areas",
-                options=focus_areas,
-                default=st.session_state.current_focus_areas,
-                key="focus_multiselect",
-                label_visibility="collapsed",
-                max_selections=None,  # Allow unlimited selections
-                format_func=lambda x: x  # Prevent dropdown from closing on selection
-            )
+            # Create a container for the multiselect to prevent UI shifts
+            select_container = st.container()
+            with select_container:
+                # Use multiselect with custom key and format function
+                selected = st.multiselect(
+                    "Focus Areas",
+                    options=focus_areas,
+                    default=st.session_state.current_focus_areas,
+                    key=f"focus_select_{hash(str(focus_areas))}",
+                    label_visibility="collapsed",
+                    format_func=str  # Use str to prevent any formatting that might cause menu closure
+                )
             
             # Update session state with current selections
             st.session_state.current_focus_areas = selected
