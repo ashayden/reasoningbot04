@@ -326,6 +326,7 @@ class ResearchAnalyst(BaseAgent):
             formatted_sections = []
             current_section = []
             in_references = False
+            reference_entries = []
             
             for line in sections:
                 line = line.strip()
@@ -339,19 +340,24 @@ class ResearchAnalyst(BaseAgent):
                 # Handle section headers (numbered sections)
                 if any(line.startswith(f"{i}.") for i in range(1, 8)):
                     if current_section:
+                        if in_references and reference_entries:
+                            # Add collected references with proper formatting
+                            current_section.extend(reference_entries)
                         formatted_sections.append('\n'.join(current_section))
                         current_section = []
+                        reference_entries = []
                     
                     section_title = line.split('.', 1)[1].strip()
                     if "References" in section_title:
                         in_references = True
                         current_section.append(f"\n## {section_title}")
                     else:
+                        in_references = False
                         current_section.append(f"\n## {section_title}")
                     continue
                 
                 # Handle subsection headers (bullet points that look like headers)
-                if line.startswith('-') and ':' in line and len(line) < 50:
+                if not in_references and line.startswith('-') and ':' in line and len(line) < 50:
                     subsection = line.lstrip('- ').strip()
                     current_section.append(f"\n### {subsection}")
                     continue
@@ -366,17 +372,21 @@ class ResearchAnalyst(BaseAgent):
                         citation = cleaned_line
                         if not citation.endswith('.'):
                             citation += '.'
-                        current_section.append(f"* {citation}")
+                        reference_entries.append(f"* {citation}")
                     else:
                         # Regular bullet points
                         current_section.append(f"* {cleaned_line}")
                     continue
                 
                 # Handle regular text
-                current_section.append(line)
+                if not in_references:
+                    current_section.append(line)
             
             # Add final section
             if current_section:
+                if in_references and reference_entries:
+                    # Add collected references with proper formatting
+                    current_section.extend(reference_entries)
                 formatted_sections.append('\n'.join(current_section))
             
             # Join sections with proper spacing and clean up
@@ -387,6 +397,10 @@ class ResearchAnalyst(BaseAgent):
             content = content.replace('\n##', '\n\n##')  # Ensure space before headers
             content = content.replace('\n###', '\n\n###')  # Ensure space before subheaders
             content = content.replace('\n*', '\n\n*')  # Ensure space before lists
+            
+            # Special handling for references section spacing
+            content = content.replace('* \n', '*\n')  # Remove extra space after reference bullets
+            content = content.replace('.\n*', '.\n\n*')  # Add space between reference entries
             
             formatted['content'] = content.strip()
         
@@ -406,8 +420,8 @@ class ResearchAnalyst(BaseAgent):
             Structure your analysis using this format:
 
             Start with:
-            Title: [Descriptive title reflecting the main focus]
-            Subtitle: [Specific aspect or approach being analyzed]
+            Title: [Descriptive title reflecting the main focus of topic analysis]
+            Subtitle: [Specific aspect of analysis and/or approach being analyzed]
 
             Then provide a comprehensive analysis following this structure:
 
