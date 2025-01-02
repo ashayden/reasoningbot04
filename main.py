@@ -132,6 +132,36 @@ div[data-testid="stMultiSelect"] input {
     border: 1px solid #333 !important;
     color: #fff !important;
 }
+
+/* Override default multiselect placeholder */
+div[data-testid="stMultiSelect"] [data-baseweb="select"] > div:first-child {
+    background-color: #1E1E1E !important;
+    border: 1px solid #333 !important;
+    color: #fff !important;
+}
+
+div[data-testid="stMultiSelect"] [data-baseweb="select"] span {
+    color: #fff !important;
+}
+
+div[data-testid="stMultiSelect"] [data-baseweb="select"] [aria-selected="true"] {
+    background-color: rgba(0, 102, 204, 0.2) !important;
+    color: #fff !important;
+}
+
+div[data-testid="stMultiSelect"] [data-baseweb="select"] [role="listbox"] {
+    background-color: #1E1E1E !important;
+    border: 1px solid #333 !important;
+}
+
+div[data-testid="stMultiSelect"] [data-baseweb="select"] [role="option"] {
+    background-color: #1E1E1E !important;
+    color: #fff !important;
+}
+
+div[data-testid="stMultiSelect"] [data-baseweb="select"] [role="option"]:hover {
+    background-color: #333 !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -290,7 +320,8 @@ def display_focus_selection(focus_areas: list, selected_areas: list) -> tuple[bo
                     default=st.session_state.focus_area_state['selected'],
                     key="focus_select",
                     on_change=on_selection_change,
-                    label_visibility="visible"
+                    label_visibility="visible",
+                    placeholder="Select one or more focus areas..."
                 )
                 
                 st.markdown("---")
