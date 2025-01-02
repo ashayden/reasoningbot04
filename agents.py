@@ -270,12 +270,15 @@ class FrameworkEngineer(BaseAgent):
            2. Key Deliverables
            3. Review Points
 
-        For each section and subsection, provide detailed and specific content relevant to the topic.
-        Ensure each point is thoroughly explained and contextually appropriate.
-        Use clear, academic language while maintaining accessibility.
+        For each section and subsection:
+        - Provide detailed and specific content relevant to the topic
+        - Ensure each point is thoroughly explained
+        - Use clear, academic language while maintaining accessibility
+        - Focus on methodological and structural aspects
+        - Outline concrete steps and criteria
         
-        Previous thought process (if available):
-        {self._last_thoughts if self._last_thoughts else 'Not available'}"""
+        Note: This framework should focus on the research structure and methodology. 
+        Citations and references are not needed in this outline phase."""
         
         return self.generate_content(prompt, FRAMEWORK_CONFIG)
 
@@ -524,16 +527,11 @@ class SynthesisExpert(BaseAgent):
             return ""
         
         # Split into lines and initialize containers
-        lines = text.split('\n')
+        lines = [line.strip() for line in text.split('\n') if line.strip()]
         formatted_lines = []
-        current_section = None
         in_references = False
         
-        for line in line_buffer:
-            line = line.strip()
-            if not line:
-                continue
-            
+        for line in lines:
             # Handle main section headers (numbered sections)
             if any(line.startswith(f"{i}.") for i in range(1, 8)):
                 # Add extra spacing before new sections
@@ -542,7 +540,6 @@ class SynthesisExpert(BaseAgent):
                 
                 # Extract and format section title
                 section_title = line.split('.', 1)[1].strip()
-                current_section = section_title
                 
                 # Special handling for references section
                 if "Works Cited" in section_title or "References" in section_title:
@@ -550,7 +547,6 @@ class SynthesisExpert(BaseAgent):
                 
                 # Add formatted header
                 formatted_lines.append(f"# {section_title}")
-                formatted_lines.append("")  # Add space after header
                 continue
             
             # Handle references section
@@ -572,15 +568,15 @@ class SynthesisExpert(BaseAgent):
             # Handle regular text
             formatted_lines.append(line)
         
-        # Join lines with proper spacing
-        formatted_text = "\n".join(formatted_lines)
+        # Join lines with proper spacing and clean up
+        text = "\n".join(formatted_lines)
         
-        # Clean up any remaining formatting issues
-        formatted_text = formatted_text.replace("\n\n\n", "\n\n")  # Remove triple line breaks
-        formatted_text = formatted_text.replace("# ", "\n# ")      # Ensure spacing before headers
-        formatted_text = formatted_text.replace("* ", "\n* ")      # Ensure spacing before bullet points
+        # Ensure proper spacing between sections
+        text = text.replace("\n# ", "\n\n# ")  # Double space before headers
+        text = text.replace("\n* ", "\n\n* ")  # Double space before lists
+        text = text.replace("\n\n\n", "\n\n")  # Remove triple spacing
         
-        return formatted_text.strip()
+        return text.strip()
     
     def synthesize(self, topic: str, analyses: list) -> Optional[str]:
         """Synthesize all research analyses into a final report."""
@@ -633,7 +629,7 @@ class SynthesisExpert(BaseAgent):
         - Add DOIs where available
         - List primary sources first
         - Organize alphabetically
-        
+
         Important Guidelines:
         - Use proper APA in-text citations (Author, Year)
         - Ensure every citation has a reference
@@ -642,6 +638,13 @@ class SynthesisExpert(BaseAgent):
         - Cross-reference analyses
         - Format citations consistently
         - Include DOIs for recent works
+
+        Format Guidelines:
+        - Use numbered sections (1., 2., etc.)
+        - Use bullet points for lists (-)
+        - Include proper spacing between sections
+        - Format references with bullet points
+        - End each reference with a period
         
         Analysis to synthesize: {' '.join(analyses)}"""
         
