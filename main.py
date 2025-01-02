@@ -384,12 +384,12 @@ def main():
         
         # Process each stage
         process_stage('insights', containers['insights'],
-                     lambda: PreAnalysisAgent(model).generate_insights(topic),
+                     lambda **kwargs: PreAnalysisAgent(model).generate_insights(topic),
                      'prompt', spinner_text="💡 Generating insights...",
                      display_fn=display_insights)
         
         process_stage('prompt', containers['prompt'],
-                     lambda: PromptDesigner(model).design_prompt(topic),
+                     lambda **kwargs: PromptDesigner(model).design_prompt(topic),
                      'focus', spinner_text="✍️ Optimizing prompt...",
                      display_fn=lambda x: st.expander("✍️ Optimized Prompt", expanded=False).markdown(x))
         
@@ -415,7 +415,7 @@ def main():
                             st.rerun()
         
         process_stage('framework', containers['framework'],
-                     lambda: FrameworkEngineer(model).create_framework(
+                     lambda **kwargs: FrameworkEngineer(model).create_framework(
                          st.session_state.app_state['prompt'],
                          st.session_state.app_state.get('enhanced_prompt')
                      ),
@@ -444,7 +444,7 @@ def main():
                         st.markdown(result)
         
         process_stage('summary', containers['summary'],
-                     lambda: SynthesisExpert(model).synthesize(
+                     lambda **kwargs: SynthesisExpert(model).synthesize(
                          topic,
                          st.session_state.app_state['analysis_results']
                      ),
