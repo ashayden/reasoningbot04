@@ -2,6 +2,12 @@
 
 # Model configurations
 GEMINI_MODEL = "gemini-2.0-flash-thinking-exp-1219"
+PREANALYSIS_CONFIG = {
+    "temperature": 0.7,
+    "top_p": 0.8,
+    "top_k": 40,
+    "max_output_tokens": 1024,
+}
 
 # Generation configurations
 PROMPT_DESIGN_CONFIG = {
