@@ -187,6 +187,10 @@ def reset_state(topic, iterations):
         if old_state.get('analysis_results'):
             old_state['analysis_results'].clear()
     
+    # Reset focus area expansion state
+    if 'focus_area_expanded' in st.session_state:
+        st.session_state.focus_area_expanded = True
+    
     st.session_state.app_state = {
         'topic': topic,
         'iterations': iterations,
@@ -219,7 +223,11 @@ def display_insights(insights: dict):
 
 def display_focus_selection(focus_areas: list, selected_areas: list) -> tuple[bool, list]:
     """Display focus area selection with proper state handling."""
-    with st.expander("🎯 Focus Areas", expanded=False):
+    # Track if the section should be expanded in session state
+    if 'focus_area_expanded' not in st.session_state:
+        st.session_state.focus_area_expanded = True
+    
+    with st.expander("🎯 Focus Areas", expanded=st.session_state.focus_area_expanded):
         st.markdown("Choose specific aspects you'd like the analysis to emphasize (optional):")
         
         # Use a unique key for the multiselect
@@ -240,6 +248,7 @@ def display_focus_selection(focus_areas: list, selected_areas: list) -> tuple[bo
             if col1.button("Skip", key="skip_focus", use_container_width=True):
                 st.session_state.app_state['focus_selection_complete'] = True
                 st.session_state.app_state['show_framework'] = True
+                st.session_state.focus_area_expanded = False
                 return True, selected
             
             continue_disabled = len(selected) == 0
@@ -252,6 +261,7 @@ def display_focus_selection(focus_areas: list, selected_areas: list) -> tuple[bo
             ):
                 st.session_state.app_state['focus_selection_complete'] = True
                 st.session_state.app_state['show_framework'] = True
+                st.session_state.focus_area_expanded = False
                 return True, selected
         
         return False, selected
