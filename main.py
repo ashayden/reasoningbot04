@@ -358,6 +358,7 @@ def main():
                         if prompt:
                             st.session_state.app_state['prompt'] = prompt
                             st.session_state.app_state['show_focus'] = True
+                            st.rerun()
                 
                 if st.session_state.app_state['prompt']:
                     with st.expander("✍️ Optimized Prompt", expanded=False):
@@ -371,6 +372,7 @@ def main():
                         focus_areas = PromptDesigner(model).generate_focus_areas(topic)
                         if focus_areas:
                             st.session_state.app_state['focus_areas'] = focus_areas
+                            st.rerun()
                 
                 if st.session_state.app_state['focus_areas']:
                     proceed, selected = display_focus_selection(
@@ -382,8 +384,10 @@ def main():
                     if proceed:
                         with st.spinner("Enhancing prompt with focus areas..."):
                             enhanced_prompt = PromptDesigner(model).design_prompt(topic, selected)
-                            st.session_state.app_state['enhanced_prompt'] = enhanced_prompt
-                            st.rerun()
+                            if enhanced_prompt:
+                                st.session_state.app_state['enhanced_prompt'] = enhanced_prompt
+                                st.session_state.app_state['show_framework'] = True
+                                st.rerun()
         
         # Process framework
         if st.session_state.app_state['show_framework']:

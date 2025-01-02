@@ -439,7 +439,7 @@ class SynthesisExpert(BaseAgent):
             if not line:
                 continue
                 
-            # Handle main section headers
+            # Handle main section headers (numbered sections)
             if any(line.startswith(f"{i}.") for i in range(1, 8)):
                 if current_section:
                     formatted_sections.append('\n'.join(current_section))
@@ -449,6 +449,14 @@ class SynthesisExpert(BaseAgent):
                 current_section.append(f"## {section_title}")
                 continue
             
+            # Handle subsections and bullet points
+            if line.startswith('-'):
+                # Indent bullet points under their sections
+                line = '  ' + line
+            elif line.startswith('•'):
+                # Convert bullet points to consistent format
+                line = '  - ' + line[1:].strip()
+            
             # Special handling for references section
             if "Works Cited" in line or "References" in line:
                 in_references = True
@@ -457,16 +465,13 @@ class SynthesisExpert(BaseAgent):
                 current_section = [f"## {line}"]
                 continue
             
-            # Format bullet points
-            if line.startswith('-'):
-                line = line.replace('-', '•', 1)
-            
             # Format citations in references section
             if in_references and line.strip() and not line.startswith('##'):
                 # Ensure proper spacing and formatting for references
                 if not line.endswith('.'):
                     line += '.'
-                line = '- ' + line
+                if not line.startswith('  - '):
+                    line = '  - ' + line
             
             current_section.append(line)
         
@@ -477,40 +482,46 @@ class SynthesisExpert(BaseAgent):
     
     def synthesize(self, topic: str, analyses: list) -> Optional[str]:
         """Synthesize all research analyses into a final report."""
-        prompt = f"""Synthesize all research from agent 2 on '{topic}' into a Final Report with:
+        prompt = f"""Synthesize all research analyses on '{topic}' into a Final Report with:
         
         1. Executive Summary (2-3 paragraphs)
            - Include key citations for major findings
            - Highlight most significant discoveries
+           - Summarize methodology and approach
         
         2. Key Insights (bullet points)
            - Support each insight with relevant citations
            - Include methodology used to derive insights
+           - Present in order of significance
         
         3. Analysis
            - Comprehensive synthesis of findings with citations
            - Integration of multiple perspectives
            - Critical evaluation of evidence
+           - Thematic organization of findings
         
         4. Conclusion
            - Summary of main findings
            - Implications for theory and practice
            - Future research directions
+           - Recommendations based on findings
         
         5. Further Considerations & Counter-Arguments
            - Alternative viewpoints with citations
            - Limitations of current research
            - Areas of uncertainty or debate
+           - Potential challenges to findings
         
         6. Recommended Readings and Resources
            - Key papers and their main contributions
            - Seminal works in the field
            - Recent significant publications
+           - Online resources and databases
         
         7. Works Cited
            - Comprehensive bibliography in APA format
            - Include all sources cited in the report
-           - Organize by primary sources, secondary sources, and additional resources
+           - Organize by primary/secondary sources
            - Include DOIs where available
         
         Important:
