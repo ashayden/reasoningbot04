@@ -4,6 +4,7 @@ import logging
 import streamlit as st
 import google.generativeai as genai
 import os
+from typing import Dict
 
 from config import GEMINI_MODEL
 from utils import validate_topic, sanitize_topic
@@ -111,9 +112,9 @@ div[data-testid="stNumberInput"] button:hover {
 # Logo/Header
 st.image("assets/mara-logo.png", use_container_width=True)
 
-# Initialize state
-if 'app_state' not in st.session_state:
-    st.session_state.app_state = {
+def initialize_state():
+    """Initialize application state with default values."""
+    return {
         'topic': None,
         'iterations': None,
         'insights': None,
@@ -128,8 +129,14 @@ if 'app_state' not in st.session_state:
         'show_focus': False,
         'show_framework': False,
         'show_analysis': False,
-        'show_summary': False
+        'show_summary': False,
+        'error': None,
+        'focus_selection_complete': False
     }
+
+# Initialize state
+if 'app_state' not in st.session_state:
+    st.session_state.app_state = initialize_state()
 
 # Initialize Gemini
 @st.cache_resource
@@ -164,58 +171,55 @@ def validate_and_sanitize_input(topic: str) -> tuple[bool, str, str]:
     return True, "", sanitized
 
 def handle_error(e: Exception, context: str):
-    """Handle errors consistently."""
+    """Handle errors consistently with proper cleanup and user feedback."""
     error_msg = f"Error during {context}: {str(e)}"
     logger.error(error_msg)
-    st.error(error_msg)
     
-    # Reset relevant state
+    # Provide user-friendly error message
+    user_msg = {
+        'insights': "Failed to generate initial insights. Please try again.",
+        'prompt': "Failed to optimize the prompt. Please try again.",
+        'focus': "Failed to generate focus areas. Please try again.",
+        'framework': "Failed to build analysis framework. Please try again.",
+        'analysis': "Failed during analysis. Please try again.",
+        'summary': "Failed to generate final report. Please try again."
+    }.get(context, "An unexpected error occurred. Please try again.")
+    
+    st.error(user_msg)
+    
+    # Reset relevant state and stop showing subsequent stages
     if context in st.session_state.app_state:
         st.session_state.app_state[context] = None
     
-    # Stop showing subsequent stages
     stages = ['show_insights', 'show_prompt', 'show_focus', 'show_framework', 'show_analysis', 'show_summary']
     current_stage_idx = stages.index(f'show_{context}')
     for stage in stages[current_stage_idx:]:
         st.session_state.app_state[stage] = False
+    
+    # Clean up any partial results
+    cleanup_partial_results(context)
 
-def reset_state(topic, iterations):
+def reset_state(topic: str, iterations: int):
     """Reset application state with memory cleanup."""
-    # Clear previous results
-    if 'app_state' in st.session_state:
-        old_state = st.session_state.app_state
-        if old_state.get('analysis_results'):
-            old_state['analysis_results'].clear()
+    # Clear previous results and perform cleanup
+    if hasattr(st.session_state, 'app_state'):
+        if st.session_state.app_state.get('analysis_results'):
+            st.session_state.app_state['analysis_results'].clear()
     
     # Reset focus area states
     st.session_state.focus_area_expanded = True
-    if 'current_focus_areas' in st.session_state:
+    if hasattr(st.session_state, 'current_focus_areas'):
         st.session_state.current_focus_areas = []
     
-    # Initialize new state
-    st.session_state.app_state = {
+    # Initialize new state with provided values
+    new_state = initialize_state()
+    new_state.update({
         'topic': topic,
         'iterations': iterations,
-        'insights': None,
-        'prompt': None,
-        'focus_areas': None,
-        'selected_areas': [],
-        'enhanced_prompt': None,
-        'framework': None,
-        'analysis_results': [],
-        'summary': None,
-        'show_insights': True,  # Set to True by default
-        'show_prompt': False,
-        'show_focus': False,
-        'show_framework': False,
-        'show_analysis': False,
-        'show_summary': False,
-        'error': None,
-        'focus_selection_complete': False
-    }
+        'show_insights': True  # Start with insights
+    })
     
-    # Force immediate insights generation
-    st.session_state.app_state['show_insights'] = True
+    st.session_state.app_state = new_state
 
 def display_insights(insights: dict):
     """Display insights in proper containers."""
@@ -291,6 +295,47 @@ def display_focus_selection(focus_areas: list, selected_areas: list) -> tuple[bo
             
             return False, selected
 
+def cleanup_partial_results(context: str):
+    """Clean up any partial results when errors occur."""
+    if context == 'analysis':
+        if 'analysis_results' in st.session_state.app_state:
+            # Remove the last incomplete analysis
+            if st.session_state.app_state['analysis_results']:
+                st.session_state.app_state['analysis_results'].pop()
+    elif context == 'framework':
+        st.session_state.app_state['framework'] = None
+        st.session_state.app_state['show_analysis'] = False
+    elif context == 'focus':
+        st.session_state.app_state['focus_areas'] = None
+        st.session_state.app_state['selected_areas'] = []
+        st.session_state.app_state['show_framework'] = False
+
+def process_stage(stage_name: str, container, process_fn, next_stage: str = None, **kwargs):
+    """Process a single stage of the analysis pipeline."""
+    if not st.session_state.app_state[f'show_{stage_name}']:
+        return
+        
+    with container:
+        try:
+            state_key = stage_name if stage_name != 'focus' else 'focus_areas'
+            if not st.session_state.app_state[state_key]:
+                with st.spinner(f"{kwargs.get('spinner_text', 'Processing...')}"):
+                    result = process_fn(**kwargs)
+                    if result:
+                        st.session_state.app_state[state_key] = result
+                        if next_stage:
+                            st.session_state.app_state[f'show_{next_stage}'] = True
+                            st.rerun()
+            
+            if st.session_state.app_state[state_key]:
+                display_fn = kwargs.get('display_fn')
+                if display_fn:
+                    display_fn(st.session_state.app_state[state_key])
+                    
+        except Exception as e:
+            handle_error(e, stage_name)
+            return
+
 def main():
     """Main application flow."""
     # Input form
@@ -317,61 +362,39 @@ def main():
     
     # Process submission
     if submit:
-        # Validate input
         is_valid, error_msg, sanitized_topic = validate_and_sanitize_input(topic)
         if not is_valid:
             st.error(error_msg)
             return
         
-        # Reset state if topic changed or no topic is set
         if not st.session_state.app_state['topic'] or st.session_state.app_state['topic'] != sanitized_topic:
             reset_state(sanitized_topic, iterations)
-            st.session_state.app_state['show_insights'] = True
-            st.rerun()  # Force a rerun to start the analysis
+            st.rerun()
     
     try:
-        # Create containers with proper styling
-        insights_container = st.container()
-        prompt_container = st.container()
-        focus_container = st.container()
-        framework_container = st.container()
-        analysis_container = st.container()
-        summary_container = st.container()
+        # Create containers
+        containers = {
+            'insights': st.container(),
+            'prompt': st.container(),
+            'focus': st.container(),
+            'framework': st.container(),
+            'analysis': st.container(),
+            'summary': st.container()
+        }
         
-        # Process insights
-        if st.session_state.app_state['show_insights']:
-            with insights_container:
-                try:
-                    if not st.session_state.app_state['insights']:
-                        with st.spinner("💡 Generating insights..."):
-                            insights = PreAnalysisAgent(model).generate_insights(topic)
-                            if insights:
-                                st.session_state.app_state['insights'] = insights
-                                st.session_state.app_state['show_prompt'] = True
-                    
-                    if st.session_state.app_state['insights']:
-                        display_insights(st.session_state.app_state['insights'])
-                except Exception as e:
-                    handle_error(e, "insights")
-                    return
+        # Process each stage
+        process_stage('insights', containers['insights'],
+                     lambda: PreAnalysisAgent(model).generate_insights(topic),
+                     'prompt', spinner_text="💡 Generating insights...",
+                     display_fn=display_insights)
         
-        # Process prompt
-        if st.session_state.app_state['show_prompt']:
-            with prompt_container:
-                if not st.session_state.app_state['prompt']:
-                    with st.spinner("✍️ Optimizing prompt..."):
-                        prompt = PromptDesigner(model).design_prompt(topic)
-                        if prompt:
-                            st.session_state.app_state['prompt'] = prompt
-                            st.session_state.app_state['show_focus'] = True
-                
-                if st.session_state.app_state['prompt']:
-                    with st.expander("✍️ Optimized Prompt", expanded=False):
-                        st.markdown(st.session_state.app_state['prompt'])
+        process_stage('prompt', containers['prompt'],
+                     lambda: PromptDesigner(model).design_prompt(topic),
+                     'focus', spinner_text="✍️ Optimizing prompt...",
+                     display_fn=lambda x: st.expander("✍️ Optimized Prompt", expanded=False).markdown(x))
         
-        # Handle focus areas
         if st.session_state.app_state['show_focus']:
-            with focus_container:
+            with containers['focus']:
                 if not st.session_state.app_state['focus_areas']:
                     with st.spinner("🎯 Generating focus areas..."):
                         focus_areas = PromptDesigner(model).generate_focus_areas(topic)
@@ -391,27 +414,17 @@ def main():
                             st.session_state.app_state['enhanced_prompt'] = enhanced_prompt
                             st.rerun()
         
-        # Process framework
-        if st.session_state.app_state['show_framework']:
-            with framework_container:
-                if not st.session_state.app_state['framework']:
-                    with st.spinner("🔨 Building analysis framework..."):
-                        framework = FrameworkEngineer(model).create_framework(
-                            st.session_state.app_state['prompt'],
-                            st.session_state.app_state.get('enhanced_prompt')
-                        )
-                        if framework:
-                            st.session_state.app_state['framework'] = framework
-                            st.session_state.app_state['show_analysis'] = True
-                            st.rerun()
-                
-                if st.session_state.app_state['framework']:
-                    with st.expander("🎯 Research Framework", expanded=False):
-                        st.markdown(st.session_state.app_state['framework'])
+        process_stage('framework', containers['framework'],
+                     lambda: FrameworkEngineer(model).create_framework(
+                         st.session_state.app_state['prompt'],
+                         st.session_state.app_state.get('enhanced_prompt')
+                     ),
+                     'analysis', spinner_text="🔨 Building analysis framework...",
+                     display_fn=lambda x: st.expander("🎯 Research Framework", expanded=False).markdown(x))
         
-        # Process analysis
+        # Process analysis (special handling due to iterations)
         if st.session_state.app_state['show_analysis']:
-            with analysis_container:
+            with containers['analysis']:
                 if len(st.session_state.app_state['analysis_results']) < st.session_state.app_state['iterations']:
                     with st.spinner("🔄 Performing analysis..."):
                         result = ResearchAnalyst(model).analyze(
@@ -420,14 +433,7 @@ def main():
                             st.session_state.app_state['analysis_results'][-1] if st.session_state.app_state['analysis_results'] else None
                         )
                         if result:
-                            content = ""
-                            if result['title']:
-                                content += f"# {result['title']}\n\n"
-                            if result['subtitle']:
-                                content += f"*{result['subtitle']}*\n\n"
-                            if result['content']:
-                                content += result['content']
-                            
+                            content = format_analysis_result(result)
                             st.session_state.app_state['analysis_results'].append(content)
                             if len(st.session_state.app_state['analysis_results']) == st.session_state.app_state['iterations']:
                                 st.session_state.app_state['show_summary'] = True
@@ -437,26 +443,28 @@ def main():
                     with st.expander(f"🔄 Research Analysis #{i + 1}", expanded=False):
                         st.markdown(result)
         
-        # Process summary
-        if st.session_state.app_state['show_summary']:
-            with summary_container:
-                if not st.session_state.app_state['summary']:
-                    with st.spinner("📊 Generating final report..."):
-                        summary = SynthesisExpert(model).synthesize(
-                            topic,
-                            st.session_state.app_state['analysis_results']
-                        )
-                        if summary:
-                            st.session_state.app_state['summary'] = summary
-                            st.rerun()
-                
-                if st.session_state.app_state['summary']:
-                    with st.expander("📊 Final Report", expanded=False):
-                        st.markdown(st.session_state.app_state['summary'])
-                    st.success("✅ Analysis complete! Review the results above.")
+        process_stage('summary', containers['summary'],
+                     lambda: SynthesisExpert(model).synthesize(
+                         topic,
+                         st.session_state.app_state['analysis_results']
+                     ),
+                     spinner_text="📊 Generating final report...",
+                     display_fn=lambda x: st.expander("📊 Final Report", expanded=False).markdown(x))
+                     
     except Exception as e:
         handle_error(e, "analysis")
         return
+
+def format_analysis_result(result: Dict[str, str]) -> str:
+    """Format analysis result with consistent structure."""
+    content = ""
+    if result['title']:
+        content += f"# {result['title']}\n\n"
+    if result['subtitle']:
+        content += f"*{result['subtitle']}*\n\n"
+    if result['content']:
+        content += result['content']
+    return content
 
 if __name__ == "__main__":
     main() 
