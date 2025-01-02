@@ -534,10 +534,21 @@ class SynthesisExpert(BaseAgent):
         formatted_lines = []
         in_references = False
         
+        # Extract topic from first line if available
+        topic_title = "Research Synthesis Report"
+        if lines and lines[0].startswith('1.'):
+            # Get topic from first paragraph of executive summary
+            exec_summary = ' '.join(lines[1:3])  # Get first two lines after header
+            # Extract key terms for title
+            key_terms = [word for word in exec_summary.split() 
+                        if len(word) > 3 and word.isalnum()][:3]
+            if key_terms:
+                topic_title = f"Analysis & Insights: {' '.join(key_terms)}"
+        
         # Add creative title and subtitle
         formatted_lines.extend([
-            "# Research Synthesis Report",
-            "_A Comprehensive Analysis and Evaluation_",
+            f"# {topic_title}",
+            "_A Comprehensive Research Synthesis_",
             ""
         ])
         

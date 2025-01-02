@@ -113,6 +113,25 @@ div[data-testid="stNumberInput"] button {
 div[data-testid="stNumberInput"] button:hover {
     background-color: #444 !important;
 }
+
+/* Multiselect styling */
+div[data-testid="stMultiSelect"] {
+    width: 100% !important;
+    max-width: none !important;
+}
+
+div[data-testid="stMultiSelect"] > div {
+    width: 100% !important;
+    max-width: none !important;
+}
+
+div[data-testid="stMultiSelect"] input {
+    width: 100% !important;
+    max-width: none !important;
+    background-color: #1E1E1E !important;
+    border: 1px solid #333 !important;
+    color: #fff !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -247,7 +266,7 @@ def display_focus_selection(focus_areas: list, selected_areas: list) -> tuple[bo
             'expanded': True,
             'selected': [],
             'complete': False,
-            'just_completed': False  # Track if we just completed selection
+            'just_completed': False
         }
     
     # Create container for focus area selection
@@ -260,23 +279,19 @@ def display_focus_selection(focus_areas: list, selected_areas: list) -> tuple[bo
             if not st.session_state.focus_area_state['complete']:
                 st.markdown("Choose specific aspects you'd like the analysis to emphasize (optional):")
                 
-                # Create columns for better layout
-                col1, col2 = st.columns([3, 1])
+                # Handle selection changes
+                def on_selection_change():
+                    st.session_state.focus_area_state['selected'] = st.session_state.focus_select
                 
-                with col1:
-                    # Handle selection changes
-                    def on_selection_change():
-                        st.session_state.focus_area_state['selected'] = st.session_state.focus_select
-                    
-                    # Create the multiselect with callback
-                    selected = st.multiselect(
-                        "Select focus areas",
-                        options=focus_areas,
-                        default=st.session_state.focus_area_state['selected'],
-                        key="focus_select",
-                        on_change=on_selection_change,
-                        label_visibility="collapsed"
-                    )
+                # Create the multiselect with callback
+                selected = st.multiselect(
+                    "Select One or More Focus Areas",
+                    options=focus_areas,
+                    default=st.session_state.focus_area_state['selected'],
+                    key="focus_select",
+                    on_change=on_selection_change,
+                    label_visibility="visible"
+                )
                 
                 st.markdown("---")
                 
