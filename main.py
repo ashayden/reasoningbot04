@@ -255,18 +255,18 @@ def display_focus_selection(focus_areas: list, selected_areas: list) -> tuple[bo
             # Create a container for the multiselect to prevent UI shifts
             select_container = st.container()
             with select_container:
-                # Use multiselect with custom key and format function
+                # Use multiselect with custom key and no default value
                 selected = st.multiselect(
-                    "Focus Areas",
+                    "Select focus areas",
                     options=focus_areas,
                     default=st.session_state.current_focus_areas,
-                    key=f"focus_select_{hash(str(focus_areas))}",
-                    label_visibility="collapsed",
-                    format_func=str  # Use str to prevent any formatting that might cause menu closure
+                    key="focus_multiselect",
+                    label_visibility="collapsed"
                 )
-            
-            # Update session state with current selections
-            st.session_state.current_focus_areas = selected
+                
+                # Update session state only if selection changed
+                if selected != st.session_state.current_focus_areas:
+                    st.session_state.current_focus_areas = selected
             
             st.markdown("---")
             
@@ -294,6 +294,7 @@ def display_focus_selection(focus_areas: list, selected_areas: list) -> tuple[bo
                     st.session_state.app_state['focus_selection_complete'] = True
                     st.session_state.app_state['show_framework'] = True
                     st.session_state.focus_area_expanded = False
+                    st.rerun()
                     return True, selected
             
             return False, selected
@@ -416,7 +417,7 @@ def main():
                             st.rerun()
                 
                 if st.session_state.app_state['framework']:
-                    with st.expander("🎯 Research Framework", expanded=False):
+                    with st.expander("📄 Research Framework", expanded=False):
                         st.markdown(st.session_state.app_state['framework'])
         
         # Process analysis

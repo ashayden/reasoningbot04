@@ -296,10 +296,14 @@ class ResearchAnalyst(BaseAgent):
         }
         
         if result.get('title'):
-            formatted['title'] = MarkdownFormatter.format_section_header(result['title'])
+            # Remove any existing # symbols and format properly
+            clean_title = result['title'].lstrip('#').strip()
+            formatted['title'] = clean_title
         
         if result.get('subtitle'):
-            formatted['subtitle'] = f"*{result['subtitle'].strip()}*"
+            # Remove any existing * symbols and format properly
+            clean_subtitle = result['subtitle'].strip('*').strip()
+            formatted['subtitle'] = clean_subtitle
         
         if result.get('content'):
             sections = result['content'].split('\n')
@@ -321,24 +325,33 @@ class ResearchAnalyst(BaseAgent):
                     section_title = line.split('.', 1)[1].strip()
                     if "References" in section_title:
                         in_references = True
-                    current_section.append(MarkdownFormatter.format_section_header(section_title, 2))
-                    continue
-                
-                # Handle bullet points
-                if line.startswith('-'):
-                    cleaned_line = line.lstrip('-').strip()
-                    if in_references:
-                        current_section.append(MarkdownFormatter.format_bullet_point(CitationFormatter.format_citation(cleaned_line)))
+                        current_section.append(f"## {section_title}")
                     else:
-                        current_section.append(MarkdownFormatter.format_bullet_point(cleaned_line))
+                        current_section.append(f"## {section_title}")
                     continue
                 
+                # Handle bullet points and references
+                if line.startswith('-') or line.startswith('•'):
+                    cleaned_line = line.lstrip('-•').strip()
+                    if in_references:
+                        # Format reference entries consistently
+                        citation = cleaned_line
+                        if not citation.endswith('.'):
+                            citation += '.'
+                        current_section.append(f"* {citation}")
+                    else:
+                        current_section.append(f"* {cleaned_line}")
+                    continue
+                
+                # Handle regular text
                 current_section.append(line)
             
+            # Add final section
             if current_section:
                 formatted_sections.append('\n'.join(current_section))
             
-            formatted['content'] = MarkdownFormatter.clean_spacing('\n\n'.join(formatted_sections))
+            # Join sections with proper spacing
+            formatted['content'] = '\n\n'.join(formatted_sections)
         
         return formatted
     
