@@ -6,8 +6,10 @@ from functools import wraps
 from typing import Dict, Tuple, Optional
 import io
 import markdown
-from weasyprint import HTML
 from datetime import datetime
+import mdpdf
+import tempfile
+import os
 
 import streamlit as st
 from config import MIN_TOPIC_LENGTH, MAX_TOPIC_LENGTH, MAX_REQUESTS_PER_MINUTE
@@ -209,7 +211,7 @@ class MarkdownFormatter:
         return text.strip() 
 
 def generate_pdf(markdown_content: str) -> bytes:
-    """Convert markdown content to PDF.
+    """Convert markdown content to PDF using mdpdf.
     
     Args:
         markdown_content: The markdown content to convert
@@ -217,57 +219,32 @@ def generate_pdf(markdown_content: str) -> bytes:
     Returns:
         PDF file as bytes
     """
-    # Convert markdown to HTML
-    html_content = markdown.markdown(markdown_content)
-    
-    # Add basic styling
-    styled_html = f"""
-    <html>
-        <head>
-            <style>
-                body {{
-                    font-family: Arial, sans-serif;
-                    line-height: 1.6;
-                    margin: 2em;
-                }}
-                h1 {{
-                    color: #2c3e50;
-                    border-bottom: 2px solid #3498db;
-                    padding-bottom: 0.3em;
-                }}
-                h2 {{
-                    color: #34495e;
-                    margin-top: 1.5em;
-                }}
-                h3 {{
-                    color: #455a64;
-                }}
-                ul {{
-                    margin: 1em 0;
-                }}
-                li {{
-                    margin: 0.5em 0;
-                }}
-                em {{
-                    color: #666;
-                }}
-                .works-cited {{
-                    margin-top: 2em;
-                    border-top: 1px solid #ccc;
-                    padding-top: 1em;
-                }}
-            </style>
-        </head>
-        <body>
-            {html_content}
-        </body>
-    </html>
-    """
-    
-    # Convert to PDF
-    pdf_bytes = io.BytesIO()
-    HTML(string=styled_html).write_pdf(pdf_bytes)
-    return pdf_bytes.getvalue()
+    try:
+        # Create a temporary markdown file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as md_file:
+            md_file.write(markdown_content)
+            md_filepath = md_file.name
+        
+        # Create a temporary PDF file path
+        pdf_filepath = md_filepath.replace('.md', '.pdf')
+        
+        # Convert markdown to PDF
+        mdpdf.convert(md_filepath, pdf_filepath, theme='github')
+        
+        # Read the PDF file
+        with open(pdf_filepath, 'rb') as pdf_file:
+            pdf_bytes = pdf_file.read()
+        
+        # Clean up temporary files
+        os.unlink(md_filepath)
+        os.unlink(pdf_filepath)
+        
+        return pdf_bytes
+        
+    except Exception as e:
+        logger.error(f"PDF generation failed: {str(e)}")
+        # Return a simple PDF with error message
+        return f"Error generating PDF: {str(e)}".encode('utf-8')
 
 def generate_markdown(content: str) -> bytes:
     """Prepare markdown content for download.
