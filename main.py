@@ -431,19 +431,23 @@ def main():
                             st.session_state.app_state['analysis_results'][-1] if st.session_state.app_state['analysis_results'] else None
                         )
                         if result:
-                            content = ""
+                            # Format the analysis content with proper spacing
+                            content = []
                             if result['title']:
-                                content += f"# {result['title']}\n\n"
+                                content.append(f"# {result['title']}")
                             if result['subtitle']:
-                                content += f"*{result['subtitle']}*\n\n"
+                                content.append(f"*{result['subtitle']}*")
                             if result['content']:
-                                content += result['content']
+                                content.append(result['content'])
                             
-                            st.session_state.app_state['analysis_results'].append(content)
+                            formatted_content = '\n\n'.join(content)
+                            st.session_state.app_state['analysis_results'].append(formatted_content)
+                            
                             if len(st.session_state.app_state['analysis_results']) == st.session_state.app_state['iterations']:
                                 st.session_state.app_state['show_summary'] = True
                             st.rerun()
                 
+                # Display analysis results
                 for i, result in enumerate(st.session_state.app_state['analysis_results']):
                     with st.expander(f"🔄 Research Analysis #{i + 1}", expanded=False):
                         st.markdown(result)

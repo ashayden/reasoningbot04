@@ -316,7 +316,7 @@ class ResearchAnalyst(BaseAgent):
                 if not line:
                     continue
                 
-                # Handle section headers
+                # Handle section headers (numbered sections)
                 if any(line.startswith(f"{i}.") for i in range(1, 8)):
                     if current_section:
                         formatted_sections.append('\n'.join(current_section))
@@ -325,9 +325,13 @@ class ResearchAnalyst(BaseAgent):
                     section_title = line.split('.', 1)[1].strip()
                     if "References" in section_title:
                         in_references = True
-                        current_section.append(f"## {section_title}")
-                    else:
-                        current_section.append(f"## {section_title}")
+                    current_section.append(f"\n## {section_title}")
+                    continue
+                
+                # Handle subsection headers (bullet points that look like headers)
+                if line.startswith('-') and ':' in line and len(line) < 50:
+                    subsection = line.lstrip('- ').strip()
+                    current_section.append(f"\n### {subsection}")
                     continue
                 
                 # Handle bullet points and references
@@ -340,6 +344,7 @@ class ResearchAnalyst(BaseAgent):
                             citation += '.'
                         current_section.append(f"* {citation}")
                     else:
+                        # Regular bullet points
                         current_section.append(f"* {cleaned_line}")
                     continue
                 
@@ -350,8 +355,16 @@ class ResearchAnalyst(BaseAgent):
             if current_section:
                 formatted_sections.append('\n'.join(current_section))
             
-            # Join sections with proper spacing
-            formatted['content'] = '\n\n'.join(formatted_sections)
+            # Join sections with proper spacing and clean up
+            content = '\n\n'.join(formatted_sections)
+            
+            # Clean up extra whitespace and ensure proper markdown spacing
+            content = content.replace('\n\n\n', '\n\n')  # Remove triple line breaks
+            content = content.replace('\n##', '\n\n##')  # Ensure space before headers
+            content = content.replace('\n###', '\n\n###')  # Ensure space before subheaders
+            content = content.replace('\n*', '\n\n*')  # Ensure space before lists
+            
+            formatted['content'] = content.strip()
         
         return formatted
     
@@ -496,47 +509,61 @@ class SynthesisExpert(BaseAgent):
         formatted_sections = []
         current_section = []
         in_references = False
-        current_header_level = 0
         
         for line in sections:
             line = line.strip()
             if not line:
                 continue
             
-            # Handle section headers
+            # Handle section headers (numbered sections)
             if any(line.startswith(f"{i}.") for i in range(1, 8)):
-                # Save previous section if exists
                 if current_section:
                     formatted_sections.append('\n'.join(current_section))
                     current_section = []
                 
-                # Extract and format section header
                 section_title = line.split('.', 1)[1].strip()
-                if "Works Cited" in section_title:
+                if "Works Cited" in section_title or "References" in section_title:
                     in_references = True
-                current_header_level = 1
-                current_section.append(MarkdownFormatter.format_section_header(section_title, current_header_level))
+                current_section.append(f"\n# {section_title}")
                 continue
             
-            # Handle bullet points and subsections
+            # Handle subsection headers (bullet points that look like headers)
+            if line.startswith('-') and ':' in line and len(line) < 50:
+                subsection = line.lstrip('- ').strip()
+                current_section.append(f"\n## {subsection}")
+                continue
+            
+            # Handle bullet points and references
             if line.startswith('-') or line.startswith('•'):
                 cleaned_line = line.lstrip('-•').strip()
-                current_section.append(MarkdownFormatter.format_bullet_point(cleaned_line, current_header_level - 1 if current_header_level > 1 else 0))
+                if in_references:
+                    # Format reference entries consistently
+                    citation = cleaned_line
+                    if not citation.endswith('.'):
+                        citation += '.'
+                    current_section.append(f"* {citation}")
+                else:
+                    # Regular bullet points
+                    current_section.append(f"* {cleaned_line}")
                 continue
             
-            # Special handling for references section
-            if in_references:
-                if not line.startswith('#'):
-                    current_section.append(MarkdownFormatter.format_bullet_point(CitationFormatter.format_citation(line)))
-            else:
-                current_section.append(line)
+            # Handle regular text
+            current_section.append(line)
         
         # Add final section
         if current_section:
             formatted_sections.append('\n'.join(current_section))
         
-        # Join and clean up formatting
-        return MarkdownFormatter.clean_spacing('\n\n'.join(formatted_sections))
+        # Join sections with proper spacing and clean up
+        content = '\n\n'.join(formatted_sections)
+        
+        # Clean up extra whitespace and ensure proper markdown spacing
+        content = content.replace('\n\n\n', '\n\n')  # Remove triple line breaks
+        content = content.replace('\n#', '\n\n#')  # Ensure space before headers
+        content = content.replace('\n##', '\n\n##')  # Ensure space before subheaders
+        content = content.replace('\n*', '\n\n*')  # Ensure space before lists
+        
+        return content.strip()
     
     def synthesize(self, topic: str, analyses: list) -> Optional[str]:
         """Synthesize all research analyses into a final report."""
