@@ -192,19 +192,30 @@ div[data-baseweb="tooltip"] {
 
 def initialize_session_state():
     """Initialize or reset session state variables."""
-    if "initialized" not in st.session_state:
-        st.session_state.initialized = True
+    # Initialize all session state variables if not already present
+    if "topic" not in st.session_state:
         st.session_state.topic = ""
+    if "depth" not in st.session_state:
         st.session_state.depth = 2  # Default depth
+    if "insights" not in st.session_state:
         st.session_state.insights = None
+    if "focus_areas" not in st.session_state:
         st.session_state.focus_areas = None
+    if "selected_focus_areas" not in st.session_state:
         st.session_state.selected_focus_areas = None
+    if "optimized_prompt" not in st.session_state:
         st.session_state.optimized_prompt = None
+    if "framework" not in st.session_state:
         st.session_state.framework = None
+    if "analyses" not in st.session_state:
         st.session_state.analyses = []
+    if "final_report" not in st.session_state:
         st.session_state.final_report = None
+    if "focus_area_expanded" not in st.session_state:
         st.session_state.focus_area_expanded = True
+    if "did_you_know_expanded" not in st.session_state:
         st.session_state.did_you_know_expanded = True
+    if "eli5_expanded" not in st.session_state:
         st.session_state.eli5_expanded = True
 
 def initialize_models():
@@ -232,8 +243,11 @@ def display_header():
 
 def get_topic_input() -> Tuple[str, int, bool]:
     """Get the research topic and analysis parameters from user input."""
+    # Ensure session state is initialized
+    initialize_session_state()
+    
     # Create a container for input fields
-    with st.container():
+    with st.form(key="input_form"):
         # Topic input
         topic = st.text_input(
             "Enter your research topic or question:",
@@ -255,16 +269,14 @@ def get_topic_input() -> Tuple[str, int, bool]:
                 help="Choose 1-5 iterations. More iterations = deeper analysis = longer processing time."
             )
         
-        # Start button in second column
-        with col2:
-            start_clicked = st.button(
-                "🚀 Start Analysis",
-                type="primary",
-                key="start_button",
-                help="Begin the research analysis process"
-            )
+        # Submit button
+        submitted = st.form_submit_button(
+            "🚀 Start Analysis",
+            type="primary",
+            help="Begin the research analysis process"
+        )
         
-        return topic, depth, start_clicked
+        return topic, depth, submitted
 
 def display_insights(insights: Dict[str, str]):
     """Display quick insights about the topic."""
