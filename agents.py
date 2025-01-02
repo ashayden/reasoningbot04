@@ -123,17 +123,43 @@ class BaseAgent:
     def generate_content(self, prompt: str, config: Dict[str, Any]) -> Optional[str]:
         """Generate content with rate limiting and error handling."""
         try:
-            response = self.model.generate_content(
-                prompt,
-                generation_config=GenerationConfig(**config)
-            )
+            logger.info("Generating content with Gemini API...")
+            logger.info(f"Configuration: {config}")
             
-            return self._extract_content(response)
+            if not prompt or not prompt.strip():
+                logger.error("Empty prompt provided")
+                raise ValueError("Empty prompt provided")
+                
+            if not self.model:
+                logger.error("Model not initialized")
+                raise ValueError("Model not initialized")
+            
+            try:
+                response = self.model.generate_content(
+                    prompt,
+                    generation_config=GenerationConfig(**config)
+                )
+                logger.info("Successfully received response from Gemini API")
+                
+                if not response:
+                    logger.error("Received empty response from Gemini API")
+                    return None
+                
+                content = self._extract_content(response)
+                if content:
+                    logger.info("Successfully extracted content from response")
+                    return content
+                else:
+                    logger.error("Failed to extract content from response")
+                    return None
+                    
+            except Exception as e:
+                logger.error(f"Error calling Gemini API: {str(e)}")
+                raise
                 
         except Exception as e:
             logger.error(f"Content generation error: {str(e)}")
-            st.error(f"Error generating content: {str(e)}")
-            return None
+            raise  # Re-raise to be handled by the calling function
 
 class PreAnalysisAgent(BaseAgent):
     """Agent responsible for generating quick insights before main analysis."""
@@ -141,6 +167,8 @@ class PreAnalysisAgent(BaseAgent):
     def generate_insights(self, topic: str) -> Optional[Dict[str, str]]:
         """Generate quick insights about the topic."""
         try:
+            logger.info(f"Generating insights for topic: {topic}")
+            
             # Generate fun fact
             fact_prompt = (
                 "Generate a single sentence interesting fact related to this topic: "
@@ -154,9 +182,12 @@ class PreAnalysisAgent(BaseAgent):
                 "Respond with just the fact, no additional text."
             )
             
+            logger.info("Generating fun fact...")
             fact_text = self.generate_content(fact_prompt, PREANALYSIS_CONFIG)
             if not fact_text:
+                logger.error("Failed to generate fun fact")
                 return None
+            logger.info("Fun fact generated successfully")
             
             # Generate ELI5
             eli5_prompt = (
@@ -171,18 +202,23 @@ class PreAnalysisAgent(BaseAgent):
                 "Respond with just the explanation, no additional text."
             )
             
+            logger.info("Generating ELI5 explanation...")
             eli5_text = self.generate_content(eli5_prompt, PREANALYSIS_CONFIG)
             if not eli5_text:
+                logger.error("Failed to generate ELI5 explanation")
                 return None
+            logger.info("ELI5 explanation generated successfully")
             
-            return {
+            insights = {
                 'did_you_know': fact_text,
                 'eli5': eli5_text
             }
+            logger.info("Successfully generated both insights")
+            return insights
             
         except Exception as e:
             logger.error(f"PreAnalysis generation failed: {str(e)}")
-            return None
+            raise  # Re-raise the exception to be handled by the process_stage function
 
 class PromptDesigner(BaseAgent):
     """Agent responsible for designing optimal prompts."""

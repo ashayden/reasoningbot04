@@ -143,23 +143,39 @@ if 'app_state' not in st.session_state:
 def initialize_gemini():
     """Initialize the Gemini model with caching."""
     try:
-        api_key = st.secrets["GOOGLE_API_KEY"]
-        if not api_key:
-            st.error("Google API key is missing. Please check your Streamlit secrets.")
-            logger.error("Google API key is missing")
+        # Check if API key exists in secrets
+        if "GOOGLE_API_KEY" not in st.secrets:
+            st.error("Google API key not found in Streamlit secrets.")
+            logger.error("Google API key not found in secrets")
             return None
             
+        api_key = st.secrets["GOOGLE_API_KEY"]
+        if not api_key:
+            st.error("Google API key is empty. Please check your Streamlit secrets.")
+            logger.error("Google API key is empty")
+            return None
+            
+        # Configure the API
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(GEMINI_MODEL)
         
-        # Test the model with a simple prompt to ensure it's working
         try:
-            model.generate_content("Test")
-            logger.info("Gemini model initialized successfully")
+            # Initialize the model
+            model = genai.GenerativeModel(GEMINI_MODEL)
+            
+            # Test the model with a minimal prompt
+            logger.info("Testing Gemini model initialization...")
+            response = model.generate_content("Hello")
+            if not response or not response.text:
+                st.error("Model initialization test failed - empty response")
+                logger.error("Model initialization test failed - empty response")
+                return None
+                
+            logger.info("Gemini model initialized and tested successfully")
             return model
+            
         except Exception as e:
-            st.error(f"Failed to test Gemini model: {str(e)}")
-            logger.error(f"Failed to test Gemini model: {str(e)}")
+            st.error(f"Failed to initialize or test Gemini model: {str(e)}")
+            logger.error(f"Failed to initialize or test Gemini model: {str(e)}")
             return None
             
     except Exception as e:
@@ -170,7 +186,7 @@ def initialize_gemini():
 # Initialize model early
 model = initialize_gemini()
 if not model:
-    st.error("Failed to initialize the AI model. Please check your API key and try again.")
+    st.error("Failed to initialize the AI model. Please check your API key in Streamlit secrets and try again.")
     st.stop()
 
 def validate_and_sanitize_input(topic: str) -> tuple[bool, str, str]:
@@ -335,21 +351,49 @@ def process_stage(stage_name: str, container, process_fn, next_stage: str = None
     with container:
         try:
             state_key = stage_name if stage_name != 'focus' else 'focus_areas'
+            
+            # Check if we need to process this stage
             if not st.session_state.app_state[state_key]:
                 with st.spinner(f"{kwargs.get('spinner_text', 'Processing...')}"):
-                    result = process_fn(**kwargs)
-                    if result:
-                        st.session_state.app_state[state_key] = result
-                        if next_stage:
-                            st.session_state.app_state[f'show_{next_stage}'] = True
-                            st.rerun()
+                    logger.info(f"Starting {stage_name} stage processing...")
+                    try:
+                        # Process the stage
+                        result = process_fn(**kwargs)
+                        logger.info(f"Process function for {stage_name} completed. Result exists: {result is not None}")
+                        
+                        if result:
+                            # Store the result and update state
+                            st.session_state.app_state[state_key] = result
+                            if next_stage:
+                                st.session_state.app_state[f'show_{next_stage}'] = True
+                                logger.info(f"Moving to next stage: {next_stage}")
+                                st.experimental_rerun()  # Use experimental_rerun for more reliable state updates
+                        else:
+                            # Handle failed processing
+                            logger.error(f"Process function for {stage_name} returned None")
+                            handle_error(Exception(f"Failed to generate {stage_name}"), stage_name)
+                            return
+                            
+                    except Exception as e:
+                        # Handle processing errors
+                        logger.error(f"Error in process function for {stage_name}: {str(e)}")
+                        handle_error(e, stage_name)
+                        return
             
+            # Display the result if we have it
             if st.session_state.app_state[state_key]:
                 display_fn = kwargs.get('display_fn')
                 if display_fn:
-                    display_fn(st.session_state.app_state[state_key])
+                    try:
+                        display_fn(st.session_state.app_state[state_key])
+                    except Exception as e:
+                        logger.error(f"Error displaying {stage_name} result: {str(e)}")
+                        handle_error(e, stage_name)
+                        return
                     
         except Exception as e:
+            # Handle any other errors
+            logger.error(f"Outer error in {stage_name} stage: {str(e)}")
             handle_error(e, stage_name)
             return
 
@@ -391,6 +435,13 @@ def main():
             'iterations': iterations,
             'show_insights': True  # Start with insights
         })
+        
+        # Clear any previous focus area state
+        if 'focus_area_expanded' in st.session_state:
+            del st.session_state.focus_area_expanded
+        if 'current_focus_areas' in st.session_state:
+            del st.session_state.current_focus_areas
+            
         st.rerun()
 
     # Only proceed with analysis if we have a topic
@@ -409,15 +460,17 @@ def main():
         }
         
         # Process each stage
-        process_stage('insights', containers['insights'],
-                     lambda **kwargs: PreAnalysisAgent(model).generate_insights(st.session_state.app_state['topic']),
-                     'prompt', spinner_text="💡 Generating insights...",
-                     display_fn=display_insights)
+        if st.session_state.app_state['show_insights']:
+            process_stage('insights', containers['insights'],
+                         lambda **kwargs: PreAnalysisAgent(model).generate_insights(st.session_state.app_state['topic']),
+                         'prompt', spinner_text="💡 Generating insights...",
+                         display_fn=display_insights)
         
-        process_stage('prompt', containers['prompt'],
-                     lambda **kwargs: PromptDesigner(model).design_prompt(st.session_state.app_state['topic']),
-                     'focus', spinner_text="✍️ Optimizing prompt...",
-                     display_fn=lambda x: st.expander("✍️ Optimized Prompt", expanded=False).markdown(x))
+        if st.session_state.app_state['show_prompt']:
+            process_stage('prompt', containers['prompt'],
+                         lambda **kwargs: PromptDesigner(model).design_prompt(st.session_state.app_state['topic']),
+                         'focus', spinner_text="✍️ Optimizing prompt...",
+                         display_fn=lambda x: st.expander("✍️ Optimized Prompt", expanded=False).markdown(x))
         
         if st.session_state.app_state['show_focus']:
             with containers['focus']:
@@ -441,13 +494,14 @@ def main():
                             st.session_state.app_state['enhanced_prompt'] = enhanced_prompt
                             st.rerun()
         
-        process_stage('framework', containers['framework'],
-                     lambda **kwargs: FrameworkEngineer(model).create_framework(
-                         st.session_state.app_state['prompt'],
-                         st.session_state.app_state.get('enhanced_prompt')
-                     ),
-                     'analysis', spinner_text="🔨 Building analysis framework...",
-                     display_fn=lambda x: st.expander("🎯 Research Framework", expanded=False).markdown(x))
+        if st.session_state.app_state['show_framework']:
+            process_stage('framework', containers['framework'],
+                         lambda **kwargs: FrameworkEngineer(model).create_framework(
+                             st.session_state.app_state['prompt'],
+                             st.session_state.app_state.get('enhanced_prompt')
+                         ),
+                         'analysis', spinner_text="🔨 Building analysis framework...",
+                         display_fn=lambda x: st.expander("🎯 Research Framework", expanded=False).markdown(x))
         
         # Process analysis (special handling due to iterations)
         if st.session_state.app_state['show_analysis']:
@@ -472,13 +526,14 @@ def main():
                     with st.expander(f"🔄 Research Analysis #{i + 1}", expanded=False):
                         st.markdown(result)
         
-        process_stage('summary', containers['summary'],
-                     lambda **kwargs: SynthesisExpert(model).synthesize(
-                         st.session_state.app_state['topic'],
-                         st.session_state.app_state['analysis_results']
-                     ),
-                     spinner_text="📊 Generating final report...",
-                     display_fn=lambda x: st.expander("📊 Final Report", expanded=False).markdown(x))
+        if st.session_state.app_state['show_summary']:
+            process_stage('summary', containers['summary'],
+                         lambda **kwargs: SynthesisExpert(model).synthesize(
+                             st.session_state.app_state['topic'],
+                             st.session_state.app_state['analysis_results']
+                         ),
+                         spinner_text="📊 Generating final report...",
+                         display_fn=lambda x: st.expander("📊 Final Report", expanded=False).markdown(x))
                      
     except Exception as e:
         handle_error(e, "analysis")
