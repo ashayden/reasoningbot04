@@ -246,7 +246,8 @@ def display_focus_selection(focus_areas: list, selected_areas: list) -> tuple[bo
                 default=st.session_state.current_focus_areas,
                 key="focus_multiselect",
                 label_visibility="collapsed",
-                max_selections=None  # Allow unlimited selections
+                max_selections=None,  # Allow unlimited selections
+                format_func=lambda x: x  # Prevent dropdown from closing on selection
             )
             
             # Update session state with current selections
@@ -259,27 +260,22 @@ def display_focus_selection(focus_areas: list, selected_areas: list) -> tuple[bo
                 col1, col2 = st.columns(2)
                 
                 # Handle Skip button
-                if col1.button(
+                skip_clicked = col1.button(
                     "Skip",
                     key="skip_focus",
-                    use_container_width=True,
-                    on_click=lambda: setattr(st.session_state, 'focus_area_expanded', False)
-                ):
-                    st.session_state.app_state['focus_selection_complete'] = True
-                    st.session_state.app_state['show_framework'] = True
-                    st.session_state.focus_area_expanded = False
-                    return True, selected
+                    use_container_width=True
+                )
                 
                 # Handle Continue button
-                continue_disabled = len(selected) == 0
-                if col2.button(
+                continue_clicked = col2.button(
                     "Continue",
                     key="continue_focus",
-                    disabled=continue_disabled,
+                    disabled=len(selected) == 0,
                     type="primary",
-                    use_container_width=True,
-                    on_click=lambda: setattr(st.session_state, 'focus_area_expanded', False)
-                ):
+                    use_container_width=True
+                )
+                
+                if skip_clicked or continue_clicked:
                     st.session_state.app_state['focus_selection_complete'] = True
                     st.session_state.app_state['show_framework'] = True
                     st.session_state.focus_area_expanded = False

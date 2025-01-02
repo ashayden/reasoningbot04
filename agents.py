@@ -446,32 +446,32 @@ class SynthesisExpert(BaseAgent):
                     current_section = []
                 # Convert numbered sections to markdown headers
                 section_title = line.split('.', 1)[1].strip()
-                current_section.append(f"## {section_title}")
+                current_section.append(f"# {section_title}")
                 continue
             
             # Handle subsections and bullet points
             if line.startswith('-'):
                 # Indent bullet points under their sections
-                line = '  ' + line
+                line = '  • ' + line[1:].strip()
             elif line.startswith('•'):
                 # Convert bullet points to consistent format
-                line = '  - ' + line[1:].strip()
+                line = '  • ' + line[1:].strip()
             
             # Special handling for references section
-            if "Works Cited" in line or "References" in line:
+            if "Works Cited" in line:
                 in_references = True
                 if current_section:
                     formatted_sections.append('\n'.join(current_section))
-                current_section = [f"## {line}"]
+                current_section = [f"# Works Cited"]
                 continue
             
             # Format citations in references section
-            if in_references and line.strip() and not line.startswith('##'):
+            if in_references and line.strip() and not line.startswith('#'):
                 # Ensure proper spacing and formatting for references
                 if not line.endswith('.'):
                     line += '.'
-                if not line.startswith('  - '):
-                    line = '  - ' + line
+                if not line.startswith('  '):
+                    line = '  ' + line
             
             current_section.append(line)
         
@@ -484,52 +484,59 @@ class SynthesisExpert(BaseAgent):
         """Synthesize all research analyses into a final report."""
         prompt = f"""Synthesize all research analyses on '{topic}' into a Final Report with:
         
-        1. Executive Summary (2-3 paragraphs)
-           - Include key citations for major findings
-           - Highlight most significant discoveries
-           - Summarize methodology and approach
+        1. Executive Summary
+           This report synthesizes research on {topic}. Include 2-3 paragraphs that:
+           - Highlight key findings with citations
+           - Summarize major discoveries
+           - Present core methodology
         
-        2. Key Insights (bullet points)
-           - Support each insight with relevant citations
-           - Include methodology used to derive insights
-           - Present in order of significance
+        2. Key Insights
+           Present 4-6 bullet points that:
+           - Support each insight with citations
+           - Focus on significant findings
+           - Include methodological insights
         
         3. Analysis
-           - Comprehensive synthesis of findings with citations
-           - Integration of multiple perspectives
-           - Critical evaluation of evidence
-           - Thematic organization of findings
+           Provide comprehensive analysis that:
+           - Synthesizes findings with citations
+           - Integrates multiple perspectives
+           - Evaluates evidence critically
+           - Organizes by key themes
         
         4. Conclusion
-           - Summary of main findings
-           - Implications for theory and practice
+           Summarize research implications:
+           - Core findings and significance
+           - Theoretical/practical impact
            - Future research directions
-           - Recommendations based on findings
+           - Evidence-based recommendations
         
-        5. Further Considerations & Counter-Arguments
-           - Alternative viewpoints with citations
-           - Limitations of current research
-           - Areas of uncertainty or debate
-           - Potential challenges to findings
+        5. Further Considerations
+           Address complexities through:
+           - Alternative viewpoints (cited)
+           - Research limitations
+           - Areas of uncertainty
+           - Potential challenges
         
-        6. Recommended Readings and Resources
-           - Key papers and their main contributions
-           - Seminal works in the field
-           - Recent significant publications
-           - Online resources and databases
+        6. Recommended Readings
+           List key resources:
+           - Seminal works and contribution
+           - Recent significant research
+           - Methodological guides
+           - Digital/online resources
         
         7. Works Cited
-           - Comprehensive bibliography in APA format
-           - Include all sources cited in the report
-           - Organize by primary/secondary sources
-           - Include DOIs where available
+           Provide complete bibliography:
+           - Use APA 7th edition format
+           - Include all in-text citations
+           - Add DOIs when available
+           - Organize by primary/secondary
         
         Important:
-        - Use in-text citations in APA format (Author, Year)
-        - Ensure all citations have corresponding entries in Works Cited
-        - Include both seminal works and recent research
-        - Maintain academic rigor while being accessible
-        - Cross-reference findings from different analyses
+        - Use APA in-text citations
+        - Match all citations to references
+        - Balance classic and recent works
+        - Maintain scholarly tone
+        - Cross-reference analyses
         
         Analysis to synthesize: {' '.join(analyses)}"""
         
