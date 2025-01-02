@@ -39,22 +39,18 @@ class BaseAgent:
             
             # Get the full response text
             full_text = None
+            
+            # Try parts accessor first since it's recommended for complex responses
             try:
-                full_text = response.text
-            except AttributeError:
-                pass
-                
-            if not full_text:
-                try:
+                if hasattr(response, 'parts'):
+                    full_text = "".join(part.text for part in response.parts)
+                elif hasattr(response, 'candidates'):
                     full_text = response.candidates[0].content.parts[0].text
-                except (AttributeError, IndexError) as e:
-                    logger.error(f"Failed to extract text using candidates structure: {str(e)}")
-                    try:
-                        # Fallback to parts if available
-                        full_text = "".join(part.text for part in response.parts)
-                    except (AttributeError, IndexError) as e:
-                        logger.error(f"Failed to extract text using parts structure: {str(e)}")
-                        return None
+                else:
+                    full_text = response.text
+            except (AttributeError, IndexError) as e:
+                logger.error(f"Failed to extract text from response: {str(e)}")
+                return None
             
             if not full_text or not full_text.strip():
                 logger.error("Extracted empty text from response")
