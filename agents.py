@@ -31,21 +31,13 @@ class BaseAgent:
         return self._last_thoughts
     
     def _extract_content(self, response: Any) -> Optional[str]:
-        """Extract content from response, separating thoughts from actual content.
-        
-        Args:
-            response: The raw response from the Gemini model
-            
-        Returns:
-            The extracted content string, or None if extraction fails
-        """
+        """Extract content from response, separating thoughts from actual content."""
         try:
             if not response:
                 logger.error("Empty response from model")
                 return None
             
             # Get the response text using the candidates/parts structure
-            # This is the recommended way according to the latest Gemini API docs
             try:
                 full_text = response.candidates[0].content.parts[0].text
             except (AttributeError, IndexError) as e:
@@ -61,16 +53,39 @@ class BaseAgent:
                 logger.error("Extracted empty text from response")
                 return None
             
-            # Split response into thoughts and content sections
-            parts = full_text.split("\n\n", 1)
+            # Split text into sections and identify the actual content
+            sections = full_text.split("\n\n")
+            content_sections = []
             
-            # If there's a clear thoughts section, separate it
-            if len(parts) > 1 and "Thoughts" in parts[0]:
-                self._last_thoughts = parts[0].strip()
-                return parts[1].strip()
+            for section in sections:
+                # Skip sections that look like thought processes
+                if any(thought_marker in section.lower() for thought_marker in [
+                    "first i will",
+                    "i will",
+                    "thoughts",
+                    "thinking process",
+                    "let me",
+                    "i need to",
+                    "i'll",
+                    "step 1",
+                    "step 2",
+                    "the user wants",
+                    "draft answer",
+                    "self-critique"
+                ]):
+                    self._last_thoughts = section.strip()
+                    continue
+                
+                # Keep sections that look like actual content
+                content_sections.append(section.strip())
             
-            # If no clear separation, return the whole response
-            return full_text.strip()
+            # Join the remaining content sections
+            if content_sections:
+                return "\n\n".join(content_sections).strip()
+            
+            # If no clear content sections found, return the last section
+            # (assuming the thought process comes first)
+            return sections[-1].strip()
             
         except Exception as e:
             logger.error(f"Error extracting content: {str(e)}")
