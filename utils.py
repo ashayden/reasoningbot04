@@ -1,157 +1,138 @@
 """Utility functions for the MARA application."""
 
 import logging
+import re
 import time
 from functools import wraps
-from typing import Dict, Tuple, Optional
+from typing import Dict, Optional, Any, Callable
 
 import streamlit as st
-from config import MIN_TOPIC_LENGTH, MAX_TOPIC_LENGTH, MAX_REQUESTS_PER_MINUTE
 
 logger = logging.getLogger(__name__)
 
-class RateLimiter:
-    """Simple rate limiter implementation."""
-    def __init__(self, max_requests: int, time_window: int = 60):
-        self.max_requests = max_requests
-        self.time_window = time_window
-        self.requests = []
-
-    def can_proceed(self) -> bool:
-        """Check if a new request can proceed."""
-        current_time = time.time()
-        self.requests = [req_time for req_time in self.requests 
-                        if current_time - req_time < self.time_window]
-        
-        if len(self.requests) < self.max_requests:
-            self.requests.append(current_time)
-            return True
-        return False
-
-rate_limiter = RateLimiter(MAX_REQUESTS_PER_MINUTE)
-
-def rate_limit_decorator(func):
-    """Decorator to apply rate limiting to functions."""
+def rate_limit_decorator(func: Callable) -> Callable:
+    """Decorator to rate limit API calls."""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        if not rate_limiter.can_proceed():
-            raise Exception("Rate limit exceeded. Please wait before making more requests.")
+        # Get or initialize rate limit state
+        if 'last_call_time' not in st.session_state:
+            st.session_state.last_call_time = 0
+        
+        # Calculate time since last call
+        current_time = time.time()
+        time_since_last_call = current_time - st.session_state.last_call_time
+        
+        # If less than 1 second has passed, wait
+        if time_since_last_call < 1:
+            time.sleep(1 - time_since_last_call)
+        
+        # Update last call time and execute function
+        st.session_state.last_call_time = time.time()
         return func(*args, **kwargs)
+    
     return wrapper
 
-def validate_topic(topic: str) -> Tuple[bool, Optional[str]]:
-    """Validate the input topic string.
-    
-    Args:
-        topic: The input topic string to validate.
-        
-    Returns:
-        Tuple of (is_valid, error_message). If valid, error_message is None.
-    """
-    if not topic or not topic.strip():
-        return False, "Topic cannot be empty."
-    
-    if len(topic) < MIN_TOPIC_LENGTH:
-        return False, f"Topic must be at least {MIN_TOPIC_LENGTH} characters long."
-    
-    if len(topic) > MAX_TOPIC_LENGTH:
-        return False, f"Topic must be no more than {MAX_TOPIC_LENGTH} characters long."
-    
-    return True, None
-
-def parse_title_content(text: str) -> Dict[str, str]:
+def parse_title_content(text: str) -> Optional[Dict[str, str]]:
     """Parse title, subtitle, and content from generated text.
     
     Args:
-        text: The raw text to parse.
+        text: The text to parse
         
     Returns:
-        Dictionary containing 'title', 'subtitle', and 'content'.
-        If parsing fails, returns text as content with empty title/subtitle.
+        Dictionary containing 'title', 'subtitle', and 'content' keys,
+        or None if parsing fails
     """
     if not text:
-        return {
-            'title': '',
-            'subtitle': '',
-            'content': ''
-        }
-
+        return None
+    
     try:
-        lines = text.split('\n')
+        # Initialize result dictionary
         result = {
             'title': '',
             'subtitle': '',
             'content': ''
         }
         
-        content_start = 0
+        # Split text into lines for processing
+        lines = text.strip().split('\n')
+        current_line = 0
+        total_lines = len(lines)
         
-        # Look for title and subtitle with more flexible matching
-        for i, line in enumerate(lines):
-            line = line.strip()
-            if not line:
-                continue
-                
-            # Match title with or without "Title:" prefix
-            if line.lower().startswith('title:'):
-                result['title'] = line.replace('Title:', '').replace('title:', '').strip()
-            elif line.startswith('#'):  # Markdown title format
-                result['title'] = line.replace('#', '').strip()
-            elif not result['title'] and len(line) < 100:  # First short line could be title
-                result['title'] = line
-                
-            # Match subtitle with flexible prefix
-            if line.lower().startswith('subtitle:'):
-                result['subtitle'] = line.replace('Subtitle:', '').replace('subtitle:', '').strip()
-                content_start = i + 1
-                break
-            elif line.startswith('*') and line.endswith('*'):  # Markdown italic format
-                result['subtitle'] = line.strip('*').strip()
-                content_start = i + 1
-                break
-        
-        # If no explicit content start was found, start after the first two non-empty lines
-        if content_start == 0:
-            non_empty_lines = 0
-            for i, line in enumerate(lines):
-                if line.strip():
-                    non_empty_lines += 1
-                    if non_empty_lines == 2:
-                        content_start = i + 1
-                        break
+        # Process title
+        while current_line < total_lines:
+            line = lines[current_line].strip()
             
-            # If still no content start, use the whole text
-            if content_start == 0:
-                content_start = 2 if len(lines) > 2 else 0
+            # Skip empty lines
+            if not line:
+                current_line += 1
+                continue
+            
+            # Check for title markers
+            title_match = re.match(r'^(?:Title:|#)\s*(.+)$', line, re.IGNORECASE)
+            if title_match:
+                result['title'] = title_match.group(1).strip()
+                current_line += 1
+                break
+            
+            # If no explicit title marker but line looks like a title
+            if re.match(r'^[A-Z].*[^.!?]$', line) and len(line.split()) <= 10:
+                result['title'] = line
+                current_line += 1
+                break
+            
+            current_line += 1
         
-        # Join remaining lines as content, ensuring no duplicate title/subtitle
-        content_lines = lines[content_start:]
+        # Process subtitle
+        while current_line < total_lines:
+            line = lines[current_line].strip()
+            
+            # Skip empty lines
+            if not line:
+                current_line += 1
+                continue
+            
+            # Check for subtitle markers
+            subtitle_match = re.match(r'^(?:Subtitle:|##)\s*(.+)$', line, re.IGNORECASE)
+            if subtitle_match:
+                result['subtitle'] = subtitle_match.group(1).strip()
+                current_line += 1
+                break
+            
+            # If no explicit subtitle marker but line looks like a subtitle
+            if (line.startswith('*') and line.endswith('*')) or \
+               (line.startswith('_') and line.endswith('_')):
+                result['subtitle'] = line.strip('*_ ')
+                current_line += 1
+                break
+            
+            current_line += 1
+        
+        # Combine remaining lines as content
+        content_lines = []
+        while current_line < total_lines:
+            line = lines[current_line].strip()
+            
+            # Skip empty lines at the start of content
+            if not line and not content_lines:
+                current_line += 1
+                continue
+            
+            content_lines.append(line)
+            current_line += 1
+        
+        # Clean up and format content
         if content_lines:
-            content = '\n'.join(content_lines).strip()
-            # Remove title/subtitle if they appear at the start of content
-            if result['title'] and content.startswith(result['title']):
-                content = content[len(result['title']):].strip()
-            if result['subtitle'] and content.startswith(result['subtitle']):
-                content = content[len(result['subtitle']):].strip()
-            result['content'] = content
+            content = '\n'.join(content_lines)
+            
+            # Clean up markdown formatting
+            content = re.sub(r'\n{3,}', '\n\n', content)  # Remove extra newlines
+            content = re.sub(r'(?m)^[-*]\s', '* ', content)  # Standardize bullet points
+            content = re.sub(r'(?m)^(\d+\.)\s', r'\1 ', content)  # Clean up numbered lists
+            
+            result['content'] = content.strip()
         
-        return {k: v if v is not None else '' for k, v in result.items()}
+        return result
         
     except Exception as e:
-        logger.error(f"Error parsing content: {str(e)}")
-        return {
-            'title': '',
-            'subtitle': '',
-            'content': text if text else ''
-        }
-
-def sanitize_topic(topic: str) -> str:
-    """Sanitize the topic string for safe use in prompts.
-    
-    Args:
-        topic: The raw topic string.
-        
-    Returns:
-        Sanitized topic string with only alphanumeric, space, and basic punctuation.
-    """
-    return ''.join(c for c in topic if c.isalnum() or c.isspace() or c in '.,!?-_()') 
+        logger.error(f"Error parsing text: {str(e)}")
+        return None 
