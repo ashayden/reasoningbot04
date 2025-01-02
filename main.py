@@ -208,64 +208,56 @@ def reset_state(topic, iterations):
         'focus_selection_complete': False  # Track if focus selection is done
     }
 
-def display_stage_header(icon: str, title: str):
-    """Display a consistent stage header in a container."""
-    with st.container():
-        st.markdown(f"""
-        <div style='background-color: #1E1E1E; padding: 1rem; border-radius: 0.5rem; margin: 1rem 0;'>
-            <h3 style='margin: 0;'>{icon} {title}</h3>
-        </div>
-        """, unsafe_allow_html=True)
-
 def display_insights(insights: dict):
     """Display insights in proper containers."""
     with st.container():
-        display_stage_header("💡", "Quick Insights")
-        with st.expander("Did You Know?", expanded=True):
+        with st.expander("💡 Quick Insights", expanded=True):
+            st.markdown("### Did You Know?")
             st.markdown(insights['did_you_know'])
         
-        display_stage_header("⚡", "ELI5 (Explain Like I'm 5)")
-        with st.expander("Simple Explanation", expanded=True):
+        with st.expander("⚡ ELI5 (Explain Like I'm 5)", expanded=True):
+            st.markdown("### Simple Explanation")
             st.markdown(insights['eli5'])
 
 def display_focus_selection(focus_areas: list, selected_areas: list) -> tuple[bool, list]:
     """Display focus area selection with proper state handling."""
-    display_stage_header("🎯", "Select Focus Areas")
-    st.markdown("Choose specific aspects you'd like the analysis to emphasize (optional):")
-    
-    # Use a unique key for the multiselect
-    selected = st.multiselect(
-        "Focus Areas",
-        options=focus_areas,
-        default=selected_areas,
-        key=f"focus_select_{hash(str(focus_areas))}",
-        label_visibility="collapsed"
-    )
-    
-    st.markdown("---")
-    
-    # Only show buttons if no selection has been made
-    if not st.session_state.app_state.get('focus_selection_complete'):
-        col1, col2 = st.columns(2)
+    with st.expander("🎯 Focus Areas", expanded=True):
+        st.markdown("### Select Focus Areas")
+        st.markdown("Choose specific aspects you'd like the analysis to emphasize (optional):")
         
-        if col1.button("Skip", key="skip_focus", use_container_width=True):
-            st.session_state.app_state['focus_selection_complete'] = True
-            st.session_state.app_state['show_framework'] = True
-            return True, selected
+        # Use a unique key for the multiselect
+        selected = st.multiselect(
+            "Focus Areas",
+            options=focus_areas,
+            default=selected_areas,
+            key=f"focus_select_{hash(str(focus_areas))}",
+            label_visibility="collapsed"
+        )
         
-        continue_disabled = len(selected) == 0
-        if col2.button(
-            "Continue",
-            key="continue_focus",
-            disabled=continue_disabled,
-            type="primary",
-            use_container_width=True
-        ):
-            st.session_state.app_state['focus_selection_complete'] = True
-            st.session_state.app_state['show_framework'] = True
-            return True, selected
-    
-    return False, selected
+        st.markdown("---")
+        
+        # Only show buttons if no selection has been made
+        if not st.session_state.app_state.get('focus_selection_complete'):
+            col1, col2 = st.columns(2)
+            
+            if col1.button("Skip", key="skip_focus", use_container_width=True):
+                st.session_state.app_state['focus_selection_complete'] = True
+                st.session_state.app_state['show_framework'] = True
+                return True, selected
+            
+            continue_disabled = len(selected) == 0
+            if col2.button(
+                "Continue",
+                key="continue_focus",
+                disabled=continue_disabled,
+                type="primary",
+                use_container_width=True
+            ):
+                st.session_state.app_state['focus_selection_complete'] = True
+                st.session_state.app_state['show_framework'] = True
+                return True, selected
+        
+        return False, selected
 
 def main():
     """Main application flow."""
@@ -340,8 +332,8 @@ def main():
                             st.session_state.app_state['show_focus'] = True
                 
                 if st.session_state.app_state['prompt']:
-                    display_stage_header("✍️", "Optimized Prompt")
-                    with st.expander("View Prompt", expanded=True):
+                    with st.expander("✍️ Optimized Prompt", expanded=True):
+                        st.markdown("### Research Framework Prompt")
                         st.markdown(st.session_state.app_state['prompt'])
         
         # Handle focus areas
@@ -381,8 +373,8 @@ def main():
                             st.rerun()
                 
                 if st.session_state.app_state['framework']:
-                    display_stage_header("🎯", "Analysis Framework")
-                    with st.expander("View Framework", expanded=True):
+                    with st.expander("🎯 Research Framework", expanded=True):
+                        st.markdown("### Analysis Structure")
                         st.markdown(st.session_state.app_state['framework'])
         
         # Process analysis
@@ -402,27 +394,7 @@ def main():
                             if result['subtitle']:
                                 content += f"*{result['subtitle']}*\n\n"
                             if result['content']:
-                                # Clean up and format the content
-                                sections = result['content'].split('\n')
-                                formatted_sections = []
-                                current_section = []
-                                
-                                for line in sections:
-                                    # Check for main section headers (numbered or with periods)
-                                    if (line.strip() and 
-                                        (line[0].isdigit() and '.' in line[:5]) or 
-                                        any(line.startswith(f"{i}.") for i in range(1, 8))):
-                                        if current_section:
-                                            formatted_sections.append('\n'.join(current_section))
-                                            current_section = []
-                                        current_section.append(f"### {line}")
-                                    else:
-                                        current_section.append(line)
-                                
-                                if current_section:
-                                    formatted_sections.append('\n'.join(current_section))
-                                
-                                content += '\n\n'.join(formatted_sections)
+                                content += result['content']
                             
                             st.session_state.app_state['analysis_results'].append(content)
                             if len(st.session_state.app_state['analysis_results']) == st.session_state.app_state['iterations']:
@@ -447,8 +419,8 @@ def main():
                             st.rerun()
                 
                 if st.session_state.app_state['summary']:
-                    display_stage_header("📊", "Final Report")
-                    with st.expander("View Report", expanded=True):
+                    with st.expander("📊 Final Report", expanded=True):
+                        st.markdown("### Research Synthesis")
                         st.markdown(st.session_state.app_state['summary'])
                     st.success("✅ Analysis complete! Review the results above.")
     except Exception as e:
