@@ -36,8 +36,8 @@ st.set_page_config(
 st.markdown("""
 <style>
 .block-container {
-    padding-top: 1rem;
-    padding-bottom: 1rem;
+    padding: 2rem 1rem;
+    max-width: 1000px;
 }
 
 .element-container {
@@ -55,11 +55,19 @@ st.markdown("""
     font-size: 1.1rem;
     padding: 0.75rem;
     border-radius: 4px;
+    background-color: rgba(28, 31, 34, 0.8);
+    border: 1px solid rgba(250, 250, 250, 0.2);
+    color: rgb(250, 250, 250);
+}
+
+.stTextInput > div > div > input::placeholder {
+    color: rgba(250, 250, 250, 0.6);
 }
 
 .stMarkdown {
     font-size: 1rem;
     line-height: 1.6;
+    color: rgb(250, 250, 250);
 }
 
 div[data-testid="stExpander"] {
@@ -67,25 +75,61 @@ div[data-testid="stExpander"] {
     box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
     border-radius: 4px;
     margin-bottom: 1rem;
-    background-color: rgba(255, 255, 255, 0.05);
+    background-color: rgba(28, 31, 34, 0.6);
 }
 
 div[data-testid="stExpander"] > div[role="button"] {
     padding: 1rem;
+    color: rgb(250, 250, 250);
 }
 
 div[data-testid="stExpander"] > div[data-testid="stExpanderContent"] {
     padding: 1rem;
+    background-color: rgba(28, 31, 34, 0.4);
 }
 
 .stMultiSelect > div[role="listbox"] {
     max-height: 300px;
     overflow-y: auto;
+    background-color: rgba(28, 31, 34, 0.8);
+    border: 1px solid rgba(250, 250, 250, 0.2);
+}
+
+.stMultiSelect > div > div > div {
+    color: rgb(250, 250, 250);
 }
 
 .stSpinner > div {
     margin-top: 0.5rem;
     margin-bottom: 0.5rem;
+}
+
+/* Header styling */
+h1 {
+    font-size: 2.5rem !important;
+    font-weight: 600 !important;
+    margin-bottom: 0.5rem !important;
+    color: rgb(250, 250, 250) !important;
+}
+
+/* Title container */
+div[data-testid="stTitle"] {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+/* Microscope emoji in title */
+div[data-testid="stTitle"] > div:first-child {
+    font-size: 2.5rem;
+}
+
+/* Input label */
+.stTextInput > label {
+    font-size: 1.1rem !important;
+    color: rgb(250, 250, 250) !important;
+    margin-bottom: 0.5rem !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -120,11 +164,14 @@ def initialize_models():
 
 def display_header():
     """Display application header."""
-    st.title("🔬 MARA Research Assistant")
-    st.markdown("""
-    Welcome to the **Multi-Agent Research Assistant (MARA)**! 
-    Enter your research topic or question below to begin the analysis process.
-    """)
+    st.markdown('<div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">'
+                '<div style="font-size: 2.5rem;">🔬</div>'
+                '<div>'
+                '<h1 style="margin: 0;">MARA Research Assistant</h1>'
+                '<p style="margin: 0; color: rgb(250, 250, 250);">Welcome to the <strong>Multi-Agent Research Assistant (MARA)</strong>! '
+                'Enter your research topic or question below to begin the analysis process.</p>'
+                '</div>'
+                '</div>', unsafe_allow_html=True)
 
 def get_topic_input() -> str:
     """Get the research topic from user input."""
