@@ -5,7 +5,15 @@ import streamlit as st
 import google.generativeai as genai
 import os
 
-from config import GEMINI_MODEL
+from config import (
+    GEMINI_MODEL,
+    PROMPT_DESIGN_CONFIG,
+    FRAMEWORK_CONFIG,
+    ANALYSIS_CONFIG,
+    SYNTHESIS_CONFIG,
+    MIN_TOPIC_LENGTH,
+    MAX_TOPIC_LENGTH
+)
 from utils import validate_topic, sanitize_topic
 from agents import PreAnalysisAgent, PromptDesigner, FrameworkEngineer, ResearchAnalyst, SynthesisExpert
 
