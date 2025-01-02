@@ -5,12 +5,9 @@ GEMINI_MODEL = "gemini-2.0-flash-thinking-exp-1219"
 
 # Generation configurations
 PROMPT_DESIGN_CONFIG = {
-    "temperature": 0.3,
-    "top_p": 0.7,
-    "top_k": 40,
+    "temperature": 0.1,
     "candidate_count": 1,
-    "max_output_tokens": 2048,
-    "stop_sequences": []
+    "max_output_tokens": 1024
 }
 
 FRAMEWORK_CONFIG = {

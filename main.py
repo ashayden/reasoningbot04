@@ -4,6 +4,11 @@ import logging
 import streamlit as st
 import google.generativeai as genai
 import os
+from pathlib import Path
+import base64
+import tempfile
+from fpdf import FPDF
+import markdown
 
 from config import (
     GEMINI_MODEL,
@@ -389,6 +394,90 @@ def display_focus_selection(focus_areas: list, selected_areas: list) -> tuple[bo
         
         return False, st.session_state.focus_area_state['selected']
 
+def create_pdf(content: str) -> bytes:
+    """Convert markdown content to PDF."""
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    
+    # Configure fonts
+    pdf.add_font('DejaVu', '', 'DejaVuSansCondensed.ttf', uni=True)
+    pdf.add_font('DejaVu', 'B', 'DejaVuSansCondensed-Bold.ttf', uni=True)
+    pdf.add_font('DejaVu', 'I', 'DejaVuSansCondensed-Oblique.ttf', uni=True)
+    
+    # Set default font
+    pdf.set_font('DejaVu', '', 11)
+    
+    # Process markdown content
+    lines = content.split('\n')
+    for line in lines:
+        # Handle headers
+        if line.startswith('# '):
+            pdf.set_font('DejaVu', 'B', 16)
+            pdf.multi_cell(0, 10, line[2:], 0, 'L')
+            pdf.ln(5)
+        elif line.startswith('## '):
+            pdf.set_font('DejaVu', 'B', 14)
+            pdf.multi_cell(0, 10, line[3:], 0, 'L')
+            pdf.ln(5)
+        elif line.startswith('### '):
+            pdf.set_font('DejaVu', 'B', 12)
+            pdf.multi_cell(0, 10, line[4:], 0, 'L')
+            pdf.ln(5)
+        # Handle bullet points
+        elif line.startswith('* '):
+            pdf.set_font('DejaVu', '', 11)
+            pdf.multi_cell(0, 10, '• ' + line[2:], 0, 'L')
+        # Handle italics
+        elif line.startswith('_') and line.endswith('_'):
+            pdf.set_font('DejaVu', 'I', 11)
+            pdf.multi_cell(0, 10, line[1:-1], 0, 'L')
+        # Regular text
+        elif line.strip():
+            pdf.set_font('DejaVu', '', 11)
+            pdf.multi_cell(0, 10, line, 0, 'L')
+        # Add spacing between paragraphs
+        if not line.startswith('* '):
+            pdf.ln(5)
+    
+    return pdf.output(dest='S').encode('latin1')
+
+def create_download_button(content: str, filename: str, button_text: str, mime_type: str):
+    """Create a download button for the given content."""
+    b64 = base64.b64encode(content.encode()).decode() if mime_type == 'text/markdown' else base64.b64encode(content).decode()
+    href = f'<a href="data:{mime_type};base64,{b64}" download="{filename}">{button_text}</a>'
+    return href
+
+def display_download_options(final_report: str):
+    """Display download options for the final report."""
+    if final_report:
+        st.markdown("### Download Options")
+        col1, col2 = st.columns(2)
+        
+        # Markdown download
+        with col1:
+            md_href = create_download_button(
+                final_report,
+                "research_report.md",
+                "📝 Download as Markdown",
+                "text/markdown"
+            )
+            st.markdown(md_href, unsafe_allow_html=True)
+        
+        # PDF download
+        with col2:
+            try:
+                pdf_content = create_pdf(final_report)
+                pdf_href = create_download_button(
+                    pdf_content,
+                    "research_report.pdf",
+                    "📄 Download as PDF",
+                    "application/pdf"
+                )
+                st.markdown(pdf_href, unsafe_allow_html=True)
+            except Exception as e:
+                st.error("PDF generation failed. Please try downloading as Markdown.")
+
 def main():
     """Main application flow."""
     # Input form
@@ -558,41 +647,13 @@ def main():
                 if st.session_state.app_state['summary']:
                     with st.expander("📊 Final Report", expanded=False):
                         st.markdown(st.session_state.app_state['summary'])
-                    
-                    # Display final report
-                    st.markdown("## Final Report")
-                    st.markdown(st.session_state.app_state['summary'])
-                    
-                    # Add download buttons
-                    st.write("---")
-                    st.write("### Download Report")
-                    col1, col2 = st.columns(2)
-                    
-                    # Generate safe filename
-                    filename_base = get_safe_filename(topic)
-                    
-                    # PDF download button
-                    pdf_bytes = generate_pdf(st.session_state.app_state['summary'])
-                    col1.download_button(
-                        "Download as PDF",
-                        pdf_bytes,
-                        file_name=f"{filename_base}.pdf",
-                        mime="application/pdf",
-                        help="Download the report as a PDF file"
-                    )
-                    
-                    # Markdown download button
-                    md_bytes = generate_markdown(st.session_state.app_state['summary'])
-                    col2.download_button(
-                        "Download as Markdown",
-                        md_bytes,
-                        file_name=f"{filename_base}.md",
-                        mime="text/markdown",
-                        help="Download the report in Markdown format"
-                    )
     except Exception as e:
         handle_error(e, "analysis")
         return
+
+    # After final report is generated and displayed, add download options
+    if st.session_state.get('final_report'):
+        display_download_options(st.session_state.final_report)
 
 if __name__ == "__main__":
     main() 

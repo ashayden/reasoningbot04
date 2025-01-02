@@ -32,6 +32,7 @@ MARA is an advanced research synthesis tool powered by Google's Gemini Pro model
 - Structured analysis sections
 - Standardized Works Cited formatting
 - Recommended readings section
+- Export options in PDF and Markdown formats
 
 ## Technical Features
 - Rate-limited API calls for stability
@@ -40,6 +41,7 @@ MARA is an advanced research synthesis tool powered by Google's Gemini Pro model
 - Dynamic markdown formatting
 - Standardized citation formatting
 - Dark theme UI optimization
+- PDF and Markdown export functionality
 
 ## Usage
 1. Enter your research topic or question
@@ -48,6 +50,7 @@ MARA is an advanced research synthesis tool powered by Google's Gemini Pro model
 4. Review generated insights and framework
 5. Examine each analysis iteration
 6. Study the final synthesized report
+7. Download the report in your preferred format (PDF/Markdown)
 
 ## Requirements
 - Python 3.8+
@@ -56,7 +59,13 @@ MARA is an advanced research synthesis tool powered by Google's Gemini Pro model
 - Additional dependencies in requirements.txt
 
 ## Version History
-### v1.3 (Current)
+### v1.3.1 (Current)
+- Added PDF and Markdown export options
+- Improved report formatting consistency
+- Enhanced download functionality
+- Better font handling for PDF generation
+
+### v1.3
 - Enhanced creativity in insights generation
 - Standardized Works Cited formatting
 - Improved title and subtitle handling

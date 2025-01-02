@@ -52,10 +52,17 @@ class PreAnalysisAgent:
             }
             
             fact_prompt = (
-                f"Share a fascinating and unexpected fact about {topic}. "
-                "Make it surprising, specific, and memorable. "
-                "Include 1-2 relevant emojis. "
-                "Respond with just the fact, no additional text or explanation."
+                "Generate a fascinating and unexpected fact about this topic: "
+                f"'{topic}'\n\n"
+                "The fact should:\n"
+                "- Be surprising, unique, or counter-intuitive\n"
+                "- Reveal an interesting connection or lesser-known aspect\n"
+                "- Use vivid, engaging language\n"
+                "- Include relevant statistics or specific details when possible\n"
+                "- Add 1-2 relevant emojis that enhance understanding\n"
+                "- Be exactly one sentence that hooks the reader\n"
+                "- Challenge common assumptions or expectations\n\n"
+                "Make it memorable and thought-provoking. Respond with just the fact, no additional text."
             )
             
             fact_response = self.model.generate_content(
@@ -74,12 +81,19 @@ class PreAnalysisAgent:
             }
             
             eli5_prompt = (
-                f"Explain {topic} as if teaching a curious 5-year-old. "
-                "Use a creative analogy or metaphor. "
-                "Keep it to 2-3 sentences. "
-                "Include 1-3 relevant emojis. "
-                "Make it fun and memorable. "
-                "Respond with just the explanation, no additional text."
+                "Explain this topic as if teaching a curious child: "
+                f"'{topic}'\n\n"
+                "Your explanation should:\n"
+                "- Use creative analogies or metaphors\n"
+                "- Connect to everyday experiences\n"
+                "- Include memorable examples\n"
+                "- Be engaging and fun\n"
+                "- Use simple but vivid language\n"
+                "- Be 2-3 sentences maximum\n"
+                "- Add 1-3 relevant emojis that help visualization\n"
+                "- If it's a question, answer directly\n"
+                "- If it's a topic, give an interesting overview\n\n"
+                "Make it engaging and memorable. Respond with just the explanation, no additional text."
             )
             
             eli5_response = self.model.generate_content(
@@ -89,18 +103,9 @@ class PreAnalysisAgent:
             if not eli5_response:
                 return None
             
-            # Extract just the content from responses
-            fact_text = fact_response.text.strip()
-            eli5_text = eli5_response.text.strip()
-            
-            # Clean up responses using BaseAgent's method
-            base_agent = BaseAgent(self.model)
-            fact_text = base_agent._clean_response(fact_text)
-            eli5_text = base_agent._clean_response(eli5_text)
-            
             return {
-                'did_you_know': fact_text,
-                'eli5': eli5_text
+                'did_you_know': fact_response.text.strip(),
+                'eli5': eli5_response.text.strip()
             }
             
         except Exception as e:
@@ -119,72 +124,6 @@ class BaseAgent:
         """Get the last model's thoughts for debugging or chaining."""
         return self._last_thoughts
     
-    def _clean_response(self, text: str) -> str:
-        """Clean up response text by removing meta-commentary.
-        
-        Args:
-            text: The text to clean
-            
-        Returns:
-            Cleaned text without meta-commentary
-        """
-        # List of common prefixes to remove
-        prefixes = [
-            "First I will",
-            "I will",
-            "Here's",
-            "Let me",
-            "I need to",
-            "I'll",
-            "The user wants",
-            "I should",
-            "I am going to",
-            "I can",
-            "Let's",
-            "Now I will"
-        ]
-        
-        # Remove prefixes and clean up
-        lines = text.split('\n')
-        cleaned_lines = []
-        skip_line = False
-        
-        for line in lines:
-            line = line.strip()
-            if not line:
-                continue
-                
-            # Skip meta-commentary lines
-            if any(line.lower().startswith(prefix.lower()) for prefix in prefixes):
-                continue
-            
-            # Skip self-critique and explanation lines
-            if any(phrase in line.lower() for phrase in [
-                "draft answer",
-                "self-critique",
-                "ensure that",
-                "my response",
-                "this answer",
-                "i understand",
-                "i need to",
-                "i should"
-            ]):
-                continue
-            
-            # Skip validation and checking lines
-            if any(phrase in line.lower() for phrase in [
-                "valid and does not fail",
-                "requirements mentioned",
-                "checking if",
-                "validating",
-                "making sure"
-            ]):
-                continue
-            
-            cleaned_lines.append(line)
-        
-        return '\n'.join(cleaned_lines).strip()
-    
     @rate_limit_decorator
     def generate_content(self, prompt: str, config: Dict[str, Any]) -> Optional[str]:
         """Generate content with rate limiting and error handling."""
@@ -198,34 +137,31 @@ class BaseAgent:
                 logger.error("Empty response from model")
                 return None
             
-            # Extract content from response
+            # Handle the response based on its type
             try:
-                content = []
-                
-                # Handle different response types
+                # For responses with parts
                 if hasattr(response, 'parts'):
+                    content = []
                     for part in response.parts:
                         if hasattr(part, 'text'):
                             content.append(part.text)
+                    return '\n'.join(content).strip()
+                # For responses with candidates
                 elif hasattr(response, 'candidates'):
                     for candidate in response.candidates:
                         if hasattr(candidate, 'content'):
                             if hasattr(candidate.content, 'parts'):
+                                content = []
                                 for part in candidate.content.parts:
                                     if hasattr(part, 'text'):
                                         content.append(part.text)
+                                return '\n'.join(content).strip()
+                # For simple responses with text
                 elif hasattr(response, 'text'):
-                    content.append(response.text)
+                    return response.text.strip()
                 
-                if not content:
-                    logger.error("No text content found in response")
-                    return None
-                
-                # Join all content and clean it
-                full_text = '\n'.join(content).strip()
-                cleaned_text = self._clean_response(full_text)
-                
-                return cleaned_text if cleaned_text else None
+                logger.error("Unable to extract text from response")
+                return None
                 
             except Exception as e:
                 logger.error(f"Error extracting content from response: {str(e)}")
@@ -296,108 +232,16 @@ class PromptDesigner(BaseAgent):
             topic: The topic to analyze
             selected_focus_areas: Optional list of focus areas to emphasize
         """
-        try:
-            base_prompt = f"""Create a detailed research framework prompt for analyzing '{topic}'.
-
-            Your response should be structured exactly like this:
-
-            1. Deconstruct the Request:
-               - Core objective
-               - Key constraints
-               - Essential aspects
-
-            2. Research Components:
-               - Clear research question/problem
-               - Theoretical lens
-               - Key variables/dimensions
-               - Methodology
-               - Expected outcomes/contributions
-               - Scope and limitations
-
-            3. Investigation Areas:
-               [List specific areas to investigate, including:]
-               - Historical context
-               - Current state
-               - Key challenges
-               - Future implications
-
-            4. Methodological Requirements:
-               - Data collection methods
-               - Analysis techniques
-               - Quality criteria
-               - Validation approaches
-
-            5. Evaluation Framework:
-               - Success metrics
-               - Quality indicators
-               - Validation methods
-
-            Important:
-            - Focus on academic rigor
-            - Maintain analytical depth
-            - Ensure methodological clarity
-            - Provide comprehensive coverage
-            - Use clear, specific language"""
-            
-            if selected_focus_areas:
-                base_prompt += f"\n\nIncorporate these focus areas into your framework:\n"
-                for area in selected_focus_areas:
-                    base_prompt += f"- {area}\n"
-            
-            response = self.model.generate_content(
-                base_prompt,
-                generation_config=GenerationConfig(**PROMPT_DESIGN_CONFIG)
-            )
-            
-            if not response or not response.text:
-                return None
-            
-            # Extract and format the actual framework content
-            lines = response.text.split('\n')
-            formatted_lines = []
-            in_framework = False
-            
-            for line in lines:
-                line = line.strip()
-                if not line:
-                    continue
-                
-                # Skip meta-commentary and thought process
-                if any(line.lower().startswith(prefix.lower()) for prefix in [
-                    "I will", "Let me", "First", "Now", "Here's", "I'll",
-                    "I understand", "I need to", "I should", "I can",
-                    "Let's", "I am going to", "I would", "My approach"
-                ]):
-                    continue
-                
-                # Skip process-related lines
-                if any(phrase in line.lower() for phrase in [
-                    "deconstruct the request",
-                    "structure the prompt",
-                    "refine and iterate",
-                    "add a desired output",
-                    "review the prompt",
-                    "let's break this down",
-                    "we need to",
-                    "this will help"
-                ]):
-                    continue
-                
-                # Keep numbered sections and their content
-                if any(line.startswith(f"{i}.") for i in range(1, 10)):
-                    in_framework = True
-                    formatted_lines.append(line)
-                elif line.startswith('-') or line.startswith('•'):
-                    if in_framework:
-                        formatted_lines.append(line)
-                elif in_framework and not any(line.lower().startswith(x) for x in ["note:", "important:", "remember:", "ensure:", "make sure:"]):
-                    formatted_lines.append(line)
-            
-            return '\n'.join(formatted_lines).strip()
-            
-        except Exception as e:
-            logger.error(f"Prompt design failed: {str(e)}")
-            return None
+        base_prompt = f"""As an expert prompt engineer, create a detailed prompt that will guide the development 
+        of a research framework for analyzing '{topic}'."""
+        
+        if selected_focus_areas:
+            focus_areas_str = "\n".join(f"- {area}" for area in selected_focus_areas)
+            base_prompt += f"\n\nPay special attention to these selected focus areas:\n{focus_areas_str}"
+        
+        base_prompt += "\nFocus on the essential aspects that need to be investigated while maintaining analytical rigor and academic standards."
+        
+        return self.generate_content(base_prompt, PROMPT_DESIGN_CONFIG)
 
 class FrameworkEngineer(BaseAgent):
     """Agent responsible for creating analysis frameworks."""

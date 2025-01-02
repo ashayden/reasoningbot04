@@ -4,12 +4,6 @@ import logging
 import time
 from functools import wraps
 from typing import Dict, Tuple, Optional
-import io
-import markdown
-from datetime import datetime
-import mdpdf
-import tempfile
-import os
 
 import streamlit as st
 from config import MIN_TOPIC_LENGTH, MAX_TOPIC_LENGTH, MAX_REQUESTS_PER_MINUTE
@@ -209,65 +203,3 @@ class MarkdownFormatter:
         text = text.replace('\n*', '\n\n*')    # Ensure space before lists
         text = text.replace('\n#', '\n\n#')    # Ensure space before headers
         return text.strip() 
-
-def generate_pdf(markdown_content: str) -> bytes:
-    """Convert markdown content to PDF using mdpdf.
-    
-    Args:
-        markdown_content: The markdown content to convert
-        
-    Returns:
-        PDF file as bytes
-    """
-    try:
-        # Create a temporary markdown file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as md_file:
-            md_file.write(markdown_content)
-            md_filepath = md_file.name
-        
-        # Create a temporary PDF file path
-        pdf_filepath = md_filepath.replace('.md', '.pdf')
-        
-        # Convert markdown to PDF
-        mdpdf.convert(md_filepath, pdf_filepath, theme='github')
-        
-        # Read the PDF file
-        with open(pdf_filepath, 'rb') as pdf_file:
-            pdf_bytes = pdf_file.read()
-        
-        # Clean up temporary files
-        os.unlink(md_filepath)
-        os.unlink(pdf_filepath)
-        
-        return pdf_bytes
-        
-    except Exception as e:
-        logger.error(f"PDF generation failed: {str(e)}")
-        # Return a simple PDF with error message
-        return f"Error generating PDF: {str(e)}".encode('utf-8')
-
-def generate_markdown(content: str) -> bytes:
-    """Prepare markdown content for download.
-    
-    Args:
-        content: The markdown content
-        
-    Returns:
-        Markdown file as bytes
-    """
-    return content.encode('utf-8')
-
-def get_safe_filename(topic: str) -> str:
-    """Generate a safe filename from the topic.
-    
-    Args:
-        topic: The research topic
-        
-    Returns:
-        A sanitized filename with timestamp
-    """
-    # Remove invalid filename characters
-    safe_topic = "".join(c for c in topic if c.isalnum() or c in (' ', '-', '_')).strip()
-    safe_topic = safe_topic.replace(' ', '_')[:50]  # Limit length
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    return f"MARA_Report_{safe_topic}_{timestamp}" 
