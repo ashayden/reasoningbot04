@@ -144,16 +144,33 @@ def initialize_gemini():
     """Initialize the Gemini model with caching."""
     try:
         api_key = st.secrets["GOOGLE_API_KEY"]
+        if not api_key:
+            st.error("Google API key is missing. Please check your Streamlit secrets.")
+            logger.error("Google API key is missing")
+            return None
+            
         genai.configure(api_key=api_key)
-        return genai.GenerativeModel(GEMINI_MODEL)
+        model = genai.GenerativeModel(GEMINI_MODEL)
+        
+        # Test the model with a simple prompt to ensure it's working
+        try:
+            model.generate_content("Test")
+            logger.info("Gemini model initialized successfully")
+            return model
+        except Exception as e:
+            st.error(f"Failed to test Gemini model: {str(e)}")
+            logger.error(f"Failed to test Gemini model: {str(e)}")
+            return None
+            
     except Exception as e:
-        logger.error(f"Failed to initialize Gemini API: {str(e)}")
         st.error(f"Failed to initialize Gemini API: {str(e)}")
+        logger.error(f"Failed to initialize Gemini API: {str(e)}")
         return None
 
 # Initialize model early
 model = initialize_gemini()
 if not model:
+    st.error("Failed to initialize the AI model. Please check your API key and try again.")
     st.stop()
 
 def validate_and_sanitize_input(topic: str) -> tuple[bool, str, str]:
@@ -368,9 +385,17 @@ def main():
             return
         
         # Reset state and start analysis
-        reset_state(sanitized_topic, iterations)
-        st.session_state.app_state['show_insights'] = True
+        st.session_state.app_state = initialize_state()  # Ensure complete state reset
+        st.session_state.app_state.update({
+            'topic': sanitized_topic,
+            'iterations': iterations,
+            'show_insights': True  # Start with insights
+        })
         st.rerun()
+
+    # Only proceed with analysis if we have a topic
+    if not st.session_state.app_state.get('topic'):
+        return
 
     try:
         # Create containers
@@ -385,12 +410,12 @@ def main():
         
         # Process each stage
         process_stage('insights', containers['insights'],
-                     lambda **kwargs: PreAnalysisAgent(model).generate_insights(topic),
+                     lambda **kwargs: PreAnalysisAgent(model).generate_insights(st.session_state.app_state['topic']),
                      'prompt', spinner_text="💡 Generating insights...",
                      display_fn=display_insights)
         
         process_stage('prompt', containers['prompt'],
-                     lambda **kwargs: PromptDesigner(model).design_prompt(topic),
+                     lambda **kwargs: PromptDesigner(model).design_prompt(st.session_state.app_state['topic']),
                      'focus', spinner_text="✍️ Optimizing prompt...",
                      display_fn=lambda x: st.expander("✍️ Optimized Prompt", expanded=False).markdown(x))
         
@@ -398,9 +423,10 @@ def main():
             with containers['focus']:
                 if not st.session_state.app_state['focus_areas']:
                     with st.spinner("🎯 Generating focus areas..."):
-                        focus_areas = PromptDesigner(model).generate_focus_areas(topic)
+                        focus_areas = PromptDesigner(model).generate_focus_areas(st.session_state.app_state['topic'])
                         if focus_areas:
                             st.session_state.app_state['focus_areas'] = focus_areas
+                            st.rerun()  # Ensure UI updates with new focus areas
                 
                 if st.session_state.app_state['focus_areas']:
                     proceed, selected = display_focus_selection(
@@ -411,7 +437,7 @@ def main():
                     
                     if proceed:
                         with st.spinner("Enhancing prompt with focus areas..."):
-                            enhanced_prompt = PromptDesigner(model).design_prompt(topic, selected)
+                            enhanced_prompt = PromptDesigner(model).design_prompt(st.session_state.app_state['topic'], selected)
                             st.session_state.app_state['enhanced_prompt'] = enhanced_prompt
                             st.rerun()
         
@@ -426,27 +452,29 @@ def main():
         # Process analysis (special handling due to iterations)
         if st.session_state.app_state['show_analysis']:
             with containers['analysis']:
-                if len(st.session_state.app_state['analysis_results']) < st.session_state.app_state['iterations']:
+                if len(st.session_state.app_state.get('analysis_results', [])) < st.session_state.app_state['iterations']:
                     with st.spinner("🔄 Performing analysis..."):
                         result = ResearchAnalyst(model).analyze(
-                            topic,
+                            st.session_state.app_state['topic'],
                             st.session_state.app_state['framework'],
-                            st.session_state.app_state['analysis_results'][-1] if st.session_state.app_state['analysis_results'] else None
+                            st.session_state.app_state['analysis_results'][-1] if st.session_state.app_state.get('analysis_results') else None
                         )
                         if result:
                             content = format_analysis_result(result)
+                            if 'analysis_results' not in st.session_state.app_state:
+                                st.session_state.app_state['analysis_results'] = []
                             st.session_state.app_state['analysis_results'].append(content)
                             if len(st.session_state.app_state['analysis_results']) == st.session_state.app_state['iterations']:
                                 st.session_state.app_state['show_summary'] = True
                             st.rerun()
                 
-                for i, result in enumerate(st.session_state.app_state['analysis_results']):
+                for i, result in enumerate(st.session_state.app_state.get('analysis_results', [])):
                     with st.expander(f"🔄 Research Analysis #{i + 1}", expanded=False):
                         st.markdown(result)
         
         process_stage('summary', containers['summary'],
                      lambda **kwargs: SynthesisExpert(model).synthesize(
-                         topic,
+                         st.session_state.app_state['topic'],
                          st.session_state.app_state['analysis_results']
                      ),
                      spinner_text="📊 Generating final report...",
