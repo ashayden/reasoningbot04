@@ -553,6 +553,10 @@ class SynthesisExpert(BaseAgent):
         ])
         
         for line in lines:
+            # Clean up any raw markdown characters
+            line = line.replace('**', '')  # Remove raw bold markers
+            line = line.replace('__', '')  # Remove raw underline markers
+            
             # Handle main section headers (numbered sections)
             if any(line.startswith(f"{i}.") for i in range(1, 8)):
                 # Add extra spacing before new sections
@@ -583,6 +587,8 @@ class SynthesisExpert(BaseAgent):
             # Handle bullet points
             if line.startswith('-') or line.startswith('*') or line.startswith('•'):
                 cleaned_line = line.lstrip('-*• ').strip()
+                # Clean up any markdown in bullet points
+                cleaned_line = cleaned_line.replace('**', '').replace('__', '')
                 formatted_lines.append(f"* {cleaned_line}")
                 continue
             
@@ -596,6 +602,10 @@ class SynthesisExpert(BaseAgent):
         text = text.replace("\n## ", "\n\n## ")  # Double space before section headers
         text = text.replace("\n* ", "\n\n* ")    # Double space before lists
         text = text.replace("\n\n\n", "\n\n")    # Remove triple spacing
+        
+        # Final cleanup of any remaining raw markdown
+        text = text.replace('****', '')  # Remove any double bold markers
+        text = text.replace('____', '')  # Remove any double underline markers
         
         return text.strip()
     
