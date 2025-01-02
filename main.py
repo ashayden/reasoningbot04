@@ -192,6 +192,7 @@ def reset_state(topic, iterations):
     if 'current_focus_areas' in st.session_state:
         st.session_state.current_focus_areas = []
     
+    # Initialize new state
     st.session_state.app_state = {
         'topic': topic,
         'iterations': iterations,
@@ -203,7 +204,7 @@ def reset_state(topic, iterations):
         'framework': None,
         'analysis_results': [],
         'summary': None,
-        'show_insights': True,
+        'show_insights': True,  # Set to True by default
         'show_prompt': False,
         'show_focus': False,
         'show_framework': False,
@@ -212,6 +213,9 @@ def reset_state(topic, iterations):
         'error': None,
         'focus_selection_complete': False
     }
+    
+    # Force immediate insights generation
+    st.session_state.app_state['show_insights'] = True
 
 def display_insights(insights: dict):
     """Display insights in proper containers."""
@@ -319,9 +323,11 @@ def main():
             st.error(error_msg)
             return
         
-        # Reset state if topic changed
-        if st.session_state.app_state['topic'] != sanitized_topic:
+        # Reset state if topic changed or no topic is set
+        if not st.session_state.app_state['topic'] or st.session_state.app_state['topic'] != sanitized_topic:
             reset_state(sanitized_topic, iterations)
+            st.session_state.app_state['show_insights'] = True
+            st.rerun()  # Force a rerun to start the analysis
     
     try:
         # Create containers with proper styling
