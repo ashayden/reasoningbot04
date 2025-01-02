@@ -33,12 +33,35 @@ class BaseAgent:
     def _extract_content(self, response: Any) -> Optional[str]:
         """Extract content from response, separating thoughts from actual content."""
         try:
-            if not response or not response.text:
+            if not response:
                 logger.error("Empty response from model")
                 return None
             
+            # Get full text from response, handling both simple and multi-part responses
+            full_text = ""
+            try:
+                # Try simple text accessor first
+                full_text = response.text
+            except AttributeError:
+                # If that fails, try parts accessor
+                try:
+                    for part in response.parts:
+                        full_text += part.text
+                except AttributeError:
+                    # If both fail, try candidates
+                    try:
+                        for part in response.candidates[0].content.parts:
+                            full_text += part.text
+                    except (AttributeError, IndexError):
+                        logger.error("Could not extract text from response")
+                        return None
+            
+            if not full_text.strip():
+                logger.error("Extracted empty text from response")
+                return None
+            
             # Split response into thoughts and content sections
-            parts = response.text.split("\n\n", 1)
+            parts = full_text.split("\n\n", 1)
             
             # If there's a clear thoughts section, separate it
             if len(parts) > 1 and "Thoughts" in parts[0]:
@@ -46,7 +69,7 @@ class BaseAgent:
                 return parts[1].strip()
             
             # If no clear separation, return the whole response
-            return response.text.strip()
+            return full_text.strip()
             
         except Exception as e:
             logger.error(f"Error extracting content: {str(e)}")
