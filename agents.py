@@ -55,6 +55,8 @@ class BaseAgent:
             if not full_text or not full_text.strip():
                 logger.error("Extracted empty text from response")
                 return None
+                
+            logger.info(f"Raw response text: {full_text}")
             
             # Split text into lines and filter out thought process
             lines = full_text.split('\n')
@@ -78,23 +80,41 @@ class BaseAgent:
                     continue
                 
                 # Check if this line starts a thought block
-                if any(line.lower().startswith(starter.lower()) for starter in thought_starters):
-                    in_thought_block = True
-                    self._last_thoughts = line
-                    continue
+                is_thought_starter = any(line.lower().startswith(starter.lower()) for starter in thought_starters)
                 
                 # Check if this line is part of a thought block
-                if any(marker in line.lower() for marker in [
+                is_thought_content = any(marker in line.lower() for marker in [
                     "i will", "i'll", "i should", "i need", "i must",
                     "i have to", "i am", "i'm", "let me", "let's"
-                ]) and not any(marker in line for marker in ["🌟", "💡", "🔍", "📝", "🎯", "⚡"]):
+                ]) and not any(marker in line for marker in ["🌟", "💡", "🔍", "📝", "🎯", "⚡"])
+                
+                # Check if this line has a content marker
+                has_content_marker = any(marker in line for marker in ["🌟", "💡", "🔍", "📝", "🎯", "⚡"])
+                
+                if is_thought_starter:
                     in_thought_block = True
                     self._last_thoughts = line
+                    logger.debug(f"Found thought starter: {line}")
+                    continue
+                
+                if is_thought_content and not has_content_marker:
+                    in_thought_block = True
+                    self._last_thoughts = line
+                    logger.debug(f"Found thought content: {line}")
                     continue
                 
                 # If we're not in a thought block or we hit a content marker, add the line
-                if not in_thought_block or any(marker in line for marker in ["🌟", "💡", "🔍", "📝", "🎯", "⚡"]):
+                if not in_thought_block or has_content_marker:
                     content_lines.append(line)
+                    logger.debug(f"Adding content line: {line}")
+                    in_thought_block = False
+                    continue
+                
+                # If we're in a thought block but the line doesn't look like a thought,
+                # add it and end the thought block
+                if in_thought_block and not is_thought_content:
+                    content_lines.append(line)
+                    logger.debug(f"Adding non-thought line from thought block: {line}")
                     in_thought_block = False
             
             # Join the content lines, preserving paragraph structure
@@ -117,6 +137,7 @@ class BaseAgent:
                 logger.error("No content extracted after filtering thoughts")
                 return None
                 
+            logger.info(f"Extracted content: {final_content}")
             return final_content
             
         except Exception as e:
