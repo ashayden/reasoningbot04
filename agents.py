@@ -266,7 +266,7 @@ class FrameworkEngineer(BaseAgent):
 
         Based on these prompts, create a comprehensive research framework that follows this exact structure:
 
-        Title: [Create a concise, descriptive title that directly states the analysis focus - do not include "Research Framework:" or any similar prefix]
+        # [Create a concise, descriptive title that directly states the analysis focus]
 
         A. Research Objectives:
            1. Primary Research Questions
@@ -580,49 +580,37 @@ class SynthesisExpert(BaseAgent):
         formatted_lines = []
         in_references = False
         
-        # Extract meaningful content for title generation
-        title = "Research Synthesis Report"  # Default fallback
-        subtitle = "A Comprehensive Analysis"  # Default fallback
+        # Extract title and subtitle from the content
+        title = None
+        subtitle = None
+        content_start = 0
         
-        if lines:
-            # Look for executive summary content
-            exec_summary = ""
-            for line in lines[1:5]:  # Check first few lines after header
-                if not any(line.startswith(f"{i}.") for i in range(1, 8)):
-                    exec_summary += line + " "
-            
-            if exec_summary:
-                # Extract key phrases for title
-                words = exec_summary.split()
-                # Look for significant phrases (3-4 words)
-                for i in range(len(words)-2):
-                    phrase = ' '.join(words[i:i+3])
-                    if any(keyword in phrase.lower() for keyword in ['impact', 'effect', 'role', 'future', 'development', 'analysis', 'implications']):
-                        title = f"The {phrase}"
-                        break
-                
-                # Generate subtitle from key findings or methodology
-                key_findings = []
-                for line in lines:
-                    if "findings" in line.lower() or "discovered" in line.lower() or "revealed" in line.lower():
-                        if line.startswith('*') or line.startswith('-'):
-                            finding = line.lstrip('*- ').strip()
-                            key_findings.append(finding)
-                
-                if key_findings:
-                    # Use the most concise finding as subtitle
-                    subtitle = min(key_findings, key=len)
-                    if len(subtitle) > 60:  # Trim if too long
-                        subtitle = subtitle[:57] + "..."
+        # Look for title and subtitle in the first few lines
+        for i, line in enumerate(lines):
+            if line.startswith('Title:'):
+                title = line.replace('Title:', '').strip()
+                content_start = i + 1
+            elif line.startswith('Subtitle:'):
+                subtitle = line.replace('Subtitle:', '').strip()
+                content_start = i + 1
         
-        # Add creative title and subtitle
-        formatted_lines.extend([
-            f"# {title}",
-            f"_{subtitle}_",
-            ""
-        ])
+        # If no explicit title/subtitle found, use first non-numbered line as title
+        if not title:
+            for i, line in enumerate(lines):
+                if not any(line.startswith(f"{n}.") for n in range(1, 10)):
+                    title = line
+                    content_start = i + 1
+                    break
         
-        for line in lines:
+        # Add title and subtitle to formatted lines
+        if title:
+            formatted_lines.append(f"# {title}")
+        if subtitle:
+            formatted_lines.append(f"_{subtitle}_")
+        formatted_lines.append("")
+        
+        # Process remaining content
+        for line in lines[content_start:]:
             # Clean up any raw markdown characters
             line = line.replace('**', '')  # Remove raw bold markers
             line = line.replace('__', '')  # Remove raw underline markers
@@ -683,9 +671,8 @@ class SynthesisExpert(BaseAgent):
         """Synthesize all research analyses into a final report."""
         prompt = f"""Create a comprehensive research synthesis on '{topic}' following this exact structure:
 
-        Start with:
-            Title: [Descriptive title reflecting the main focus of topic analysis]
-            Subtitle: [Specific aspect of analysis]
+        Title: [Descriptive title reflecting the main focus of topic analysis]
+        Subtitle: [Specific aspect of analysis]
 
         1. Executive Summary
         Provide a 2-3 paragraph overview that:
@@ -734,6 +721,9 @@ class SynthesisExpert(BaseAgent):
         - Add DOIs where available
         - List primary sources first
         - Organize alphabetically
+        - Each entry should be on a new line
+        - Each entry should end with a period
+        - Each entry should start with a bullet point (*)
 
         Important Guidelines:
         - Use proper APA in-text citations (Author, Year)
