@@ -337,16 +337,11 @@ class ResearchAnalyst(BaseAgent):
         }
         
         if result.get('title'):
-            # Remove any existing # symbols and format properly
-            clean_title = result['title'].lstrip('#').strip()
-            # Remove any asterisks from title
-            clean_title = clean_title.replace('*', '')
+            clean_title = result['title'].lstrip('#').strip().replace('*', '')
             formatted['title'] = clean_title
         
         if result.get('subtitle'):
-            # Remove any existing * symbols and format properly
             clean_subtitle = result['subtitle'].strip('*').strip()
-            # Format as italic without asterisks
             formatted['subtitle'] = f"_{clean_subtitle}_"
         
         if result.get('content'):
@@ -365,12 +360,12 @@ class ResearchAnalyst(BaseAgent):
                 if not line.startswith('*'):
                     line = line.replace('*', '')
                 
-                # Handle section headers (numbered sections)
+                # Handle section headers
                 if any(line.startswith(f"{i}.") for i in range(1, 8)):
                     if current_section:
                         if in_references and reference_entries:
                             # Add collected references with proper formatting
-                            current_section.extend(reference_entries)
+                            current_section.extend([''] + reference_entries)
                         formatted_sections.append('\n'.join(current_section))
                         current_section = []
                         reference_entries = []
@@ -378,13 +373,13 @@ class ResearchAnalyst(BaseAgent):
                     section_title = line.split('.', 1)[1].strip()
                     if "References" in section_title:
                         in_references = True
-                        current_section.append(f"\n## {section_title}")
+                        current_section.append(f"\n## Works Cited")  # Standardize to "Works Cited"
                     else:
                         in_references = False
                         current_section.append(f"\n## {section_title}")
                     continue
                 
-                # Handle subsection headers (bullet points that look like headers)
+                # Handle subsection headers
                 if not in_references and line.startswith('-') and ':' in line and len(line) < 50:
                     subsection = line.lstrip('- ').strip()
                     current_section.append(f"\n### {subsection}")
@@ -392,9 +387,7 @@ class ResearchAnalyst(BaseAgent):
                 
                 # Handle bullet points and references
                 if line.startswith('-') or line.startswith('•') or line.startswith('*'):
-                    cleaned_line = line.lstrip('-•* ').strip()
-                    # Remove any asterisks from bullet point content
-                    cleaned_line = cleaned_line.replace('*', '')
+                    cleaned_line = line.lstrip('-•* ').strip().replace('*', '')
                     if in_references:
                         # Format reference entries consistently
                         citation = cleaned_line
@@ -402,7 +395,6 @@ class ResearchAnalyst(BaseAgent):
                             citation += '.'
                         reference_entries.append(f"* {citation}")
                     else:
-                        # Regular bullet points
                         current_section.append(f"* {cleaned_line}")
                     continue
                 
@@ -413,22 +405,21 @@ class ResearchAnalyst(BaseAgent):
             # Add final section
             if current_section:
                 if in_references and reference_entries:
-                    # Add collected references with proper formatting
-                    current_section.extend(reference_entries)
+                    current_section.extend([''] + reference_entries)
                 formatted_sections.append('\n'.join(current_section))
             
-            # Join sections with proper spacing and clean up
+            # Join sections with proper spacing
             content = '\n\n'.join(formatted_sections)
             
-            # Clean up extra whitespace and ensure proper markdown spacing
-            content = content.replace('\n\n\n', '\n\n')  # Remove triple line breaks
-            content = content.replace('\n##', '\n\n##')  # Ensure space before headers
-            content = content.replace('\n###', '\n\n###')  # Ensure space before subheaders
-            content = content.replace('\n*', '\n\n*')  # Ensure space before lists
+            # Clean up spacing
+            content = content.replace('\n\n\n', '\n\n')
+            content = content.replace('\n##', '\n\n##')
+            content = content.replace('\n###', '\n\n###')
+            content = content.replace('\n* ', '\n\n* ')
             
-            # Special handling for references section spacing
-            content = content.replace('* \n', '*\n')  # Remove extra space after reference bullets
-            content = content.replace('.\n*', '.\n\n*')  # Add space between reference entries
+            # Special handling for references spacing
+            content = content.replace('* \n', '*\n')
+            content = content.replace('.\n*', '.\n\n*')
             
             formatted['content'] = content.strip()
         
@@ -483,19 +474,22 @@ class ResearchAnalyst(BaseAgent):
                - Areas needing further research
                - Potential biases
 
-            7. Provide full bibliography:
-                - Use APA 7th edition format
-                - Include all in-text citations
-                - Add DOIs where available
-                - List primary sources first
-                - Organize alphabetically
+            7. Works Cited
+               - Use APA 7th edition format
+               - Include all in-text citations
+               - Add DOIs where available
+               - List primary sources first
+               - Organize alphabetically
+               - Each entry should be on a new line
+               - Each entry should end with a period
+               - Each entry should start with a bullet point (*)
 
             Important:
             - Use proper APA in-text citations (Author, Year)
             - Each section should have at least 2-3 relevant citations
             - Ensure citations are from reputable academic sources
             - Include a mix of seminal works and recent research (last 5 years)
-            - All citations must have corresponding entries in References
+            - All citations must have corresponding entries in Works Cited
 
             Ensure each section is thoroughly developed with specific examples and evidence."""
         else:
@@ -544,19 +538,22 @@ class ResearchAnalyst(BaseAgent):
                - Enhanced understanding
                - Refined conclusions
 
-            6. Provide full bibliography:
-                - Use APA 7th edition format
-                - Include all in-text citations
-                - Add DOIs where available
-                - List primary sources first
-                - Organize alphabetically
+            6. Works Cited
+               - Use APA 7th edition format
+               - Include all in-text citations
+               - Add DOIs where available
+               - List primary sources first
+               - Organize alphabetically
+               - Each entry should be on a new line
+               - Each entry should end with a period
+               - Each entry should start with a bullet point (*)
 
             Important:
             - Use proper APA in-text citations (Author, Year)
             - Each section should have at least 2-3 relevant citations
             - Ensure citations are from reputable academic sources
             - Include a mix of seminal works and recent research (last 5 years)
-            - All citations must have corresponding entries in References
+            - All citations must have corresponding entries in Works Cited
 
             Note: As this is iteration {self.iteration_count + 1}, be more explorative and creative 
             while maintaining academic rigor."""
