@@ -534,21 +534,45 @@ class SynthesisExpert(BaseAgent):
         formatted_lines = []
         in_references = False
         
-        # Extract topic from first line if available
-        topic_title = "Research Synthesis Report"
-        if lines and lines[0].startswith('1.'):
-            # Get topic from first paragraph of executive summary
-            exec_summary = ' '.join(lines[1:3])  # Get first two lines after header
-            # Extract key terms for title
-            key_terms = [word for word in exec_summary.split() 
-                        if len(word) > 3 and word.isalnum()][:3]
-            if key_terms:
-                topic_title = f"Analysis & Insights: {' '.join(key_terms)}"
+        # Extract meaningful content for title generation
+        title = "Research Synthesis Report"  # Default fallback
+        subtitle = "A Comprehensive Analysis"  # Default fallback
+        
+        if lines:
+            # Look for executive summary content
+            exec_summary = ""
+            for line in lines[1:5]:  # Check first few lines after header
+                if not any(line.startswith(f"{i}.") for i in range(1, 8)):
+                    exec_summary += line + " "
+            
+            if exec_summary:
+                # Extract key phrases for title
+                words = exec_summary.split()
+                # Look for significant phrases (3-4 words)
+                for i in range(len(words)-2):
+                    phrase = ' '.join(words[i:i+3])
+                    if any(keyword in phrase.lower() for keyword in ['impact', 'effect', 'role', 'future', 'development', 'analysis', 'implications']):
+                        title = f"The {phrase}"
+                        break
+                
+                # Generate subtitle from key findings or methodology
+                key_findings = []
+                for line in lines:
+                    if "findings" in line.lower() or "discovered" in line.lower() or "revealed" in line.lower():
+                        if line.startswith('*') or line.startswith('-'):
+                            finding = line.lstrip('*- ').strip()
+                            key_findings.append(finding)
+                
+                if key_findings:
+                    # Use the most concise finding as subtitle
+                    subtitle = min(key_findings, key=len)
+                    if len(subtitle) > 60:  # Trim if too long
+                        subtitle = subtitle[:57] + "..."
         
         # Add creative title and subtitle
         formatted_lines.extend([
-            f"# {topic_title}",
-            "_A Comprehensive Research Synthesis_",
+            f"# {title}",
+            f"_{subtitle}_",
             ""
         ])
         
