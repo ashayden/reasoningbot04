@@ -1,7 +1,7 @@
 """Agent implementations for the MARA application."""
 
 import logging
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, List
 
 import google.generativeai as genai
 import streamlit as st
@@ -17,23 +17,56 @@ from utils import rate_limit_decorator, parse_title_content
 
 logger = logging.getLogger(__name__)
 
-class PreAnalysisAgent:
+class BaseAgent:
+    """Base class for all agents."""
+    
+    def __init__(self, model: Any):
+        self.model = model
+        self._last_thoughts = None
+    
+    @property
+    def last_thoughts(self) -> Optional[str]:
+        """Get the last model's thoughts for debugging or chaining."""
+        return self._last_thoughts
+    
+    @rate_limit_decorator
+    def generate_content(self, prompt: str, config: Dict[str, Any]) -> Optional[str]:
+        """Generate content with rate limiting and error handling."""
+        try:
+            response = self.model.generate_content(
+                prompt,
+                generation_config=GenerationConfig(**config)
+            )
+            
+            if not response or not response.text:
+                logger.error("Empty response from model")
+                return None
+                
+            logger.info(f"Raw response length: {len(response.text)}")
+            
+            # Split response into thoughts and actual content
+            parts = response.text.split("\n\n", 1)
+            
+            if len(parts) > 1 and "Thoughts" in parts[0]:
+                self._last_thoughts = parts[0]
+                content = parts[1].strip()
+                logger.info(f"Extracted content length: {len(content)}")
+                return content
+            else:
+                # If no clear separation, return the whole response
+                logger.info("No thoughts section found, returning full response")
+                return response.text.strip()
+                
+        except Exception as e:
+            logger.error(f"Content generation error: {str(e)}")
+            st.error(f"Error generating content: {str(e)}")
+            return None
+
+class PreAnalysisAgent(BaseAgent):
     """Agent responsible for generating quick insights before main analysis."""
     
-    def __init__(self, model):
-        """Initialize the agent with a model."""
-        self.model = model
-        
     def generate_insights(self, topic: str) -> Optional[Dict[str, str]]:
-        """Generate quick insights about the topic.
-        
-        Args:
-            topic: The topic to analyze
-            
-        Returns:
-            Dictionary containing 'did_you_know' and 'eli5' sections,
-            or None if generation fails
-        """
+        """Generate quick insights about the topic."""
         try:
             # Generate fun fact
             fact_prompt = (
@@ -78,68 +111,11 @@ class PreAnalysisAgent:
             logger.error(f"PreAnalysis generation failed: {str(e)}")
             return None
 
-class BaseAgent:
-    """Base class for all agents."""
-    
-    def __init__(self, model: Any):
-        self.model = model
-        self._last_thoughts = None
-    
-    @property
-    def last_thoughts(self) -> Optional[str]:
-        """Get the last model's thoughts for debugging or chaining."""
-        return self._last_thoughts
-    
-    @rate_limit_decorator
-    def generate_content(self, prompt: str, config: Dict[str, Any]) -> Optional[str]:
-        """Generate content with rate limiting and error handling.
-        
-        The new Gemini 2.0 model returns both thoughts and response.
-        This method extracts only the response for user display while
-        storing the thoughts for internal use.
-        """
-        try:
-            response = self.model.generate_content(
-                prompt,
-                generation_config=GenerationConfig(**config)
-            )
-            
-            if not response or not response.text:
-                logger.error("Empty response from model")
-                return None
-                
-            logger.info(f"Raw response length: {len(response.text)}")
-            
-            # Split response into thoughts and actual content
-            parts = response.text.split("\n\n", 1)
-            
-            if len(parts) > 1 and "Thoughts" in parts[0]:
-                self._last_thoughts = parts[0]
-                content = parts[1].strip()
-                logger.info(f"Extracted content length: {len(content)}")
-                return content
-            else:
-                # If no clear separation, return the whole response
-                logger.info("No thoughts section found, returning full response")
-                return response.text.strip()
-                
-        except Exception as e:
-            logger.error(f"Content generation error: {str(e)}")
-            st.error(f"Error generating content: {str(e)}")
-            return None
-
 class PromptDesigner(BaseAgent):
     """Agent responsible for designing optimal prompts."""
     
-    def generate_focus_areas(self, topic: str) -> Optional[list]:
-        """Generate potential focus areas for the topic.
-        
-        Args:
-            topic: The topic to analyze
-            
-        Returns:
-            List of potential focus areas, or None if generation fails
-        """
+    def generate_focus_areas(self, topic: str) -> Optional[List[str]]:
+        """Generate potential focus areas for the topic."""
         try:
             prompt = f"""Analyze this topic/question and generate a list of 8-12 potential focus areas: '{topic}'
 
@@ -181,13 +157,8 @@ class PromptDesigner(BaseAgent):
             logger.error(f"Focus areas generation failed: {str(e)}")
             return None
     
-    def design_prompt(self, topic: str, selected_focus_areas: Optional[list] = None) -> Optional[str]:
-        """Design an optimal prompt for the given topic.
-        
-        Args:
-            topic: The topic to analyze
-            selected_focus_areas: Optional list of focus areas to emphasize
-        """
+    def design_prompt(self, topic: str, selected_focus_areas: Optional[List[str]] = None) -> Optional[str]:
+        """Design an optimal prompt for the given topic."""
         base_prompt = f"""As an expert prompt engineer, create a detailed prompt that will guide the development 
         of a research framework for analyzing '{topic}'."""
         
@@ -203,12 +174,7 @@ class FrameworkEngineer(BaseAgent):
     """Agent responsible for creating analysis frameworks."""
     
     def create_framework(self, initial_prompt: str, enhanced_prompt: Optional[str] = None) -> Optional[str]:
-        """Create a research framework based on the prompt design.
-        
-        Args:
-            initial_prompt: The initial optimized prompt
-            enhanced_prompt: Optional prompt enhanced with selected focus areas
-        """
+        """Create a research framework based on the prompt design."""
         # Combine prompts if enhanced prompt exists
         prompt_context = initial_prompt
         if enhanced_prompt:
@@ -254,10 +220,7 @@ class FrameworkEngineer(BaseAgent):
 
         For each section and subsection, provide detailed and specific content relevant to the topic.
         Ensure each point is thoroughly explained and contextually appropriate.
-        Use clear, academic language while maintaining accessibility.
-        
-        Previous thought process (if available):
-        {self._last_thoughts if self._last_thoughts else 'Not available'}"""
+        Use clear, academic language while maintaining accessibility."""
         
         return self.generate_content(prompt, FRAMEWORK_CONFIG)
 
@@ -267,7 +230,7 @@ class ResearchAnalyst(BaseAgent):
     def __init__(self, model: Any):
         super().__init__(model)
         self.iteration_count = 0
-        
+    
     def _get_analysis_config(self) -> Dict[str, Any]:
         """Get analysis configuration with dynamic temperature scaling."""
         from config import (
@@ -290,136 +253,143 @@ class ResearchAnalyst(BaseAgent):
         """Conduct research analysis."""
         if previous_analysis is None:
             self.iteration_count = 0  # Reset counter for new analysis
-            prompt = f"""Acting as a leading expert in topic-related field: Based on the framework above, conduct an initial research analysis of '{topic}'. 
-            Follow the methodological approaches and evaluation criteria specified in the framework.
-            Provide detailed findings for each key area of investigation outlined.
-            
-            Framework context:
-            {framework}
-            
-            Structure your analysis using this format:
-
-            Start with:
-            Title: [Descriptive title reflecting the main focus]
-            Subtitle: [Specific aspect or approach being analyzed]
-
-            Then provide a comprehensive analysis following this structure:
-
-            1. Introduction
-               - Context and background
-               - Scope of analysis
-               - Key objectives
-
-            2. Methodology Overview
-               - Approach used
-               - Data sources
-               - Analytical methods
-
-            3. Key Findings
-               - Primary discoveries (with citations)
-               - Supporting evidence (with citations)
-               - Critical insights
-
-            4. Analysis
-               - Detailed examination of findings (with citations)
-               - Interpretation of results
-               - Connections and patterns
-
-            5. Implications
-               - Theoretical implications
-               - Practical applications
-               - Future considerations
-
-            6. Limitations and Gaps
-               - Current limitations
-               - Areas needing further research
-               - Potential biases
-
-            7. References
-               - List all cited works in APA format
-               - Include DOIs where available
-               - Ensure all citations in the text have corresponding references
-
-            Important:
-            - Use in-text citations in APA format (Author, Year) for all major claims and findings
-            - Each section should have at least 2-3 relevant citations
-            - Ensure citations are from reputable academic sources
-            - Include a mix of seminal works and recent research (last 5 years)
-            - All citations must have corresponding entries in the References section
-
-            Ensure each section is thoroughly developed with specific examples and evidence."""
+            prompt = self._generate_initial_prompt(topic, framework)
         else:
             self.iteration_count += 1  # Increment counter for subsequent iterations
-            # Include previous agent's thoughts if available
-            previous_context = f"""Previous analysis context:
-            {previous_analysis}
-            
-            Previous agent's thought process:
-            {self._last_thoughts if self._last_thoughts else 'Not available'}"""
-            
-            prompt = f"""Review the previous research iteration and expand the analysis.
-            
-            {previous_context}
-            
-            For this iteration #{self.iteration_count + 1}, focus on:
-            1. Identifying gaps or areas needing more depth
-            2. Exploring new connections and implications
-            3. Refining and strengthening key arguments
-            4. Adding new supporting evidence or perspectives
-            
-            Structure your analysis using this format:
-
-            Start with:
-            Title: [Descriptive title reflecting the new focus]
-            Subtitle: [Specific aspect being expanded upon]
-
-            Then provide:
-
-            1. Previous Analysis Review
-               - Key points from previous iteration
-               - Areas identified for expansion
-               - New perspectives to explore
-
-            2. Expanded Analysis
-               - Deeper investigation of key themes (with citations)
-               - New evidence and insights (with citations)
-               - Advanced interpretations
-
-            3. Novel Connections
-               - Cross-cutting themes (with citations)
-               - Interdisciplinary insights
-               - Emerging patterns
-
-            4. Critical Evaluation
-               - Strengthened arguments (with citations)
-               - Counter-arguments addressed
-               - Enhanced evidence base
-
-            5. Synthesis and Integration
-               - Integration with previous findings
-               - Enhanced understanding
-               - Refined conclusions
-
-            6. References
-               - List all new citations in APA format
-               - Include DOIs where available
-               - Ensure all citations have corresponding references
-
-            Important:
-            - Use in-text citations in APA format (Author, Year) for all major claims and findings
-            - Each section should have at least 2-3 relevant citations
-            - Ensure citations are from reputable academic sources
-            - Include a mix of seminal works and recent research (last 5 years)
-            - All citations must have corresponding entries in the References section
-
-            Note: As this is iteration {self.iteration_count + 1}, be more explorative and creative 
-            while maintaining academic rigor. Push the boundaries of conventional analysis while 
-            ensuring all claims are well-supported."""
+            prompt = self._generate_iteration_prompt(topic, previous_analysis)
         
         result = self.generate_content(prompt, self._get_analysis_config())
         if result:
             return parse_title_content(result)
         return None
+    
+    def _generate_initial_prompt(self, topic: str, framework: str) -> str:
+        """Generate the initial analysis prompt."""
+        return f"""Acting as a leading expert in topic-related field: Based on the framework above, conduct an initial research analysis of '{topic}'. 
+        Follow the methodological approaches and evaluation criteria specified in the framework.
+        Provide detailed findings for each key area of investigation outlined.
+        
+        Framework context:
+        {framework}
+        
+        Structure your analysis using this format:
+
+        Start with:
+        Title: [Descriptive title reflecting the main focus]
+        Subtitle: [Specific aspect or approach being analyzed]
+
+        Then provide a comprehensive analysis following this structure:
+
+        1. Introduction
+           - Context and background
+           - Scope of analysis
+           - Key objectives
+
+        2. Methodology Overview
+           - Approach used
+           - Data sources
+           - Analytical methods
+
+        3. Key Findings
+           - Primary discoveries (with citations)
+           - Supporting evidence (with citations)
+           - Critical insights
+
+        4. Analysis
+           - Detailed examination of findings (with citations)
+           - Interpretation of results
+           - Connections and patterns
+
+        5. Implications
+           - Theoretical implications
+           - Practical applications
+           - Future considerations
+
+        6. Limitations and Gaps
+           - Current limitations
+           - Areas needing further research
+           - Potential biases
+
+        7. References
+           - List all cited works in APA format
+           - Include DOIs where available
+           - Ensure all citations in the text have corresponding references
+
+        Important:
+        - Use in-text citations in APA format (Author, Year) for all major claims and findings
+        - Each section should have at least 2-3 relevant citations
+        - Ensure citations are from reputable academic sources
+        - Include a mix of seminal works and recent research (last 5 years)
+        - All citations must have corresponding entries in the References section
+
+        Ensure each section is thoroughly developed with specific examples and evidence."""
+    
+    def _generate_iteration_prompt(self, topic: str, previous_analysis: str) -> str:
+        """Generate the iteration analysis prompt."""
+        previous_context = f"""Previous analysis context:
+        {previous_analysis}
+        
+        Previous agent's thought process:
+        {self._last_thoughts if self._last_thoughts else 'Not available'}"""
+        
+        return f"""Review the previous research iteration and expand the analysis.
+        
+        {previous_context}
+        
+        For this iteration #{self.iteration_count + 1}, focus on:
+        1. Identifying gaps or areas needing more depth
+        2. Exploring new connections and implications
+        3. Refining and strengthening key arguments
+        4. Adding new supporting evidence or perspectives
+        
+        Structure your analysis using this format:
+
+        Start with:
+        Title: [Descriptive title reflecting the new focus]
+        Subtitle: [Specific aspect being expanded upon]
+
+        Then provide:
+
+        1. Previous Analysis Review
+           - Key points from previous iteration
+           - Areas identified for expansion
+           - New perspectives to explore
+
+        2. Expanded Analysis
+           - Deeper investigation of key themes (with citations)
+           - New evidence and insights (with citations)
+           - Advanced interpretations
+
+        3. Novel Connections
+           - Cross-cutting themes (with citations)
+           - Interdisciplinary insights
+           - Emerging patterns
+
+        4. Critical Evaluation
+           - Strengthened arguments (with citations)
+           - Counter-arguments addressed
+           - Enhanced evidence base
+
+        5. Synthesis and Integration
+           - Integration with previous findings
+           - Enhanced understanding
+           - Refined conclusions
+
+        6. References
+           - List all new citations in APA format
+           - Include DOIs where available
+           - Ensure all citations have corresponding references
+
+        Important:
+        - Use in-text citations in APA format (Author, Year) for all major claims and findings
+        - Each section should have at least 2-3 relevant citations
+        - Ensure citations are from reputable academic sources
+        - Include a mix of seminal works and recent research (last 5 years)
+        - All citations must have corresponding entries in the References section
+
+        Note: As this is iteration {self.iteration_count + 1}, be more explorative and creative 
+        while maintaining academic rigor. Push the boundaries of conventional analysis while 
+        ensuring all claims are well-supported."""
 
 class SynthesisExpert(BaseAgent):
     """Agent responsible for synthesizing research findings."""
@@ -493,7 +463,7 @@ class SynthesisExpert(BaseAgent):
         
         return formatted_text.strip()
     
-    def synthesize(self, topic: str, analyses: list) -> Optional[str]:
+    def synthesize(self, topic: str, analyses: List[str]) -> Optional[str]:
         """Synthesize all research analyses into a final report."""
         prompt = f"""Create a comprehensive research synthesis on '{topic}' following this exact structure:
 
