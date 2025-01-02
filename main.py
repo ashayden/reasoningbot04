@@ -252,27 +252,27 @@ def display_focus_selection(focus_areas: list, selected_areas: list) -> tuple[bo
     focus_container = st.container()
     
     with focus_container:
-        with st.expander("🎯 Focus Areas", expanded=st.session_state.focus_area_state['expanded']):
-            st.markdown("Choose specific aspects you'd like the analysis to emphasize (optional):")
-            
-            # Handle selection changes
-            def on_selection_change():
-                st.session_state.focus_area_state['selected'] = st.session_state.focus_select
-            
-            # Create the multiselect with callback
-            selected = st.multiselect(
-                "Select focus areas",
-                options=focus_areas,
-                default=st.session_state.focus_area_state['selected'],
-                key="focus_select",
-                on_change=on_selection_change,
-                label_visibility="collapsed"
-            )
-            
-            st.markdown("---")
-            
-            # Only show buttons if selection is not complete
-            if not st.session_state.focus_area_state['complete']:
+        # Only show expander if not complete
+        if not st.session_state.focus_area_state['complete']:
+            with st.expander("🎯 Focus Areas", expanded=st.session_state.focus_area_state['expanded']):
+                st.markdown("Choose specific aspects you'd like the analysis to emphasize (optional):")
+                
+                # Handle selection changes
+                def on_selection_change():
+                    st.session_state.focus_area_state['selected'] = st.session_state.focus_select
+                
+                # Create the multiselect with callback
+                selected = st.multiselect(
+                    "Select focus areas",
+                    options=focus_areas,
+                    default=st.session_state.focus_area_state['selected'],
+                    key="focus_select",
+                    on_change=on_selection_change,
+                    label_visibility="collapsed"
+                )
+                
+                st.markdown("---")
+                
                 col1, col2 = st.columns(2)
                 
                 # Handle Skip button
@@ -281,6 +281,7 @@ def display_focus_selection(focus_areas: list, selected_areas: list) -> tuple[bo
                     st.session_state.focus_area_state['expanded'] = False
                     st.session_state.app_state['focus_selection_complete'] = True
                     st.session_state.app_state['show_framework'] = True
+                    st.rerun()
                     return True, []
                 
                 # Handle Continue button
@@ -295,9 +296,10 @@ def display_focus_selection(focus_areas: list, selected_areas: list) -> tuple[bo
                     st.session_state.focus_area_state['expanded'] = False
                     st.session_state.app_state['focus_selection_complete'] = True
                     st.session_state.app_state['show_framework'] = True
+                    st.rerun()
                     return True, selected
-            
-            return False, selected
+        
+        return False, st.session_state.focus_area_state['selected']
 
 def main():
     """Main application flow."""

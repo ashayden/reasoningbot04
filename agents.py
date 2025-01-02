@@ -325,7 +325,9 @@ class ResearchAnalyst(BaseAgent):
                     section_title = line.split('.', 1)[1].strip()
                     if "References" in section_title:
                         in_references = True
-                    current_section.append(f"\n## {section_title}")
+                        current_section.append(f"\n## {section_title}")
+                    else:
+                        current_section.append(f"\n## {section_title}")
                     continue
                 
                 # Handle subsection headers (bullet points that look like headers)
@@ -335,8 +337,8 @@ class ResearchAnalyst(BaseAgent):
                     continue
                 
                 # Handle bullet points and references
-                if line.startswith('-') or line.startswith('•'):
-                    cleaned_line = line.lstrip('-•').strip()
+                if line.startswith('-') or line.startswith('•') or line.startswith('*'):
+                    cleaned_line = line.lstrip('-•* ').strip()
                     if in_references:
                         # Format reference entries consistently
                         citation = cleaned_line
@@ -349,7 +351,13 @@ class ResearchAnalyst(BaseAgent):
                     continue
                 
                 # Handle regular text
-                current_section.append(line)
+                if in_references and not line.startswith('*'):
+                    # Format non-bulleted references
+                    if not line.endswith('.'):
+                        line += '.'
+                    current_section.append(f"* {line}")
+                else:
+                    current_section.append(line)
             
             # Add final section
             if current_section:
@@ -534,8 +542,8 @@ class SynthesisExpert(BaseAgent):
                 continue
             
             # Handle bullet points and references
-            if line.startswith('-') or line.startswith('•'):
-                cleaned_line = line.lstrip('-•').strip()
+            if line.startswith('-') or line.startswith('•') or line.startswith('*'):
+                cleaned_line = line.lstrip('-•* ').strip()
                 if in_references:
                     # Format reference entries consistently
                     citation = cleaned_line
@@ -543,12 +551,19 @@ class SynthesisExpert(BaseAgent):
                         citation += '.'
                     current_section.append(f"* {citation}")
                 else:
-                    # Regular bullet points
+                    # Regular bullet points with proper indentation
                     current_section.append(f"* {cleaned_line}")
                 continue
             
             # Handle regular text
-            current_section.append(line)
+            if in_references and not line.startswith('*'):
+                # Format non-bulleted references
+                if not line.endswith('.'):
+                    line += '.'
+                current_section.append(f"* {line}")
+            else:
+                # Regular text with proper paragraph spacing
+                current_section.append(line)
         
         # Add final section
         if current_section:
