@@ -44,13 +44,43 @@ st.markdown("""
     margin-bottom: 1rem;
 }
 
+/* Input container styling */
+div[data-testid="stForm"] {
+    border: 1px solid rgba(250, 250, 250, 0.2);
+    border-radius: 4px;
+    padding: 1.5rem;
+    background-color: rgba(28, 31, 34, 0.6);
+    margin-bottom: 2rem;
+}
+
+/* Button styling */
 .stButton > button {
     width: 100%;
     border-radius: 4px;
-    padding: 0.5rem;
+    padding: 0.75rem !important;
     font-weight: 500;
+    font-size: 1.1rem !important;
+    height: auto !important;
+    min-height: 3rem !important;
+    margin-top: 1.5rem;
+    background-color: rgb(0, 102, 204) !important;
+    border: none !important;
+    color: white !important;
 }
 
+.stButton > button:hover {
+    background-color: rgb(0, 122, 244) !important;
+    border: none !important;
+    color: white !important;
+}
+
+.stButton > button:active {
+    background-color: rgb(0, 82, 164) !important;
+    border: none !important;
+    color: white !important;
+}
+
+/* Text input styling */
 .stTextInput > div > div > input {
     font-size: 1.1rem;
     padding: 0.75rem;
@@ -58,18 +88,36 @@ st.markdown("""
     background-color: rgba(28, 31, 34, 0.8);
     border: 1px solid rgba(250, 250, 250, 0.2);
     color: rgb(250, 250, 250);
+    margin-bottom: 1rem;
 }
 
 .stTextInput > div > div > input::placeholder {
     color: rgba(250, 250, 250, 0.6);
 }
 
+/* Slider styling */
+.stSlider > div > div > div > div {
+    background-color: rgb(0, 102, 204) !important;
+}
+
+.stSlider > div > div > div > div > div {
+    background-color: white !important;
+}
+
+div[data-baseweb="select"] > div {
+    background-color: rgba(28, 31, 34, 0.8) !important;
+    border: 1px solid rgba(250, 250, 250, 0.2) !important;
+    color: rgb(250, 250, 250) !important;
+}
+
+/* Help text styling */
 .stMarkdown {
     font-size: 1rem;
     line-height: 1.6;
     color: rgb(250, 250, 250);
 }
 
+/* Expander styling */
 div[data-testid="stExpander"] {
     border: none;
     box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
@@ -88,20 +136,23 @@ div[data-testid="stExpander"] > div[data-testid="stExpanderContent"] {
     background-color: rgba(28, 31, 34, 0.4);
 }
 
-.stMultiSelect > div[role="listbox"] {
-    max-height: 300px;
-    overflow-y: auto;
-    background-color: rgba(28, 31, 34, 0.8);
-    border: 1px solid rgba(250, 250, 250, 0.2);
+/* Select slider styling */
+div[data-testid="stSelectSlider"] label {
+    color: rgb(250, 250, 250) !important;
+    font-size: 1rem !important;
 }
 
-.stMultiSelect > div > div > div {
-    color: rgb(250, 250, 250);
+div[data-testid="stSelectSlider"] div[role="slider"] {
+    background-color: rgb(0, 102, 204) !important;
+    border: 2px solid white !important;
 }
 
-.stSpinner > div {
-    margin-top: 0.5rem;
-    margin-bottom: 0.5rem;
+div[data-testid="stSelectSlider"] div[data-testid="stTickBar"] > div {
+    background-color: rgba(250, 250, 250, 0.2) !important;
+}
+
+div[data-testid="stSelectSlider"] div[data-testid="stTickBar"] > div:hover {
+    background-color: rgba(250, 250, 250, 0.4) !important;
 }
 
 /* Header styling */
@@ -120,16 +171,21 @@ div[data-testid="stTitle"] {
     margin-bottom: 1.5rem;
 }
 
-/* Microscope emoji in title */
-div[data-testid="stTitle"] > div:first-child {
-    font-size: 2.5rem;
-}
-
 /* Input label */
 .stTextInput > label {
     font-size: 1.1rem !important;
     color: rgb(250, 250, 250) !important;
     margin-bottom: 0.5rem !important;
+}
+
+/* Help tooltip */
+div[data-baseweb="tooltip"] {
+    background-color: rgba(28, 31, 34, 0.95) !important;
+    border: 1px solid rgba(250, 250, 250, 0.2) !important;
+    border-radius: 4px !important;
+    color: rgb(250, 250, 250) !important;
+    padding: 0.5rem !important;
+    font-size: 0.9rem !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -139,6 +195,7 @@ def initialize_session_state():
     if "initialized" not in st.session_state:
         st.session_state.initialized = True
         st.session_state.topic = ""
+        st.session_state.depth = 2  # Default depth
         st.session_state.insights = None
         st.session_state.focus_areas = None
         st.session_state.selected_focus_areas = None
@@ -173,15 +230,41 @@ def display_header():
                 '</div>'
                 '</div>', unsafe_allow_html=True)
 
-def get_topic_input() -> str:
-    """Get the research topic from user input."""
-    topic = st.text_input(
-        "Enter your research topic or question:",
-        value=st.session_state.topic,
-        key="topic_input",
-        placeholder="e.g., What are the implications of quantum computing on cryptography?"
-    )
-    return topic.strip()
+def get_topic_input() -> Tuple[str, int, bool]:
+    """Get the research topic and analysis parameters from user input."""
+    # Create a container for input fields
+    with st.container():
+        # Topic input
+        topic = st.text_input(
+            "Enter your research topic or question:",
+            value=st.session_state.topic,
+            key="topic_input",
+            placeholder="e.g., What are the implications of quantum computing on cryptography?"
+        ).strip()
+        
+        # Create two columns for depth selector and start button
+        col1, col2 = st.columns([2, 1])
+        
+        # Depth selector in first column
+        with col1:
+            depth = st.select_slider(
+                "Analysis Depth",
+                options=[1, 2, 3, 4, 5],
+                value=st.session_state.depth,
+                key="depth_selector",
+                help="Choose 1-5 iterations. More iterations = deeper analysis = longer processing time."
+            )
+        
+        # Start button in second column
+        with col2:
+            start_clicked = st.button(
+                "🚀 Start Analysis",
+                type="primary",
+                key="start_button",
+                help="Begin the research analysis process"
+            )
+        
+        return topic, depth, start_clicked
 
 def display_insights(insights: Dict[str, str]):
     """Display quick insights about the topic."""
@@ -269,12 +352,16 @@ def main():
         return
         
     display_header()
-    topic = get_topic_input()
+    topic, depth, start_clicked = get_topic_input()
     
-    if not topic:
+    # Update session state
+    if topic:
+        st.session_state.topic = topic
+        st.session_state.depth = depth
+    
+    # Only proceed if we have a topic and the start button was clicked
+    if not (topic and start_clicked):
         return
-        
-    st.session_state.topic = topic
     
     # Initialize agents
     pre_analysis = PreAnalysisAgent(model)
@@ -326,8 +413,8 @@ def main():
     
     # Conduct research analysis
     if (st.session_state.framework and 
-        len(st.session_state.analyses) < MAX_ITERATIONS):
-        with st.spinner(f"Conducting research analysis (iteration {len(st.session_state.analyses) + 1})..."):
+        len(st.session_state.analyses) < depth):  # Use depth parameter
+        with st.spinner(f"Conducting research analysis (iteration {len(st.session_state.analyses) + 1} of {depth})..."):
             previous = st.session_state.analyses[-1] if st.session_state.analyses else None
             analysis = research_analyst.analyze(
                 topic,
@@ -342,7 +429,7 @@ def main():
     
     # Generate final report
     if (st.session_state.analyses and 
-        len(st.session_state.analyses) >= MAX_ITERATIONS and 
+        len(st.session_state.analyses) >= depth and  # Use depth parameter
         not st.session_state.final_report):
         with st.spinner("Synthesizing final report..."):
             analyses_text = [a['content'] for a in st.session_state.analyses if a.get('content')]
