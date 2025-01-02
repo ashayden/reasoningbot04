@@ -254,9 +254,10 @@ def display_focus_selection(focus_areas: list, selected_areas: list) -> tuple[bo
     focus_container = st.container()
     
     with focus_container:
-        # Only show content if not completed or just completed
-        if not st.session_state.focus_area_state['complete'] or st.session_state.focus_area_state['just_completed']:
-            with st.expander("🎯 Focus Areas", expanded=st.session_state.focus_area_state['expanded']):
+        # Show content with proper expansion state
+        with st.expander("🎯 Focus Areas", expanded=st.session_state.focus_area_state['expanded']):
+            # Only show selection UI if not completed
+            if not st.session_state.focus_area_state['complete']:
                 st.markdown("Choose specific aspects you'd like the analysis to emphasize (optional):")
                 
                 # Create columns for better layout
@@ -313,11 +314,14 @@ def display_focus_selection(focus_areas: list, selected_areas: list) -> tuple[bo
                     st.session_state.app_state['show_framework'] = True
                     st.rerun()
                     return True, selected
-            
-            # Reset just_completed flag after showing the collapsed state
-            if st.session_state.focus_area_state['just_completed']:
-                st.session_state.focus_area_state['just_completed'] = False
-                st.rerun()
+            else:
+                # Show selected areas in collapsed state
+                if st.session_state.focus_area_state['selected']:
+                    st.markdown("**Selected Focus Areas:**")
+                    for area in st.session_state.focus_area_state['selected']:
+                        st.markdown(f"* {area}")
+                else:
+                    st.markdown("*No focus areas selected*")
         
         return False, st.session_state.focus_area_state['selected']
 
