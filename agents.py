@@ -1,7 +1,7 @@
 """Agent implementations for the MARA application."""
 
 import logging
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, List
 
 import google.generativeai as genai
 import streamlit as st
@@ -11,29 +11,68 @@ from config import (
     PROMPT_DESIGN_CONFIG,
     FRAMEWORK_CONFIG,
     ANALYSIS_CONFIG,
-    SYNTHESIS_CONFIG
+    SYNTHESIS_CONFIG,
+    PREANALYSIS_CONFIG
 )
 from utils import rate_limit_decorator, parse_title_content
 
 logger = logging.getLogger(__name__)
 
-class PreAnalysisAgent:
+class BaseAgent:
+    """Base class for all agents."""
+    
+    def __init__(self, model: Any):
+        self.model = model
+        self._last_thoughts = None
+    
+    @property
+    def last_thoughts(self) -> Optional[str]:
+        """Get the last model's thoughts for debugging or chaining."""
+        return self._last_thoughts
+    
+    def _extract_content(self, response: Any) -> Optional[str]:
+        """Extract content from response, separating thoughts from actual content."""
+        try:
+            if not response or not response.text:
+                logger.error("Empty response from model")
+                return None
+            
+            # Split response into thoughts and content sections
+            parts = response.text.split("\n\n", 1)
+            
+            # If there's a clear thoughts section, separate it
+            if len(parts) > 1 and "Thoughts" in parts[0]:
+                self._last_thoughts = parts[0].strip()
+                return parts[1].strip()
+            
+            # If no clear separation, return the whole response
+            return response.text.strip()
+            
+        except Exception as e:
+            logger.error(f"Error extracting content: {str(e)}")
+            return None
+    
+    @rate_limit_decorator
+    def generate_content(self, prompt: str, config: Dict[str, Any]) -> Optional[str]:
+        """Generate content with rate limiting and error handling."""
+        try:
+            response = self.model.generate_content(
+                prompt,
+                generation_config=GenerationConfig(**config)
+            )
+            
+            return self._extract_content(response)
+                
+        except Exception as e:
+            logger.error(f"Content generation error: {str(e)}")
+            st.error(f"Error generating content: {str(e)}")
+            return None
+
+class PreAnalysisAgent(BaseAgent):
     """Agent responsible for generating quick insights before main analysis."""
     
-    def __init__(self, model):
-        """Initialize the agent with a model."""
-        self.model = model
-        
     def generate_insights(self, topic: str) -> Optional[Dict[str, str]]:
-        """Generate quick insights about the topic.
-        
-        Args:
-            topic: The topic to analyze
-            
-        Returns:
-            Dictionary containing 'did_you_know' and 'eli5' sections,
-            or None if generation fails
-        """
+        """Generate quick insights about the topic."""
         try:
             # Generate fun fact
             fact_prompt = (
@@ -48,8 +87,8 @@ class PreAnalysisAgent:
                 "Respond with just the fact, no additional text."
             )
             
-            fact_response = self.model.generate_content(fact_prompt)
-            if not fact_response:
+            fact_text = self.generate_content(fact_prompt, PREANALYSIS_CONFIG)
+            if not fact_text:
                 return None
             
             # Generate ELI5
@@ -65,81 +104,24 @@ class PreAnalysisAgent:
                 "Respond with just the explanation, no additional text."
             )
             
-            eli5_response = self.model.generate_content(eli5_prompt)
-            if not eli5_response:
+            eli5_text = self.generate_content(eli5_prompt, PREANALYSIS_CONFIG)
+            if not eli5_text:
                 return None
             
             return {
-                'did_you_know': fact_response.text.strip(),
-                'eli5': eli5_response.text.strip()
+                'did_you_know': fact_text,
+                'eli5': eli5_text
             }
             
         except Exception as e:
             logger.error(f"PreAnalysis generation failed: {str(e)}")
             return None
 
-class BaseAgent:
-    """Base class for all agents."""
-    
-    def __init__(self, model: Any):
-        self.model = model
-        self._last_thoughts = None
-    
-    @property
-    def last_thoughts(self) -> Optional[str]:
-        """Get the last model's thoughts for debugging or chaining."""
-        return self._last_thoughts
-    
-    @rate_limit_decorator
-    def generate_content(self, prompt: str, config: Dict[str, Any]) -> Optional[str]:
-        """Generate content with rate limiting and error handling.
-        
-        The new Gemini 2.0 model returns both thoughts and response.
-        This method extracts only the response for user display while
-        storing the thoughts for internal use.
-        """
-        try:
-            response = self.model.generate_content(
-                prompt,
-                generation_config=GenerationConfig(**config)
-            )
-            
-            if not response or not response.text:
-                logger.error("Empty response from model")
-                return None
-                
-            logger.info(f"Raw response length: {len(response.text)}")
-            
-            # Split response into thoughts and actual content
-            parts = response.text.split("\n\n", 1)
-            
-            if len(parts) > 1 and "Thoughts" in parts[0]:
-                self._last_thoughts = parts[0]
-                content = parts[1].strip()
-                logger.info(f"Extracted content length: {len(content)}")
-                return content
-            else:
-                # If no clear separation, return the whole response
-                logger.info("No thoughts section found, returning full response")
-                return response.text.strip()
-                
-        except Exception as e:
-            logger.error(f"Content generation error: {str(e)}")
-            st.error(f"Error generating content: {str(e)}")
-            return None
-
 class PromptDesigner(BaseAgent):
     """Agent responsible for designing optimal prompts."""
     
     def generate_focus_areas(self, topic: str) -> Optional[list]:
-        """Generate potential focus areas for the topic.
-        
-        Args:
-            topic: The topic to analyze
-            
-        Returns:
-            List of potential focus areas, or None if generation fails
-        """
+        """Generate potential focus areas for the topic."""
         try:
             prompt = f"""Analyze this topic/question and generate a list of 8-12 potential focus areas: '{topic}'
 
@@ -160,14 +142,14 @@ class PromptDesigner(BaseAgent):
             Format: Return only a Python list of strings, one focus area per item.
             Example: ["Machine Learning Applications", "Ethical Implications", "Data Privacy", ...]"""
             
-            response = self.model.generate_content(prompt)
-            if not response or not response.text:
+            response_text = self.generate_content(prompt, PROMPT_DESIGN_CONFIG)
+            if not response_text:
                 return None
                 
             # Extract list from response and clean up
             try:
                 # Remove any markdown code block syntax
-                text = response.text.replace("```python", "").replace("```", "").strip()
+                text = response_text.replace("```python", "").replace("```", "").strip()
                 # Safely evaluate the string as a Python list
                 focus_areas = eval(text)
                 if not isinstance(focus_areas, list):
@@ -182,12 +164,7 @@ class PromptDesigner(BaseAgent):
             return None
     
     def design_prompt(self, topic: str, selected_focus_areas: Optional[list] = None) -> Optional[str]:
-        """Design an optimal prompt for the given topic.
-        
-        Args:
-            topic: The topic to analyze
-            selected_focus_areas: Optional list of focus areas to emphasize
-        """
+        """Design an optimal prompt for the given topic."""
         base_prompt = f"""As an expert prompt engineer, create a detailed prompt that will guide the development 
         of a research framework for analyzing '{topic}'."""
         
@@ -203,12 +180,7 @@ class FrameworkEngineer(BaseAgent):
     """Agent responsible for creating analysis frameworks."""
     
     def create_framework(self, initial_prompt: str, enhanced_prompt: Optional[str] = None) -> Optional[str]:
-        """Create a research framework based on the prompt design.
-        
-        Args:
-            initial_prompt: The initial optimized prompt
-            enhanced_prompt: Optional prompt enhanced with selected focus areas
-        """
+        """Create a research framework based on the prompt design."""
         # Combine prompts if enhanced prompt exists
         prompt_context = initial_prompt
         if enhanced_prompt:
@@ -254,10 +226,7 @@ class FrameworkEngineer(BaseAgent):
 
         For each section and subsection, provide detailed and specific content relevant to the topic.
         Ensure each point is thoroughly explained and contextually appropriate.
-        Use clear, academic language while maintaining accessibility.
-        
-        Previous thought process (if available):
-        {self._last_thoughts if self._last_thoughts else 'Not available'}"""
+        Use clear, academic language while maintaining accessibility."""
         
         return self.generate_content(prompt, FRAMEWORK_CONFIG)
 
@@ -350,16 +319,10 @@ class ResearchAnalyst(BaseAgent):
             Ensure each section is thoroughly developed with specific examples and evidence."""
         else:
             self.iteration_count += 1  # Increment counter for subsequent iterations
-            # Include previous agent's thoughts if available
-            previous_context = f"""Previous analysis context:
-            {previous_analysis}
-            
-            Previous agent's thought process:
-            {self._last_thoughts if self._last_thoughts else 'Not available'}"""
-            
             prompt = f"""Review the previous research iteration and expand the analysis.
             
-            {previous_context}
+            Previous analysis:
+            {previous_analysis}
             
             For this iteration #{self.iteration_count + 1}, focus on:
             1. Identifying gaps or areas needing more depth
