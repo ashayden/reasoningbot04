@@ -222,11 +222,12 @@ def reset_state(topic, iterations):
         'focus_selection_complete': False
     }
     
-    # Initialize focus area state
+    # Initialize focus area state with expanded UI
     st.session_state.focus_area_state = {
         'expanded': True,
         'selected': [],
-        'complete': False
+        'complete': False,
+        'just_completed': False
     }
 
 def display_insights(insights: dict):
@@ -240,64 +241,83 @@ def display_insights(insights: dict):
 
 def display_focus_selection(focus_areas: list, selected_areas: list) -> tuple[bool, list]:
     """Display focus area selection with proper state handling."""
-    # Initialize session states
+    # Initialize session state for focus areas
     if 'focus_area_state' not in st.session_state:
         st.session_state.focus_area_state = {
             'expanded': True,
             'selected': [],
-            'complete': False
+            'complete': False,
+            'just_completed': False  # Track if we just completed selection
         }
     
     # Create container for focus area selection
     focus_container = st.container()
     
     with focus_container:
-        # Only show expander if not complete
-        if not st.session_state.focus_area_state['complete']:
+        # Only show content if not completed or just completed
+        if not st.session_state.focus_area_state['complete'] or st.session_state.focus_area_state['just_completed']:
             with st.expander("🎯 Focus Areas", expanded=st.session_state.focus_area_state['expanded']):
                 st.markdown("Choose specific aspects you'd like the analysis to emphasize (optional):")
                 
-                # Handle selection changes
-                def on_selection_change():
-                    st.session_state.focus_area_state['selected'] = st.session_state.focus_select
+                # Create columns for better layout
+                col1, col2 = st.columns([3, 1])
                 
-                # Create the multiselect with callback
-                selected = st.multiselect(
-                    "Select focus areas",
-                    options=focus_areas,
-                    default=st.session_state.focus_area_state['selected'],
-                    key="focus_select",
-                    on_change=on_selection_change,
-                    label_visibility="collapsed"
-                )
+                with col1:
+                    # Handle selection changes
+                    def on_selection_change():
+                        st.session_state.focus_area_state['selected'] = st.session_state.focus_select
+                    
+                    # Create the multiselect with callback
+                    selected = st.multiselect(
+                        "Select focus areas",
+                        options=focus_areas,
+                        default=st.session_state.focus_area_state['selected'],
+                        key="focus_select",
+                        on_change=on_selection_change,
+                        label_visibility="collapsed"
+                    )
                 
                 st.markdown("---")
                 
-                col1, col2 = st.columns(2)
+                # Action buttons
+                button_col1, button_col2 = st.columns(2)
                 
                 # Handle Skip button
-                if col1.button("Skip", key="skip_focus", use_container_width=True):
-                    st.session_state.focus_area_state['complete'] = True
-                    st.session_state.focus_area_state['expanded'] = False
+                if button_col1.button("Skip", key="skip_focus", use_container_width=True):
+                    st.session_state.focus_area_state.update({
+                        'complete': True,
+                        'expanded': False,
+                        'just_completed': True,
+                        'selected': []
+                    })
                     st.session_state.app_state['focus_selection_complete'] = True
                     st.session_state.app_state['show_framework'] = True
                     st.rerun()
                     return True, []
                 
                 # Handle Continue button
-                if col2.button(
+                if button_col2.button(
                     "Continue",
                     key="continue_focus",
                     disabled=len(selected) == 0,
                     type="primary",
                     use_container_width=True
                 ):
-                    st.session_state.focus_area_state['complete'] = True
-                    st.session_state.focus_area_state['expanded'] = False
+                    st.session_state.focus_area_state.update({
+                        'complete': True,
+                        'expanded': False,
+                        'just_completed': True,
+                        'selected': selected
+                    })
                     st.session_state.app_state['focus_selection_complete'] = True
                     st.session_state.app_state['show_framework'] = True
                     st.rerun()
                     return True, selected
+            
+            # Reset just_completed flag after showing the collapsed state
+            if st.session_state.focus_area_state['just_completed']:
+                st.session_state.focus_area_state['just_completed'] = False
+                st.rerun()
         
         return False, st.session_state.focus_area_state['selected']
 

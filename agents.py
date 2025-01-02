@@ -522,73 +522,65 @@ class SynthesisExpert(BaseAgent):
         """Format the report with proper markdown and section organization."""
         if not text:
             return ""
-            
-        sections = text.split('\n')
-        formatted_sections = []
-        current_section = []
+        
+        # Split into lines and initialize containers
+        lines = text.split('\n')
+        formatted_lines = []
+        current_section = None
         in_references = False
         
-        for line in sections:
+        for line in line_buffer:
             line = line.strip()
             if not line:
                 continue
             
-            # Handle section headers (numbered sections)
+            # Handle main section headers (numbered sections)
             if any(line.startswith(f"{i}.") for i in range(1, 8)):
-                if current_section:
-                    formatted_sections.append('\n'.join(current_section))
-                    current_section = []
+                # Add extra spacing before new sections
+                if formatted_lines:
+                    formatted_lines.append("")
                 
+                # Extract and format section title
                 section_title = line.split('.', 1)[1].strip()
+                current_section = section_title
+                
+                # Special handling for references section
                 if "Works Cited" in section_title or "References" in section_title:
                     in_references = True
-                current_section.append(f"\n# {section_title}")
+                
+                # Add formatted header
+                formatted_lines.append(f"# {section_title}")
+                formatted_lines.append("")  # Add space after header
                 continue
             
-            # Handle subsection headers (bullet points that look like headers)
-            if line.startswith('-') and ':' in line and len(line) < 50:
-                subsection = line.lstrip('- ').strip()
-                current_section.append(f"\n## {subsection}")
+            # Handle references section
+            if in_references:
+                if not line.startswith('*'):
+                    # Format as bullet point if not already
+                    line = f"* {line}"
+                if not line.endswith('.'):
+                    line = f"{line}."
+                formatted_lines.append(line)
                 continue
             
-            # Handle bullet points and references
-            if line.startswith('-') or line.startswith('•') or line.startswith('*'):
-                cleaned_line = line.lstrip('-•* ').strip()
-                if in_references:
-                    # Format reference entries consistently
-                    citation = cleaned_line
-                    if not citation.endswith('.'):
-                        citation += '.'
-                    current_section.append(f"* {citation}")
-                else:
-                    # Regular bullet points with proper indentation
-                    current_section.append(f"* {cleaned_line}")
+            # Handle bullet points
+            if line.startswith('-') or line.startswith('*') or line.startswith('•'):
+                cleaned_line = line.lstrip('-*• ').strip()
+                formatted_lines.append(f"* {cleaned_line}")
                 continue
             
             # Handle regular text
-            if in_references and not line.startswith('*'):
-                # Format non-bulleted references
-                if not line.endswith('.'):
-                    line += '.'
-                current_section.append(f"* {line}")
-            else:
-                # Regular text with proper paragraph spacing
-                current_section.append(line)
+            formatted_lines.append(line)
         
-        # Add final section
-        if current_section:
-            formatted_sections.append('\n'.join(current_section))
+        # Join lines with proper spacing
+        formatted_text = "\n".join(formatted_lines)
         
-        # Join sections with proper spacing and clean up
-        content = '\n\n'.join(formatted_sections)
+        # Clean up any remaining formatting issues
+        formatted_text = formatted_text.replace("\n\n\n", "\n\n")  # Remove triple line breaks
+        formatted_text = formatted_text.replace("# ", "\n# ")      # Ensure spacing before headers
+        formatted_text = formatted_text.replace("* ", "\n* ")      # Ensure spacing before bullet points
         
-        # Clean up extra whitespace and ensure proper markdown spacing
-        content = content.replace('\n\n\n', '\n\n')  # Remove triple line breaks
-        content = content.replace('\n#', '\n\n#')  # Ensure space before headers
-        content = content.replace('\n##', '\n\n##')  # Ensure space before subheaders
-        content = content.replace('\n*', '\n\n*')  # Ensure space before lists
-        
-        return content.strip()
+        return formatted_text.strip()
     
     def synthesize(self, topic: str, analyses: list) -> Optional[str]:
         """Synthesize all research analyses into a final report."""
