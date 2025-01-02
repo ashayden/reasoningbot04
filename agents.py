@@ -218,12 +218,16 @@ class PreAnalysisAgent(BaseAgent):
             eli5_prompt = (
                 "Explain this topic in extremely simple terms: "
                 f"'{topic}'\n\n"
-                "The explanation should:\n"
+                "Requirements:\n"
                 "- Use very simple, straightforward language\n"
                 "- Be 1-3 sentences maximum\n"
                 "- Include 1-3 relevant emojis when appropriate\n"
                 "- If it's a question, answer it directly\n"
-                "- If it's a topic, give a high-level overview\n\n"
+                "- If it's a topic, give a high-level overview\n"
+                "- Start your response with the explanation directly - no prefacing thoughts\n"
+                "- Do not include any meta-commentary or thinking process\n\n"
+                "Example format:\n"
+                "New York is a big city with tall buildings and lots of people 🌆. It's famous for its pizza 🍕 and busy streets.\n\n"
                 "Respond with just the explanation, no additional text."
             )
             
