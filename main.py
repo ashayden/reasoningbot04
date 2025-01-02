@@ -181,17 +181,18 @@ def handle_error(e: Exception, context: str):
 
 def reset_state(topic, iterations):
     """Reset application state with memory cleanup."""
-    # Clear previous results
+    # Clear previous results and states
     if 'app_state' in st.session_state:
         old_state = st.session_state.app_state
         if old_state.get('analysis_results'):
             old_state['analysis_results'].clear()
     
-    # Reset focus area states
-    st.session_state.focus_area_expanded = True
-    if 'current_focus_areas' in st.session_state:
-        st.session_state.current_focus_areas = []
+    # Reset all session state variables
+    for key in list(st.session_state.keys()):
+        if key != 'app_state':
+            del st.session_state[key]
     
+    # Initialize new state
     st.session_state.app_state = {
         'topic': topic,
         'iterations': iterations,
@@ -212,6 +213,10 @@ def reset_state(topic, iterations):
         'error': None,
         'focus_selection_complete': False
     }
+    
+    # Initialize focus area state
+    st.session_state.focus_area_expanded = True
+    st.session_state.current_focus_areas = []
 
 def display_insights(insights: dict):
     """Display insights in proper containers."""
@@ -340,6 +345,7 @@ def main():
                             if insights:
                                 st.session_state.app_state['insights'] = insights
                                 st.session_state.app_state['show_prompt'] = True
+                                st.rerun()
                     
                     if st.session_state.app_state['insights']:
                         display_insights(st.session_state.app_state['insights'])
