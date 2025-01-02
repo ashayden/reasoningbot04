@@ -24,34 +24,11 @@ class BaseAgent:
     def __init__(self, model: Any):
         self.model = model
         self._last_thoughts = None
-        self._thought_starters = [
-            "first i will", "i will", "thoughts", "thinking process", "let me",
-            "i need to", "i'll", "step 1", "step 2", "the user wants",
-            "draft answer", "self-critique", "i am thinking", "i should",
-            "my approach", "i'm going to", "let's", "here's how", "my plan",
-            "i understand", "to answer this", "to respond", "my response",
-            "my analysis", "i can see", "i notice", "i observe",
-            "first, ", "second, ", "third, ", "finally, ", "next, ",
-            "to start", "to begin", "i must", "i have to"
-        ]
-        self._thought_markers = [
-            "i will", "i'll", "i should", "i need", "i must",
-            "i have to", "i am", "i'm", "let me", "let's"
-        ]
-        self._content_markers = ["🌟", "💡", "🔍", "📝", "🎯", "⚡"]
     
     @property
     def last_thoughts(self) -> Optional[str]:
         """Get the last model's thoughts for debugging or chaining."""
         return self._last_thoughts
-    
-    def _is_thought_line(self, line: str) -> bool:
-        """Check if a line is part of model's thought process."""
-        line_lower = line.lower()
-        return (
-            any(line_lower.startswith(starter) for starter in self._thought_starters) or
-            any(marker in line_lower for marker in self._thought_markers)
-        )
     
     def _extract_content(self, response: Any) -> Optional[str]:
         """Extract content from response, separating thoughts from actual content."""
@@ -76,54 +53,67 @@ class BaseAgent:
                 logger.error("Extracted empty text from response")
                 return None
             
-            # Process text line by line
+            # Split text into lines for more precise filtering
             lines = full_text.split('\n')
             content_lines = []
-            thought_block_count = 0
-            current_paragraph = []
+            in_thought_block = False
+            
+            thought_starters = [
+                "first i will", "i will", "thoughts", "thinking process", "let me",
+                "i need to", "i'll", "step 1", "step 2", "the user wants",
+                "draft answer", "self-critique", "i am thinking", "i should",
+                "my approach", "i'm going to", "let's", "here's how", "my plan",
+                "i understand", "to answer this", "to respond", "my response",
+                "my analysis", "i can see", "i notice", "i observe",
+                "first, ", "second, ", "third, ", "finally, ", "next, ",
+                "to start", "to begin", "i must", "i have to"
+            ]
             
             for line in lines:
                 line = line.strip()
                 if not line:
-                    # Handle paragraph breaks
-                    if current_paragraph:
-                        content_lines.extend(current_paragraph)
-                        content_lines.append('')  # Add blank line for paragraph break
-                        current_paragraph = []
                     continue
                 
-                # Check for thought process markers
-                is_thought = self._is_thought_line(line)
-                if is_thought:
-                    thought_block_count += 1
-                    if current_paragraph:
-                        content_lines.extend(current_paragraph)
-                        current_paragraph = []
+                # Check if this line starts a thought block
+                if any(line.lower().startswith(starter) for starter in thought_starters):
+                    in_thought_block = True
+                    self._last_thoughts = line
                     continue
                 
-                # Check for content markers that indicate actual content
-                if any(marker in line for marker in self._content_markers):
-                    thought_block_count = 0
+                # Check if this line is part of a thought block
+                if any(marker in line.lower() for marker in [
+                    "i will", "i'll", "i should", "i need", "i must",
+                    "i have to", "i am", "i'm", "let me", "let's"
+                ]):
+                    in_thought_block = True
+                    self._last_thoughts = line
+                    continue
                 
-                # Add line if it's not part of a thought block
-                if thought_block_count == 0 or thought_block_count > 2:  # Allow some thoughts to pass through
+                # If we're not in a thought block and the line doesn't look like a thought,
+                # add it to content
+                if not in_thought_block and not any(marker in line.lower() for marker in thought_starters):
+                    content_lines.append(line)
+                
+                # Reset thought block if we hit a clear content marker
+                if any(marker in line for marker in ["🌟", "💡", "🔍", "📝", "🎯", "⚡"]):
+                    in_thought_block = False
+            
+            # Join the content lines, preserving paragraph structure
+            content = ""
+            current_paragraph = []
+            
+            for line in content_lines:
+                if not line.strip():
+                    if current_paragraph:
+                        content += " ".join(current_paragraph) + "\n\n"
+                        current_paragraph = []
+                else:
                     current_paragraph.append(line)
             
-            # Add any remaining paragraph
             if current_paragraph:
-                content_lines.extend(current_paragraph)
+                content += " ".join(current_paragraph)
             
-            # Join lines with proper spacing and clean up
-            content = '\n'.join(line for line in content_lines if line.strip())
-            cleaned_content = content.strip()
-            
-            # Log warning if content might be empty
-            if not cleaned_content:
-                logger.warning("Generated content was empty or contained only thoughts")
-                # Return the original text if we filtered everything out
-                return full_text.strip()
-            
-            return cleaned_content
+            return content.strip() if content.strip() else None
             
         except Exception as e:
             logger.error(f"Error extracting content: {str(e)}")
@@ -138,12 +128,7 @@ class BaseAgent:
                 generation_config=GenerationConfig(**config)
             )
             
-            content = self._extract_content(response)
-            if not content:
-                logger.warning("Generated content was empty or contained only thoughts")
-                return None
-                
-            return content
+            return self._extract_content(response)
                 
         except Exception as e:
             logger.error(f"Content generation error: {str(e)}")
