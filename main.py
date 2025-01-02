@@ -32,6 +32,64 @@ st.set_page_config(
     layout="wide"
 )
 
+# Custom CSS
+st.markdown("""
+<style>
+.block-container {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+}
+
+.element-container {
+    margin-bottom: 1rem;
+}
+
+.stButton > button {
+    width: 100%;
+    border-radius: 4px;
+    padding: 0.5rem;
+    font-weight: 500;
+}
+
+.stTextInput > div > div > input {
+    font-size: 1.1rem;
+    padding: 0.75rem;
+    border-radius: 4px;
+}
+
+.stMarkdown {
+    font-size: 1rem;
+    line-height: 1.6;
+}
+
+div[data-testid="stExpander"] {
+    border: none;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+    border-radius: 4px;
+    margin-bottom: 1rem;
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+div[data-testid="stExpander"] > div[role="button"] {
+    padding: 1rem;
+}
+
+div[data-testid="stExpander"] > div[data-testid="stExpanderContent"] {
+    padding: 1rem;
+}
+
+.stMultiSelect > div[role="listbox"] {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.stSpinner > div {
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+</style>
+""", unsafe_allow_html=True)
+
 def initialize_session_state():
     """Initialize or reset session state variables."""
     if "initialized" not in st.session_state:
@@ -84,10 +142,10 @@ def display_insights(insights: Dict[str, str]):
         return
         
     with st.expander("💡 Did You Know?", expanded=st.session_state.did_you_know_expanded):
-        st.write(insights.get('did_you_know', ''))
+        st.markdown(insights.get('did_you_know', ''))
     
     with st.expander("⚡ ELI5", expanded=st.session_state.eli5_expanded):
-        st.write(insights.get('eli5', ''))
+        st.markdown(insights.get('eli5', ''))
 
 def display_focus_selection(focus_areas: List[str]) -> Optional[List[str]]:
     """Display and handle focus area selection."""
@@ -95,16 +153,18 @@ def display_focus_selection(focus_areas: List[str]) -> Optional[List[str]]:
         return None
         
     with st.expander("🎯 Focus Areas", expanded=st.session_state.focus_area_expanded):
+        st.markdown("Select focus areas to emphasize in the analysis:")
         selected = st.multiselect(
-            "Select focus areas to emphasize in the analysis:",
+            "",
             options=focus_areas,
             default=st.session_state.selected_focus_areas,
-            key="focus_areas_select"
+            key="focus_areas_select",
+            label_visibility="collapsed"
         )
         
         col1, col2 = st.columns([1, 5])
         with col1:
-            if st.button("Continue", key="focus_continue"):
+            if st.button("Continue", key="focus_continue", type="primary"):
                 st.session_state.focus_area_expanded = False
                 return selected
         with col2:
@@ -120,7 +180,7 @@ def display_optimized_prompt(prompt: str):
         return
         
     with st.expander("🎯 Optimized Prompt", expanded=False):
-        st.write(prompt)
+        st.markdown(prompt)
 
 def display_framework(framework: str):
     """Display the research framework."""
@@ -128,7 +188,7 @@ def display_framework(framework: str):
         return
         
     with st.expander("📋 Research Framework", expanded=False):
-        st.write(framework)
+        st.markdown(framework)
 
 def display_analysis_results(analyses: List[Dict[str, str]]):
     """Display research analysis results."""
@@ -138,11 +198,11 @@ def display_analysis_results(analyses: List[Dict[str, str]]):
     with st.expander("📊 Research Analysis", expanded=False):
         for i, analysis in enumerate(analyses, 1):
             if analysis.get('title'):
-                st.subheader(f"Analysis {i}: {analysis['title']}")
+                st.markdown(f"### Analysis {i}: {analysis['title']}")
             if analysis.get('subtitle'):
-                st.write(f"*{analysis['subtitle']}*")
+                st.markdown(f"*{analysis['subtitle']}*")
             if analysis.get('content'):
-                st.write(analysis['content'])
+                st.markdown(analysis['content'])
             if i < len(analyses):
                 st.divider()
 
@@ -152,7 +212,7 @@ def display_final_report(report: str):
         return
         
     with st.expander("📑 Final Report", expanded=False):
-        st.write(report)
+        st.markdown(report)
 
 def main():
     """Main application function."""
