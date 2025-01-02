@@ -449,7 +449,6 @@ def main():
                 if st.session_state.app_state['summary']:
                     with st.expander("📊 Final Report", expanded=False):
                         st.markdown(st.session_state.app_state['summary'])
-                    st.success("✅ Analysis complete! Review the results above.")
     except Exception as e:
         handle_error(e, "analysis")
         return

@@ -446,6 +446,8 @@ class SynthesisExpert(BaseAgent):
                     current_section = []
                 # Convert numbered sections to markdown headers
                 section_title = line.split('.', 1)[1].strip()
+                if "Works Cited" in section_title:
+                    in_references = True
                 current_section.append(f"# {section_title}")
                 continue
             
@@ -457,7 +459,7 @@ class SynthesisExpert(BaseAgent):
                 line = f"* {cleaned_line}"
             
             # Special handling for references section
-            if "Works Cited" in line:
+            if "Works Cited" in line and not line.startswith('#'):
                 in_references = True
                 if current_section:
                     formatted_sections.append('\n'.join(current_section))
@@ -465,13 +467,17 @@ class SynthesisExpert(BaseAgent):
                 continue
             
             # Format citations in references section
-            if in_references and line.strip() and not line.startswith('#'):
+            if in_references:
                 # Clean up the citation line
                 citation = line.strip()
-                if not citation.endswith('.'):
-                    citation += '.'
-                # Format as a reference list item
-                line = f"* {citation}"
+                if not citation.startswith('#'):  # Skip section header
+                    if not citation.endswith('.'):
+                        citation += '.'
+                    # Format as a reference list item if it's not already
+                    if not citation.startswith('*'):
+                        line = f"* {citation}"
+                    else:
+                        line = citation
             
             current_section.append(line)
         
