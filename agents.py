@@ -240,6 +240,8 @@ class FrameworkEngineer(BaseAgent):
 
         Based on these prompts, create a comprehensive research framework that follows this exact structure:
 
+        Title: [Create a concise, descriptive title that directly states the analysis focus - do not include "Research Framework:" or any similar prefix]
+
         A. Research Objectives:
            1. Primary Research Questions
            2. Secondary Research Questions
@@ -455,10 +457,12 @@ class ResearchAnalyst(BaseAgent):
                - Areas needing further research
                - Potential biases
 
-            7. References
-               - List all cited works in APA format
-               - Include DOIs where available
-               - Ensure all citations have corresponding references
+            7. Provide full bibliography:
+                - Use APA 7th edition format
+                - Include all in-text citations
+                - Add DOIs where available
+                - List primary sources first
+                - Organize alphabetically
 
             Important:
             - Use proper APA in-text citations (Author, Year)
@@ -514,10 +518,12 @@ class ResearchAnalyst(BaseAgent):
                - Enhanced understanding
                - Refined conclusions
 
-            6. References
-               - List all new citations in APA format
-               - Include DOIs where available
-               - Ensure all citations have corresponding references
+            6. Provide full bibliography:
+                - Use APA 7th edition format
+                - Include all in-text citations
+                - Add DOIs where available
+                - List primary sources first
+                - Organize alphabetically
 
             Important:
             - Use proper APA in-text citations (Author, Year)
@@ -650,6 +656,10 @@ class SynthesisExpert(BaseAgent):
     def synthesize(self, topic: str, analyses: list) -> Optional[str]:
         """Synthesize all research analyses into a final report."""
         prompt = f"""Create a comprehensive research synthesis on '{topic}' following this exact structure:
+
+        Start with:
+            Title: [Descriptive title reflecting the main focus of topic analysis]
+            Subtitle: [Specific aspect of analysis]
 
         1. Executive Summary
         Provide a 2-3 paragraph overview that:
