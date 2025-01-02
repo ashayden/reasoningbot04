@@ -237,13 +237,12 @@ def display_insights(insights: dict):
 
 def display_focus_selection(focus_areas: list, selected_areas: list) -> tuple[bool, list]:
     """Display focus area selection with proper state handling."""
-    # Track if the section should be expanded in session state
+    # Initialize session states if not present
     if 'focus_area_expanded' not in st.session_state:
         st.session_state.focus_area_expanded = True
-        
-    # Track selected areas in session state to persist between reruns
+    
     if 'current_focus_areas' not in st.session_state:
-        st.session_state.current_focus_areas = selected_areas
+        st.session_state.current_focus_areas = []
     
     # Create container for focus area selection
     focus_container = st.container()
@@ -252,37 +251,37 @@ def display_focus_selection(focus_areas: list, selected_areas: list) -> tuple[bo
         with st.expander("🎯 Focus Areas", expanded=st.session_state.focus_area_expanded):
             st.markdown("Choose specific aspects you'd like the analysis to emphasize (optional):")
             
-            # Create a container for the multiselect to prevent UI shifts
-            select_container = st.container()
-            with select_container:
-                # Use multiselect with custom key and no default value
+            # Create columns for the selection UI
+            col1, col2 = st.columns([3, 1])
+            
+            with col1:
+                # Use a static key for the multiselect to maintain state
                 selected = st.multiselect(
                     "Select focus areas",
                     options=focus_areas,
                     default=st.session_state.current_focus_areas,
-                    key="focus_multiselect",
+                    key="focus_areas_select",
                     label_visibility="collapsed"
                 )
-                
-                # Update session state only if selection changed
-                if selected != st.session_state.current_focus_areas:
-                    st.session_state.current_focus_areas = selected
+            
+            # Update session state without triggering rerun
+            st.session_state.current_focus_areas = selected
             
             st.markdown("---")
             
             # Only show buttons if selection is not complete
             if not st.session_state.app_state.get('focus_selection_complete'):
-                col1, col2 = st.columns(2)
+                button_col1, button_col2 = st.columns(2)
                 
                 # Handle Skip button
-                skip_clicked = col1.button(
+                skip_clicked = button_col1.button(
                     "Skip",
                     key="skip_focus",
                     use_container_width=True
                 )
                 
                 # Handle Continue button
-                continue_clicked = col2.button(
+                continue_clicked = button_col2.button(
                     "Continue",
                     key="continue_focus",
                     disabled=len(selected) == 0,
@@ -294,7 +293,6 @@ def display_focus_selection(focus_areas: list, selected_areas: list) -> tuple[bo
                     st.session_state.app_state['focus_selection_complete'] = True
                     st.session_state.app_state['show_framework'] = True
                     st.session_state.focus_area_expanded = False
-                    st.rerun()
                     return True, selected
             
             return False, selected
