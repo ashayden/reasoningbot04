@@ -558,6 +558,38 @@ def main():
                 if st.session_state.app_state['summary']:
                     with st.expander("📊 Final Report", expanded=False):
                         st.markdown(st.session_state.app_state['summary'])
+                    
+                    # Display final report
+                    st.markdown("## Final Report")
+                    st.markdown(st.session_state.app_state['summary'])
+                    
+                    # Add download buttons
+                    st.write("---")
+                    st.write("### Download Report")
+                    col1, col2 = st.columns(2)
+                    
+                    # Generate safe filename
+                    filename_base = get_safe_filename(topic)
+                    
+                    # PDF download button
+                    pdf_bytes = generate_pdf(st.session_state.app_state['summary'])
+                    col1.download_button(
+                        "Download as PDF",
+                        pdf_bytes,
+                        file_name=f"{filename_base}.pdf",
+                        mime="application/pdf",
+                        help="Download the report as a PDF file"
+                    )
+                    
+                    # Markdown download button
+                    md_bytes = generate_markdown(st.session_state.app_state['summary'])
+                    col2.download_button(
+                        "Download as Markdown",
+                        md_bytes,
+                        file_name=f"{filename_base}.md",
+                        mime="text/markdown",
+                        help="Download the report in Markdown format"
+                    )
     except Exception as e:
         handle_error(e, "analysis")
         return

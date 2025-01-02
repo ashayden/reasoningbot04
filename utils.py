@@ -4,6 +4,10 @@ import logging
 import time
 from functools import wraps
 from typing import Dict, Tuple, Optional
+import io
+import markdown
+from weasyprint import HTML
+from datetime import datetime
 
 import streamlit as st
 from config import MIN_TOPIC_LENGTH, MAX_TOPIC_LENGTH, MAX_REQUESTS_PER_MINUTE
@@ -203,3 +207,90 @@ class MarkdownFormatter:
         text = text.replace('\n*', '\n\n*')    # Ensure space before lists
         text = text.replace('\n#', '\n\n#')    # Ensure space before headers
         return text.strip() 
+
+def generate_pdf(markdown_content: str) -> bytes:
+    """Convert markdown content to PDF.
+    
+    Args:
+        markdown_content: The markdown content to convert
+        
+    Returns:
+        PDF file as bytes
+    """
+    # Convert markdown to HTML
+    html_content = markdown.markdown(markdown_content)
+    
+    # Add basic styling
+    styled_html = f"""
+    <html>
+        <head>
+            <style>
+                body {{
+                    font-family: Arial, sans-serif;
+                    line-height: 1.6;
+                    margin: 2em;
+                }}
+                h1 {{
+                    color: #2c3e50;
+                    border-bottom: 2px solid #3498db;
+                    padding-bottom: 0.3em;
+                }}
+                h2 {{
+                    color: #34495e;
+                    margin-top: 1.5em;
+                }}
+                h3 {{
+                    color: #455a64;
+                }}
+                ul {{
+                    margin: 1em 0;
+                }}
+                li {{
+                    margin: 0.5em 0;
+                }}
+                em {{
+                    color: #666;
+                }}
+                .works-cited {{
+                    margin-top: 2em;
+                    border-top: 1px solid #ccc;
+                    padding-top: 1em;
+                }}
+            </style>
+        </head>
+        <body>
+            {html_content}
+        </body>
+    </html>
+    """
+    
+    # Convert to PDF
+    pdf_bytes = io.BytesIO()
+    HTML(string=styled_html).write_pdf(pdf_bytes)
+    return pdf_bytes.getvalue()
+
+def generate_markdown(content: str) -> bytes:
+    """Prepare markdown content for download.
+    
+    Args:
+        content: The markdown content
+        
+    Returns:
+        Markdown file as bytes
+    """
+    return content.encode('utf-8')
+
+def get_safe_filename(topic: str) -> str:
+    """Generate a safe filename from the topic.
+    
+    Args:
+        topic: The research topic
+        
+    Returns:
+        A sanitized filename with timestamp
+    """
+    # Remove invalid filename characters
+    safe_topic = "".join(c for c in topic if c.isalnum() or c in (' ', '-', '_')).strip()
+    safe_topic = safe_topic.replace(' ', '_')[:50]  # Limit length
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return f"MARA_Report_{safe_topic}_{timestamp}" 
