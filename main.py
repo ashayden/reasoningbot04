@@ -125,42 +125,62 @@ div[data-testid="stMultiSelect"] > div {
     max-width: none !important;
 }
 
-div[data-testid="stMultiSelect"] input {
-    width: 100% !important;
-    max-width: none !important;
-    background-color: #1E1E1E !important;
-    border: 1px solid #333 !important;
-    color: #fff !important;
+/* Hide the inner text input */
+div[data-testid="stMultiSelect"] input[type="text"] {
+    display: none !important;
 }
 
-/* Override default multiselect placeholder */
+/* Style the select container */
+div[data-testid="stMultiSelect"] [data-baseweb="select"] {
+    background-color: #1E1E1E !important;
+    border: 1px solid #333 !important;
+    border-radius: 4px !important;
+}
+
+/* Style the placeholder and selected items */
 div[data-testid="stMultiSelect"] [data-baseweb="select"] > div:first-child {
     background-color: #1E1E1E !important;
+    border: none !important;
+    color: #fff !important;
+    min-height: 40px !important;
+    padding: 8px 12px !important;
+}
+
+/* Style the dropdown arrow */
+div[data-testid="stMultiSelect"] [role="button"] {
+    color: #fff !important;
+}
+
+/* Style selected items */
+div[data-testid="stMultiSelect"] [data-baseweb="tag"] {
+    background-color: rgba(0, 102, 204, 0.2) !important;
+    border: 1px solid #0066cc !important;
+    color: #fff !important;
+}
+
+/* Style the dropdown list */
+div[data-testid="stMultiSelect"] [role="listbox"] {
+    background-color: #1E1E1E !important;
     border: 1px solid #333 !important;
-    color: #fff !important;
+    margin-top: 4px !important;
 }
 
-div[data-testid="stMultiSelect"] [data-baseweb="select"] span {
+/* Style dropdown options */
+div[data-testid="stMultiSelect"] [role="option"] {
+    background-color: #1E1E1E !important;
     color: #fff !important;
+    padding: 8px 12px !important;
 }
 
-div[data-testid="stMultiSelect"] [data-baseweb="select"] [aria-selected="true"] {
+/* Style hover state of options */
+div[data-testid="stMultiSelect"] [role="option"]:hover {
+    background-color: #333 !important;
+}
+
+/* Style selected options in dropdown */
+div[data-testid="stMultiSelect"] [aria-selected="true"] {
     background-color: rgba(0, 102, 204, 0.2) !important;
     color: #fff !important;
-}
-
-div[data-testid="stMultiSelect"] [data-baseweb="select"] [role="listbox"] {
-    background-color: #1E1E1E !important;
-    border: 1px solid #333 !important;
-}
-
-div[data-testid="stMultiSelect"] [data-baseweb="select"] [role="option"] {
-    background-color: #1E1E1E !important;
-    color: #fff !important;
-}
-
-div[data-testid="stMultiSelect"] [data-baseweb="select"] [role="option"]:hover {
-    background-color: #333 !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -307,20 +327,18 @@ def display_focus_selection(focus_areas: list, selected_areas: list) -> tuple[bo
         with st.expander("🎯 Focus Areas", expanded=st.session_state.focus_area_state['expanded']):
             # Only show selection UI if not completed
             if not st.session_state.focus_area_state['complete']:
-                st.markdown("Choose specific aspects you'd like the analysis to emphasize (optional):")
-                
                 # Handle selection changes
                 def on_selection_change():
                     st.session_state.focus_area_state['selected'] = st.session_state.focus_select
                 
                 # Create the multiselect with callback
                 selected = st.multiselect(
-                    "Select One or More Focus Areas",
+                    "",  # Empty label since we show it above
                     options=focus_areas,
                     default=st.session_state.focus_area_state['selected'],
                     key="focus_select",
                     on_change=on_selection_change,
-                    label_visibility="visible",
+                    label_visibility="collapsed",
                     placeholder="Select one or more focus areas..."
                 )
                 
