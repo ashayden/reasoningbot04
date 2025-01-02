@@ -424,6 +424,57 @@ class ResearchAnalyst(BaseAgent):
 class SynthesisExpert(BaseAgent):
     """Agent responsible for synthesizing research findings."""
     
+    def _format_report(self, text: str) -> str:
+        """Format the report with proper markdown and section organization."""
+        if not text:
+            return ""
+            
+        sections = text.split('\n')
+        formatted_sections = []
+        current_section = []
+        in_references = False
+        
+        for line in sections:
+            line = line.strip()
+            if not line:
+                continue
+                
+            # Handle main section headers
+            if any(line.startswith(f"{i}.") for i in range(1, 8)):
+                if current_section:
+                    formatted_sections.append('\n'.join(current_section))
+                    current_section = []
+                # Convert numbered sections to markdown headers
+                section_title = line.split('.', 1)[1].strip()
+                current_section.append(f"## {section_title}")
+                continue
+            
+            # Special handling for references section
+            if "Works Cited" in line or "References" in line:
+                in_references = True
+                if current_section:
+                    formatted_sections.append('\n'.join(current_section))
+                current_section = [f"## {line}"]
+                continue
+            
+            # Format bullet points
+            if line.startswith('-'):
+                line = line.replace('-', '•', 1)
+            
+            # Format citations in references section
+            if in_references and line.strip() and not line.startswith('##'):
+                # Ensure proper spacing and formatting for references
+                if not line.endswith('.'):
+                    line += '.'
+                line = '- ' + line
+            
+            current_section.append(line)
+        
+        if current_section:
+            formatted_sections.append('\n'.join(current_section))
+        
+        return '\n\n'.join(formatted_sections)
+    
     def synthesize(self, topic: str, analyses: list) -> Optional[str]:
         """Synthesize all research analyses into a final report."""
         prompt = f"""Synthesize all research from agent 2 on '{topic}' into a Final Report with:
@@ -471,4 +522,7 @@ class SynthesisExpert(BaseAgent):
         
         Analysis to synthesize: {' '.join(analyses)}"""
         
-        return self.generate_content(prompt, SYNTHESIS_CONFIG) 
+        result = self.generate_content(prompt, SYNTHESIS_CONFIG)
+        if result:
+            return self._format_report(result)
+        return None 

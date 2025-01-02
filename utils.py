@@ -86,18 +86,54 @@ def parse_title_content(text: str) -> Dict[str, str]:
         
         content_start = 0
         
+        # Look for title and subtitle with more flexible matching
         for i, line in enumerate(lines):
-            if line.startswith('Title:'):
-                result['title'] = line.replace('Title:', '').strip()
-            elif line.startswith('Subtitle:'):
-                result['subtitle'] = line.replace('Subtitle:', '').strip()
+            line = line.strip()
+            if not line:
+                continue
+                
+            # Match title with or without "Title:" prefix
+            if line.lower().startswith('title:'):
+                result['title'] = line.replace('Title:', '').replace('title:', '').strip()
+            elif line.startswith('#'):  # Markdown title format
+                result['title'] = line.replace('#', '').strip()
+            elif not result['title'] and len(line) < 100:  # First short line could be title
+                result['title'] = line
+                
+            # Match subtitle with flexible prefix
+            if line.lower().startswith('subtitle:'):
+                result['subtitle'] = line.replace('Subtitle:', '').replace('subtitle:', '').strip()
+                content_start = i + 1
+                break
+            elif line.startswith('*') and line.endswith('*'):  # Markdown italic format
+                result['subtitle'] = line.strip('*').strip()
                 content_start = i + 1
                 break
         
-        if content_start > 0:
-            result['content'] = '\n'.join(lines[content_start:]).strip()
-        else:
-            result['content'] = text.strip()
+        # If no explicit content start was found, start after the first two non-empty lines
+        if content_start == 0:
+            non_empty_lines = 0
+            for i, line in enumerate(lines):
+                if line.strip():
+                    non_empty_lines += 1
+                    if non_empty_lines == 2:
+                        content_start = i + 1
+                        break
+            
+            # If still no content start, use the whole text
+            if content_start == 0:
+                content_start = 2 if len(lines) > 2 else 0
+        
+        # Join remaining lines as content, ensuring no duplicate title/subtitle
+        content_lines = lines[content_start:]
+        if content_lines:
+            content = '\n'.join(content_lines).strip()
+            # Remove title/subtitle if they appear at the start of content
+            if result['title'] and content.startswith(result['title']):
+                content = content[len(result['title']):].strip()
+            if result['subtitle'] and content.startswith(result['subtitle']):
+                content = content[len(result['subtitle']):].strip()
+            result['content'] = content
         
         return {k: v if v is not None else '' for k, v in result.items()}
         

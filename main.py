@@ -402,7 +402,27 @@ def main():
                             if result['subtitle']:
                                 content += f"*{result['subtitle']}*\n\n"
                             if result['content']:
-                                content += result['content']
+                                # Clean up and format the content
+                                sections = result['content'].split('\n')
+                                formatted_sections = []
+                                current_section = []
+                                
+                                for line in sections:
+                                    # Check for main section headers (numbered or with periods)
+                                    if (line.strip() and 
+                                        (line[0].isdigit() and '.' in line[:5]) or 
+                                        any(line.startswith(f"{i}.") for i in range(1, 8))):
+                                        if current_section:
+                                            formatted_sections.append('\n'.join(current_section))
+                                            current_section = []
+                                        current_section.append(f"### {line}")
+                                    else:
+                                        current_section.append(line)
+                                
+                                if current_section:
+                                    formatted_sections.append('\n'.join(current_section))
+                                
+                                content += '\n\n'.join(formatted_sections)
                             
                             st.session_state.app_state['analysis_results'].append(content)
                             if len(st.session_state.app_state['analysis_results']) == st.session_state.app_state['iterations']:
