@@ -311,12 +311,15 @@ class ResearchAnalyst(BaseAgent):
         if result.get('title'):
             # Remove any existing # symbols and format properly
             clean_title = result['title'].lstrip('#').strip()
+            # Remove any asterisks from title
+            clean_title = clean_title.replace('*', '')
             formatted['title'] = clean_title
         
         if result.get('subtitle'):
             # Remove any existing * symbols and format properly
             clean_subtitle = result['subtitle'].strip('*').strip()
-            formatted['subtitle'] = clean_subtitle
+            # Format as italic without asterisks
+            formatted['subtitle'] = f"_{clean_subtitle}_"
         
         if result.get('content'):
             sections = result['content'].split('\n')
@@ -328,6 +331,10 @@ class ResearchAnalyst(BaseAgent):
                 line = line.strip()
                 if not line:
                     continue
+                
+                # Remove any stray asterisks that aren't part of bullet points
+                if not line.startswith('*'):
+                    line = line.replace('*', '')
                 
                 # Handle section headers (numbered sections)
                 if any(line.startswith(f"{i}.") for i in range(1, 8)):
@@ -352,6 +359,8 @@ class ResearchAnalyst(BaseAgent):
                 # Handle bullet points and references
                 if line.startswith('-') or line.startswith('•') or line.startswith('*'):
                     cleaned_line = line.lstrip('-•* ').strip()
+                    # Remove any asterisks from bullet point content
+                    cleaned_line = cleaned_line.replace('*', '')
                     if in_references:
                         # Format reference entries consistently
                         citation = cleaned_line
@@ -364,13 +373,7 @@ class ResearchAnalyst(BaseAgent):
                     continue
                 
                 # Handle regular text
-                if in_references and not line.startswith('*'):
-                    # Format non-bulleted references
-                    if not line.endswith('.'):
-                        line += '.'
-                    current_section.append(f"* {line}")
-                else:
-                    current_section.append(line)
+                current_section.append(line)
             
             # Add final section
             if current_section:
@@ -531,6 +534,13 @@ class SynthesisExpert(BaseAgent):
         formatted_lines = []
         in_references = False
         
+        # Add creative title and subtitle
+        formatted_lines.extend([
+            "# Research Synthesis Report",
+            "_A Comprehensive Analysis and Evaluation_",
+            ""
+        ])
+        
         for line in lines:
             # Handle main section headers (numbered sections)
             if any(line.startswith(f"{i}.") for i in range(1, 8)):
@@ -545,8 +555,8 @@ class SynthesisExpert(BaseAgent):
                 if "Works Cited" in section_title or "References" in section_title:
                     in_references = True
                 
-                # Add formatted header
-                formatted_lines.append(f"# {section_title}")
+                # Add formatted header (using ## for section headers)
+                formatted_lines.append(f"## {section_title}")
                 continue
             
             # Handle references section
@@ -572,9 +582,9 @@ class SynthesisExpert(BaseAgent):
         text = "\n".join(formatted_lines)
         
         # Ensure proper spacing between sections
-        text = text.replace("\n# ", "\n\n# ")  # Double space before headers
-        text = text.replace("\n* ", "\n\n* ")  # Double space before lists
-        text = text.replace("\n\n\n", "\n\n")  # Remove triple spacing
+        text = text.replace("\n## ", "\n\n## ")  # Double space before section headers
+        text = text.replace("\n* ", "\n\n* ")    # Double space before lists
+        text = text.replace("\n\n\n", "\n\n")    # Remove triple spacing
         
         return text.strip()
     
