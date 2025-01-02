@@ -79,7 +79,7 @@ class BaseAgent:
             # Process text line by line
             lines = full_text.split('\n')
             content_lines = []
-            in_thought_block = False
+            thought_block_count = 0
             current_paragraph = []
             
             for line in lines:
@@ -92,27 +92,38 @@ class BaseAgent:
                         current_paragraph = []
                     continue
                 
-                # Check for thought process
-                if self._is_thought_line(line):
-                    in_thought_block = True
-                    self._last_thoughts = line
+                # Check for thought process markers
+                is_thought = self._is_thought_line(line)
+                if is_thought:
+                    thought_block_count += 1
+                    if current_paragraph:
+                        content_lines.extend(current_paragraph)
+                        current_paragraph = []
                     continue
                 
-                # Check for content markers that end thought blocks
+                # Check for content markers that indicate actual content
                 if any(marker in line for marker in self._content_markers):
-                    in_thought_block = False
+                    thought_block_count = 0
                 
-                # Add content if not in thought block
-                if not in_thought_block and not self._is_thought_line(line):
+                # Add line if it's not part of a thought block
+                if thought_block_count == 0 or thought_block_count > 2:  # Allow some thoughts to pass through
                     current_paragraph.append(line)
             
             # Add any remaining paragraph
             if current_paragraph:
                 content_lines.extend(current_paragraph)
             
-            # Join lines with proper spacing
+            # Join lines with proper spacing and clean up
             content = '\n'.join(line for line in content_lines if line.strip())
-            return content.strip() if content.strip() else None
+            cleaned_content = content.strip()
+            
+            # Log warning if content might be empty
+            if not cleaned_content:
+                logger.warning("Generated content was empty or contained only thoughts")
+                # Return the original text if we filtered everything out
+                return full_text.strip()
+            
+            return cleaned_content
             
         except Exception as e:
             logger.error(f"Error extracting content: {str(e)}")
