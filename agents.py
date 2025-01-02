@@ -31,32 +31,33 @@ class BaseAgent:
         return self._last_thoughts
     
     def _extract_content(self, response: Any) -> Optional[str]:
-        """Extract content from response, separating thoughts from actual content."""
+        """Extract content from response, separating thoughts from actual content.
+        
+        Args:
+            response: The raw response from the Gemini model
+            
+        Returns:
+            The extracted content string, or None if extraction fails
+        """
         try:
             if not response:
                 logger.error("Empty response from model")
                 return None
             
-            # Get full text from response, handling both simple and multi-part responses
-            full_text = ""
+            # Get the response text using the candidates/parts structure
+            # This is the recommended way according to the latest Gemini API docs
             try:
-                # Try simple text accessor first
-                full_text = response.text
-            except AttributeError:
-                # If that fails, try parts accessor
+                full_text = response.candidates[0].content.parts[0].text
+            except (AttributeError, IndexError) as e:
+                logger.error(f"Failed to extract text using candidates structure: {str(e)}")
                 try:
-                    for part in response.parts:
-                        full_text += part.text
-                except AttributeError:
-                    # If both fail, try candidates
-                    try:
-                        for part in response.candidates[0].content.parts:
-                            full_text += part.text
-                    except (AttributeError, IndexError):
-                        logger.error("Could not extract text from response")
-                        return None
+                    # Fallback to parts if available
+                    full_text = "".join(part.text for part in response.parts)
+                except (AttributeError, IndexError) as e:
+                    logger.error(f"Failed to extract text using parts structure: {str(e)}")
+                    return None
             
-            if not full_text.strip():
+            if not full_text or not full_text.strip():
                 logger.error("Extracted empty text from response")
                 return None
             
