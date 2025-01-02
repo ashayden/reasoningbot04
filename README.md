@@ -1,74 +1,90 @@
 # M.A.R.A. - Multi-Agent Reasoning Assistant
 
-A sophisticated multi-agent reasoning system powered by Google's Gemini Pro 1.5 model. This application employs four specialized agents to perform comprehensive analysis on any given topic:
+## Overview
+MARA is an advanced research synthesis tool powered by Google's Gemini Pro model. It employs multiple specialized AI agents to conduct comprehensive research analysis and synthesis on any given topic.
 
-0. **Prompt Designer** (✍️): Creates optimized prompts for precise analysis
-1. **Framework Engineer** (🎯): Develops structured research frameworks
-2. **Research Analyst** (🔄): Conducts iterative, in-depth analysis
-3. **Synthesis Expert** (📊): Generates comprehensive final reports
+## Key Features
 
-## Features
+### 1. Quick Insights Generation
+- Dynamic "Did You Know?" facts with creative, unexpected connections
+- ELI5 (Explain Like I'm 5) explanations using engaging analogies and examples
+- Emoji-enhanced visualization for better understanding
 
-- **Multi-Agent Architecture**: Four specialized agents working in concert
-- **Configurable Analysis Depth**: Choose from Quick (1 iteration) to Comprehensive (4 iterations)
-- **Dynamic Research Framework**: Tailored framework generation for each topic
-- **Progressive Analysis**: Iterative research that builds upon previous findings
-- **Comprehensive Reporting**: Detailed final reports with executive summaries and key insights
-- **Modern UI**: Clean, responsive interface with collapsible sections
+### 2. Interactive Focus Areas
+- Smart generation of 8-12 relevant focus areas
+- Multi-select capability for customized analysis
+- Collapsible interface for better organization
 
-## Requirements
+### 3. Research Framework Development
+- Structured analysis framework with clear objectives
+- Methodological approach planning
+- Ethical considerations and evaluation criteria
 
-- Python 3.8+
-- Streamlit account (for deployment)
-- Google AI API key
+### 4. Multi-Iteration Analysis
+- Up to 5 analysis iterations for deeper insights
+- Dynamic temperature scaling for creative exploration
+- Cross-referencing between iterations
+- Comprehensive citation management
 
-## Installation
+### 5. Final Report Generation
+- Topic-specific titles and subtitles
+- Executive summary with key findings
+- Structured analysis sections
+- Standardized Works Cited formatting
+- Recommended readings section
 
-1. Clone the repository:
-```bash
-git clone https://github.com/ashayden/gemini-reasoning-bot.git
-cd gemini-reasoning-bot
-```
-
-2. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-3. Configure Streamlit secrets:
-   - Create `.streamlit/secrets.toml`
-   - Add your Google AI API key:
-     ```toml
-     GOOGLE_API_KEY = "your_api_key_here"
-     ```
+## Technical Features
+- Rate-limited API calls for stability
+- Error handling and recovery
+- Session state management
+- Dynamic markdown formatting
+- Standardized citation formatting
+- Dark theme UI optimization
 
 ## Usage
+1. Enter your research topic or question
+2. Select number of analysis iterations (1-5)
+3. Choose relevant focus areas (optional)
+4. Review generated insights and framework
+5. Examine each analysis iteration
+6. Study the final synthesized report
 
-1. Run the application locally:
-```bash
-streamlit run main.py
-```
+## Requirements
+- Python 3.8+
+- Streamlit
+- Google Generative AI API access
+- Additional dependencies in requirements.txt
 
-2. Or deploy to Streamlit Cloud:
-   - Push to your GitHub repository
-   - Connect repository to Streamlit Cloud
-   - Add your API key in Streamlit Cloud secrets
+## Version History
+### v1.3 (Current)
+- Enhanced creativity in insights generation
+- Standardized Works Cited formatting
+- Improved title and subtitle handling
+- Better focus area selection interface
+- Cleaner markdown formatting
 
-## Using the Application
+### v1.2
+- Added multi-iteration analysis
+- Improved error handling
+- Enhanced state management
+- Better UI responsiveness
 
-1. Enter your topic of interest in the text input
-2. Select your desired analysis depth:
-   - Quick: Single-pass analysis
-   - Balanced: Two iterations
-   - Deep: Three iterations
-   - Comprehensive: Four iterations
-3. Click "Start Analysis" to begin
-4. Watch as each agent performs its specialized task:
-   - Prompt optimization
-   - Framework creation
-   - Iterative research analysis
-   - Final synthesis and reporting
+### v1.1
+- Initial framework implementation
+- Basic analysis capabilities
+- Simple report generation
 
-## Security Note
+## Setup
+1. Clone the repository
+2. Install dependencies: `pip install -r requirements.txt`
+3. Set up your Google API key in `.streamlit/secrets.toml`:
+   ```toml
+   GOOGLE_API_KEY = "your-api-key"
+   ```
+4. Run the application: `streamlit run main.py`
 
-Never commit API keys or secrets to the repository. Use Streamlit's secrets management system for secure credential handling. 
+## Contributing
+Contributions are welcome! Please feel free to submit pull requests or open issues for any bugs or feature requests.
+
+## License
+[Insert appropriate license information] 
