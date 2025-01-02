@@ -52,17 +52,10 @@ class PreAnalysisAgent:
             }
             
             fact_prompt = (
-                "Generate a fascinating and unexpected fact about this topic: "
-                f"'{topic}'\n\n"
-                "The fact should:\n"
-                "- Be surprising, unique, or counter-intuitive\n"
-                "- Reveal an interesting connection or lesser-known aspect\n"
-                "- Use vivid, engaging language\n"
-                "- Include relevant statistics or specific details when possible\n"
-                "- Add 1-2 relevant emojis that enhance understanding\n"
-                "- Be exactly one sentence that hooks the reader\n"
-                "- Challenge common assumptions or expectations\n\n"
-                "Make it memorable and thought-provoking. Respond with just the fact, no additional text."
+                f"Share a fascinating and unexpected fact about {topic}. "
+                "Make it surprising, specific, and memorable. "
+                "Include 1-2 relevant emojis. "
+                "Respond with just the fact, no additional text or explanation."
             )
             
             fact_response = self.model.generate_content(
@@ -81,19 +74,12 @@ class PreAnalysisAgent:
             }
             
             eli5_prompt = (
-                "Explain this topic as if teaching a curious child: "
-                f"'{topic}'\n\n"
-                "Your explanation should:\n"
-                "- Use creative analogies or metaphors\n"
-                "- Connect to everyday experiences\n"
-                "- Include memorable examples\n"
-                "- Be engaging and fun\n"
-                "- Use simple but vivid language\n"
-                "- Be 2-3 sentences maximum\n"
-                "- Add 1-3 relevant emojis that help visualization\n"
-                "- If it's a question, answer directly\n"
-                "- If it's a topic, give an interesting overview\n\n"
-                "Make it engaging and memorable. Respond with just the explanation, no additional text."
+                f"Explain {topic} as if teaching a curious 5-year-old. "
+                "Use a creative analogy or metaphor. "
+                "Keep it to 2-3 sentences. "
+                "Include 1-3 relevant emojis. "
+                "Make it fun and memorable. "
+                "Respond with just the explanation, no additional text."
             )
             
             eli5_response = self.model.generate_content(
@@ -103,9 +89,18 @@ class PreAnalysisAgent:
             if not eli5_response:
                 return None
             
+            # Extract just the content from responses
+            fact_text = fact_response.text.strip()
+            eli5_text = eli5_response.text.strip()
+            
+            # Clean up responses using BaseAgent's method
+            base_agent = BaseAgent(self.model)
+            fact_text = base_agent._clean_response(fact_text)
+            eli5_text = base_agent._clean_response(eli5_text)
+            
             return {
-                'did_you_know': fact_response.text.strip(),
-                'eli5': eli5_response.text.strip()
+                'did_you_know': fact_text,
+                'eli5': eli5_text
             }
             
         except Exception as e:
@@ -124,6 +119,72 @@ class BaseAgent:
         """Get the last model's thoughts for debugging or chaining."""
         return self._last_thoughts
     
+    def _clean_response(self, text: str) -> str:
+        """Clean up response text by removing meta-commentary.
+        
+        Args:
+            text: The text to clean
+            
+        Returns:
+            Cleaned text without meta-commentary
+        """
+        # List of common prefixes to remove
+        prefixes = [
+            "First I will",
+            "I will",
+            "Here's",
+            "Let me",
+            "I need to",
+            "I'll",
+            "The user wants",
+            "I should",
+            "I am going to",
+            "I can",
+            "Let's",
+            "Now I will"
+        ]
+        
+        # Remove prefixes and clean up
+        lines = text.split('\n')
+        cleaned_lines = []
+        skip_line = False
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+                
+            # Skip meta-commentary lines
+            if any(line.lower().startswith(prefix.lower()) for prefix in prefixes):
+                continue
+            
+            # Skip self-critique and explanation lines
+            if any(phrase in line.lower() for phrase in [
+                "draft answer",
+                "self-critique",
+                "ensure that",
+                "my response",
+                "this answer",
+                "i understand",
+                "i need to",
+                "i should"
+            ]):
+                continue
+            
+            # Skip validation and checking lines
+            if any(phrase in line.lower() for phrase in [
+                "valid and does not fail",
+                "requirements mentioned",
+                "checking if",
+                "validating",
+                "making sure"
+            ]):
+                continue
+            
+            cleaned_lines.append(line)
+        
+        return '\n'.join(cleaned_lines).strip()
+    
     @rate_limit_decorator
     def generate_content(self, prompt: str, config: Dict[str, Any]) -> Optional[str]:
         """Generate content with rate limiting and error handling."""
@@ -137,31 +198,34 @@ class BaseAgent:
                 logger.error("Empty response from model")
                 return None
             
-            # Handle the response based on its type
+            # Extract content from response
             try:
-                # For responses with parts
+                content = []
+                
+                # Handle different response types
                 if hasattr(response, 'parts'):
-                    content = []
                     for part in response.parts:
                         if hasattr(part, 'text'):
                             content.append(part.text)
-                    return '\n'.join(content).strip()
-                # For responses with candidates
                 elif hasattr(response, 'candidates'):
                     for candidate in response.candidates:
                         if hasattr(candidate, 'content'):
                             if hasattr(candidate.content, 'parts'):
-                                content = []
                                 for part in candidate.content.parts:
                                     if hasattr(part, 'text'):
                                         content.append(part.text)
-                                return '\n'.join(content).strip()
-                # For simple responses with text
                 elif hasattr(response, 'text'):
-                    return response.text.strip()
+                    content.append(response.text)
                 
-                logger.error("Unable to extract text from response")
-                return None
+                if not content:
+                    logger.error("No text content found in response")
+                    return None
+                
+                # Join all content and clean it
+                full_text = '\n'.join(content).strip()
+                cleaned_text = self._clean_response(full_text)
+                
+                return cleaned_text if cleaned_text else None
                 
             except Exception as e:
                 logger.error(f"Error extracting content from response: {str(e)}")
