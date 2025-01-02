@@ -43,37 +43,63 @@ class PreAnalysisAgent:
             or None if generation fails
         """
         try:
-            # Generate fun fact
+            # Generate fun fact with higher creativity
+            fact_config = {
+                "temperature": 0.9,  # Higher temperature for more creative facts
+                "top_p": 0.9,
+                "top_k": 40,
+                "candidate_count": 1
+            }
+            
             fact_prompt = (
-                "Generate a single sentence interesting fact related to this topic: "
+                "Generate a fascinating and unexpected fact about this topic: "
                 f"'{topic}'\n\n"
                 "The fact should:\n"
-                "- Be surprising or fascinating\n"
-                "- Be true and accurate\n"
-                "- Not directly answer or summarize the topic\n"
-                "- Include 1-2 relevant emojis when appropriate\n"
-                "- Be exactly one sentence\n\n"
-                "Respond with just the fact, no additional text."
+                "- Be surprising, unique, or counter-intuitive\n"
+                "- Reveal an interesting connection or lesser-known aspect\n"
+                "- Use vivid, engaging language\n"
+                "- Include relevant statistics or specific details when possible\n"
+                "- Add 1-2 relevant emojis that enhance understanding\n"
+                "- Be exactly one sentence that hooks the reader\n"
+                "- Challenge common assumptions or expectations\n\n"
+                "Make it memorable and thought-provoking. Respond with just the fact, no additional text."
             )
             
-            fact_response = self.model.generate_content(fact_prompt)
+            fact_response = self.model.generate_content(
+                fact_prompt,
+                generation_config=GenerationConfig(**fact_config)
+            )
             if not fact_response:
                 return None
             
-            # Generate ELI5
+            # Generate ELI5 with balanced creativity
+            eli5_config = {
+                "temperature": 0.7,  # Balanced temperature for creative yet clear explanations
+                "top_p": 0.8,
+                "top_k": 30,
+                "candidate_count": 1
+            }
+            
             eli5_prompt = (
-                "Explain this topic in extremely simple terms: "
+                "Explain this topic as if teaching a curious child: "
                 f"'{topic}'\n\n"
-                "The explanation should:\n"
-                "- Use very simple, straightforward language\n"
-                "- Be 1-3 sentences maximum\n"
-                "- Include 1-3 relevant emojis when appropriate\n"
-                "- If it's a question, answer it directly\n"
-                "- If it's a topic, give a high-level overview\n\n"
-                "Respond with just the explanation, no additional text."
+                "Your explanation should:\n"
+                "- Use creative analogies or metaphors\n"
+                "- Connect to everyday experiences\n"
+                "- Include memorable examples\n"
+                "- Be engaging and fun\n"
+                "- Use simple but vivid language\n"
+                "- Be 2-3 sentences maximum\n"
+                "- Add 1-3 relevant emojis that help visualization\n"
+                "- If it's a question, answer directly\n"
+                "- If it's a topic, give an interesting overview\n\n"
+                "Make it engaging and memorable. Respond with just the explanation, no additional text."
             )
             
-            eli5_response = self.model.generate_content(eli5_prompt)
+            eli5_response = self.model.generate_content(
+                eli5_prompt,
+                generation_config=GenerationConfig(**eli5_config)
+            )
             if not eli5_response:
                 return None
             
