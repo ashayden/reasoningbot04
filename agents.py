@@ -37,23 +37,30 @@ class BaseAgent:
                 logger.error("Empty response from model")
                 return None
             
-            # Get the response text using the candidates/parts structure
+            # Get the full response text
+            full_text = None
             try:
-                full_text = response.candidates[0].content.parts[0].text
-            except (AttributeError, IndexError) as e:
-                logger.error(f"Failed to extract text using candidates structure: {str(e)}")
+                full_text = response.text
+            except AttributeError:
+                pass
+                
+            if not full_text:
                 try:
-                    # Fallback to parts if available
-                    full_text = "".join(part.text for part in response.parts)
+                    full_text = response.candidates[0].content.parts[0].text
                 except (AttributeError, IndexError) as e:
-                    logger.error(f"Failed to extract text using parts structure: {str(e)}")
-                    return None
+                    logger.error(f"Failed to extract text using candidates structure: {str(e)}")
+                    try:
+                        # Fallback to parts if available
+                        full_text = "".join(part.text for part in response.parts)
+                    except (AttributeError, IndexError) as e:
+                        logger.error(f"Failed to extract text using parts structure: {str(e)}")
+                        return None
             
             if not full_text or not full_text.strip():
                 logger.error("Extracted empty text from response")
                 return None
             
-            # Split text into lines for more precise filtering
+            # Split text into lines and filter out thought process
             lines = full_text.split('\n')
             content_lines = []
             in_thought_block = False
@@ -91,7 +98,7 @@ class BaseAgent:
                 
                 # If we're not in a thought block and the line doesn't look like a thought,
                 # add it to content
-                if not in_thought_block and not any(marker in line.lower() for marker in thought_starters):
+                if not in_thought_block:
                     content_lines.append(line)
                 
                 # Reset thought block if we hit a clear content marker
@@ -113,7 +120,12 @@ class BaseAgent:
             if current_paragraph:
                 content += " ".join(current_paragraph)
             
-            return content.strip() if content.strip() else None
+            final_content = content.strip()
+            if not final_content:
+                logger.error("No content extracted after filtering thoughts")
+                return None
+                
+            return final_content
             
         except Exception as e:
             logger.error(f"Error extracting content: {str(e)}")
