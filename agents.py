@@ -433,124 +433,126 @@ class SynthesisExpert(BaseAgent):
         formatted_sections = []
         current_section = []
         in_references = False
+        current_header_level = 0
         
         for line in sections:
             line = line.strip()
             if not line:
                 continue
-                
-            # Handle main section headers (numbered sections)
+            
+            # Handle section headers
             if any(line.startswith(f"{i}.") for i in range(1, 8)):
+                # Save previous section if exists
                 if current_section:
                     formatted_sections.append('\n'.join(current_section))
                     current_section = []
-                # Convert numbered sections to markdown headers
+                
+                # Extract and format section header
                 section_title = line.split('.', 1)[1].strip()
                 if "Works Cited" in section_title:
                     in_references = True
-                current_section.append(f"# {section_title}")
+                    current_header_level = 1
+                else:
+                    current_header_level = 1
+                
+                current_section.append(f"{'#' * current_header_level} {section_title}")
                 continue
             
             # Handle bullet points and subsections
             if line.startswith('-') or line.startswith('•'):
-                # Clean up the line and ensure proper bullet point formatting
                 cleaned_line = line.lstrip('-•').strip()
-                # Add proper indentation and bullet point
-                line = f"* {cleaned_line}"
+                # Add proper indentation for subsections
+                indent = '  ' * (current_header_level - 1) if current_header_level > 1 else ''
+                line = f"{indent}* {cleaned_line}"
             
             # Special handling for references section
-            if "Works Cited" in line and not line.startswith('#'):
-                in_references = True
-                if current_section:
-                    formatted_sections.append('\n'.join(current_section))
-                current_section = [f"# Works Cited"]
-                continue
-            
-            # Format citations in references section
             if in_references:
-                # Clean up the citation line
-                citation = line.strip()
-                if not citation.startswith('#'):  # Skip section header
+                if line.startswith('*'):
+                    # Already formatted citation
+                    current_section.append(line)
+                elif not line.startswith('#'):
+                    # Format new citation
+                    citation = line.strip()
                     if not citation.endswith('.'):
                         citation += '.'
-                    # Format as a reference list item if it's not already
-                    if not citation.startswith('*'):
-                        line = f"* {citation}"
-                    else:
-                        line = citation
-            
-            current_section.append(line)
+                    current_section.append(f"* {citation}")
+            else:
+                current_section.append(line)
         
+        # Add final section
         if current_section:
             formatted_sections.append('\n'.join(current_section))
         
-        # Join sections with double newlines for proper markdown spacing
+        # Join all sections with proper spacing
         formatted_text = '\n\n'.join(formatted_sections)
         
-        # Ensure proper spacing between sections and lists
-        formatted_text = formatted_text.replace('\n*', '\n\n*')
+        # Clean up spacing and formatting
+        formatted_text = formatted_text.replace('\n\n\n', '\n\n')  # Remove extra blank lines
+        formatted_text = formatted_text.replace('\n*', '\n\n*')    # Ensure space before lists
+        formatted_text = formatted_text.replace('\n#', '\n\n#')    # Ensure space before headers
         
-        return formatted_text
+        return formatted_text.strip()
     
     def synthesize(self, topic: str, analyses: list) -> Optional[str]:
         """Synthesize all research analyses into a final report."""
-        prompt = f"""Synthesize all research analyses on '{topic}' into a Final Report with:
-        
+        prompt = f"""Create a comprehensive research synthesis on '{topic}' following this exact structure:
+
         1. Executive Summary
-           This report synthesizes research on {topic}. Include 2-3 paragraphs that:
-           - Highlight key findings with citations
-           - Summarize major discoveries
-           - Present core methodology
+        Provide a 2-3 paragraph overview that:
+        - Synthesizes key findings with citations
+        - Highlights major discoveries
+        - Summarizes methodology
         
         2. Key Insights
-           Present 4-6 bullet points that:
-           - Support each insight with citations
-           - Focus on significant findings
-           - Include methodological insights
+        Present 4-6 major insights that:
+        - Include specific citations
+        - Focus on significant findings
+        - Connect to methodology
         
         3. Analysis
-           Provide comprehensive analysis that:
-           - Synthesizes findings with citations
-           - Integrates multiple perspectives
-           - Evaluates evidence critically
-           - Organizes by key themes
+        Develop a thorough analysis that:
+        - Synthesizes all findings
+        - Integrates perspectives
+        - Evaluates evidence
+        - Organizes by themes
         
         4. Conclusion
-           Summarize research implications:
-           - Core findings and significance
-           - Theoretical/practical impact
-           - Future research directions
-           - Evidence-based recommendations
+        Provide research implications:
+        - Summarize key findings
+        - Discuss impacts
+        - Suggest future directions
+        - Make recommendations
         
         5. Further Considerations
-           Address complexities through:
-           - Alternative viewpoints (cited)
-           - Research limitations
-           - Areas of uncertainty
-           - Potential challenges
+        Address complexities:
+        - Present counter-arguments
+        - Discuss limitations
+        - Note uncertainties
+        - Identify challenges
         
         6. Recommended Readings
-           List key resources:
-           - Seminal works and contribution
-           - Recent significant research
-           - Methodological guides
-           - Digital/online resources
+        List essential sources:
+        - Note seminal works
+        - Include recent research
+        - Add methodology guides
+        - List digital resources
         
         7. Works Cited
-           Provide complete bibliography:
-           - Use APA 7th edition format
-           - Include all in-text citations
-           - Add DOIs when available
-           - Organize by primary/secondary
+        Provide full bibliography:
+        - Use APA 7th edition
+        - Include all citations
+        - Add DOIs
+        - List primary sources first
         
-        Important:
-        - Use APA in-text citations
-        - Match all citations to references
-        - Balance classic and recent works
-        - Maintain scholarly tone
+        Important Guidelines:
+        - Use proper APA in-text citations (Author, Year)
+        - Ensure every citation has a reference
+        - Include both classic and recent works
+        - Maintain academic tone
         - Cross-reference analyses
-        - Ensure proper formatting of citations
-        - Include DOIs for all recent works
+        - Format citations consistently
+        - Include DOIs for recent works
+        - Organize references alphabetically
         
         Analysis to synthesize: {' '.join(analyses)}"""
         
