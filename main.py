@@ -219,7 +219,7 @@ def display_insights(insights: dict):
 
 def display_focus_selection(focus_areas: list, selected_areas: list) -> tuple[bool, list]:
     """Display focus area selection with proper state handling."""
-    with st.expander("🎯 Focus Areas", expanded=True):
+    with st.expander("🎯 Focus Areas", expanded=False):
         st.markdown("Choose specific aspects you'd like the analysis to emphasize (optional):")
         
         # Use a unique key for the multiselect
@@ -329,7 +329,7 @@ def main():
                             st.session_state.app_state['show_focus'] = True
                 
                 if st.session_state.app_state['prompt']:
-                    with st.expander("✍️ Optimized Prompt", expanded=True):
+                    with st.expander("✍️ Optimized Prompt", expanded=False):
                         st.markdown(st.session_state.app_state['prompt'])
         
         # Handle focus areas
@@ -369,7 +369,7 @@ def main():
                             st.rerun()
                 
                 if st.session_state.app_state['framework']:
-                    with st.expander("🎯 Research Framework", expanded=True):
+                    with st.expander("🎯 Research Framework", expanded=False):
                         st.markdown(st.session_state.app_state['framework'])
         
         # Process analysis
@@ -397,7 +397,7 @@ def main():
                             st.rerun()
                 
                 for i, result in enumerate(st.session_state.app_state['analysis_results']):
-                    with st.expander(f"🔄 Research Analysis #{i + 1}", expanded=True):
+                    with st.expander(f"🔄 Research Analysis #{i + 1}", expanded=False):
                         st.markdown(result)
         
         # Process summary
@@ -414,7 +414,7 @@ def main():
                             st.rerun()
                 
                 if st.session_state.app_state['summary']:
-                    with st.expander("📊 Final Report", expanded=True):
+                    with st.expander("📊 Final Report", expanded=False):
                         st.markdown(st.session_state.app_state['summary'])
                     st.success("✅ Analysis complete! Review the results above.")
     except Exception as e:
