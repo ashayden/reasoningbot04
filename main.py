@@ -367,10 +367,11 @@ def main():
             st.error(error_msg)
             return
         
-        if not st.session_state.app_state['topic'] or st.session_state.app_state['topic'] != sanitized_topic:
-            reset_state(sanitized_topic, iterations)
-            st.rerun()
-    
+        # Reset state and start analysis
+        reset_state(sanitized_topic, iterations)
+        st.session_state.app_state['show_insights'] = True
+        st.rerun()
+
     try:
         # Create containers
         containers = {
