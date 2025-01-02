@@ -296,16 +296,108 @@ class PromptDesigner(BaseAgent):
             topic: The topic to analyze
             selected_focus_areas: Optional list of focus areas to emphasize
         """
-        base_prompt = f"""As an expert prompt engineer, create a detailed prompt that will guide the development 
-        of a research framework for analyzing '{topic}'."""
-        
-        if selected_focus_areas:
-            focus_areas_str = "\n".join(f"- {area}" for area in selected_focus_areas)
-            base_prompt += f"\n\nPay special attention to these selected focus areas:\n{focus_areas_str}"
-        
-        base_prompt += "\nFocus on the essential aspects that need to be investigated while maintaining analytical rigor and academic standards."
-        
-        return self.generate_content(base_prompt, PROMPT_DESIGN_CONFIG)
+        try:
+            base_prompt = f"""Create a detailed research framework prompt for analyzing '{topic}'.
+
+            Your response should be structured exactly like this:
+
+            1. Deconstruct the Request:
+               - Core objective
+               - Key constraints
+               - Essential aspects
+
+            2. Research Components:
+               - Clear research question/problem
+               - Theoretical lens
+               - Key variables/dimensions
+               - Methodology
+               - Expected outcomes/contributions
+               - Scope and limitations
+
+            3. Investigation Areas:
+               [List specific areas to investigate, including:]
+               - Historical context
+               - Current state
+               - Key challenges
+               - Future implications
+
+            4. Methodological Requirements:
+               - Data collection methods
+               - Analysis techniques
+               - Quality criteria
+               - Validation approaches
+
+            5. Evaluation Framework:
+               - Success metrics
+               - Quality indicators
+               - Validation methods
+
+            Important:
+            - Focus on academic rigor
+            - Maintain analytical depth
+            - Ensure methodological clarity
+            - Provide comprehensive coverage
+            - Use clear, specific language"""
+            
+            if selected_focus_areas:
+                base_prompt += f"\n\nIncorporate these focus areas into your framework:\n"
+                for area in selected_focus_areas:
+                    base_prompt += f"- {area}\n"
+            
+            response = self.model.generate_content(
+                base_prompt,
+                generation_config=GenerationConfig(**PROMPT_DESIGN_CONFIG)
+            )
+            
+            if not response or not response.text:
+                return None
+            
+            # Extract and format the actual framework content
+            lines = response.text.split('\n')
+            formatted_lines = []
+            in_framework = False
+            
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+                
+                # Skip meta-commentary and thought process
+                if any(line.lower().startswith(prefix.lower()) for prefix in [
+                    "I will", "Let me", "First", "Now", "Here's", "I'll",
+                    "I understand", "I need to", "I should", "I can",
+                    "Let's", "I am going to", "I would", "My approach"
+                ]):
+                    continue
+                
+                # Skip process-related lines
+                if any(phrase in line.lower() for phrase in [
+                    "deconstruct the request",
+                    "structure the prompt",
+                    "refine and iterate",
+                    "add a desired output",
+                    "review the prompt",
+                    "let's break this down",
+                    "we need to",
+                    "this will help"
+                ]):
+                    continue
+                
+                # Keep numbered sections and their content
+                if any(line.startswith(f"{i}.") for i in range(1, 10)):
+                    in_framework = True
+                    formatted_lines.append(line)
+                elif line.startswith('-') or line.startswith('•'):
+                    if in_framework:
+                        formatted_lines.append(line)
+                elif in_framework and not any(line.lower().startswith(x) for x in ["note:", "important:", "remember:", "ensure:", "make sure:"]):
+                    formatted_lines.append(line)
+            
+            return '\n'.join(formatted_lines).strip()
+            
+        except Exception as e:
+            logger.error(f"Prompt design failed: {str(e)}")
+            return None
 
 class FrameworkEngineer(BaseAgent):
     """Agent responsible for creating analysis frameworks."""
