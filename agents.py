@@ -100,36 +100,46 @@ class BaseAgent:
     
     @rate_limit_decorator
     def generate_content(self, prompt: str, config: Dict[str, Any]) -> Optional[str]:
-        """Generate content with rate limiting and error handling.
-        
-        The new Gemini 2.0 model returns both thoughts and response.
-        This method extracts only the response for user display while
-        storing the thoughts for internal use.
-        """
+        """Generate content with rate limiting and error handling."""
         try:
             response = self.model.generate_content(
                 prompt,
                 generation_config=GenerationConfig(**config)
             )
             
-            if not response or not response.text:
+            if not response:
                 logger.error("Empty response from model")
                 return None
+            
+            # Handle the response based on its type
+            try:
+                # For responses with parts
+                if hasattr(response, 'parts'):
+                    content = []
+                    for part in response.parts:
+                        if hasattr(part, 'text'):
+                            content.append(part.text)
+                    return '\n'.join(content).strip()
+                # For responses with candidates
+                elif hasattr(response, 'candidates'):
+                    for candidate in response.candidates:
+                        if hasattr(candidate, 'content'):
+                            if hasattr(candidate.content, 'parts'):
+                                content = []
+                                for part in candidate.content.parts:
+                                    if hasattr(part, 'text'):
+                                        content.append(part.text)
+                                return '\n'.join(content).strip()
+                # For simple responses with text
+                elif hasattr(response, 'text'):
+                    return response.text.strip()
                 
-            logger.info(f"Raw response length: {len(response.text)}")
-            
-            # Split response into thoughts and actual content
-            parts = response.text.split("\n\n", 1)
-            
-            if len(parts) > 1 and "Thoughts" in parts[0]:
-                self._last_thoughts = parts[0]
-                content = parts[1].strip()
-                logger.info(f"Extracted content length: {len(content)}")
-                return content
-            else:
-                # If no clear separation, return the whole response
-                logger.info("No thoughts section found, returning full response")
-                return response.text.strip()
+                logger.error("Unable to extract text from response")
+                return None
+                
+            except Exception as e:
+                logger.error(f"Error extracting content from response: {str(e)}")
+                return None
                 
         except Exception as e:
             logger.error(f"Content generation error: {str(e)}")
