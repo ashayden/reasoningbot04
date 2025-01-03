@@ -17,23 +17,23 @@ class AppConfig(BaseModel):
     # Model configurations
     GEMINI_MODEL: str = "gemini-pro"
     
-    # Safety settings - using more permissive thresholds
+    # Safety settings - all restrictions disabled
     SAFETY_SETTINGS: List[SafetySettingDict] = [
         {
             "category": HarmCategory.HARASSMENT,
-            "threshold": HarmBlockThreshold.MEDIUM_AND_ABOVE
+            "threshold": HarmBlockThreshold.BLOCK_NONE
         },
         {
             "category": HarmCategory.HATE_SPEECH,
-            "threshold": HarmBlockThreshold.MEDIUM_AND_ABOVE
+            "threshold": HarmBlockThreshold.BLOCK_NONE
         },
         {
             "category": HarmCategory.SEXUALLY_EXPLICIT,
-            "threshold": HarmBlockThreshold.HIGH
+            "threshold": HarmBlockThreshold.BLOCK_NONE
         },
         {
             "category": HarmCategory.DANGEROUS_CONTENT,
-            "threshold": HarmBlockThreshold.HIGH
+            "threshold": HarmBlockThreshold.BLOCK_NONE
         }
     ]
     
