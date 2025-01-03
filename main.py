@@ -424,9 +424,29 @@ def display_analysis(analysis_results: List[ResearchResult]):
     for i, result in enumerate(analysis_results):
         with st.expander(f"🔄 Research Analysis #{i + 1}", expanded=False):
             if result.subtitle:
-                st.markdown(f"## {result.title}\n\n*{result.subtitle}*\n\n{result.content}")
+                # Split title if it contains a colon
+                if ':' in result.title:
+                    main_title, subtitle_part = result.title.split(':', 1)
+                    st.markdown(f"## {subtitle_part.strip()}\n\n*{result.subtitle}*\n\n{result.content}")
+                else:
+                    st.markdown(f"## {result.title}\n\n*{result.subtitle}*\n\n{result.content}")
             else:
                 st.markdown(f"## {result.title}\n\n{result.content}")
+
+def display_final_report(summary: str):
+    """Display final report with proper title formatting."""
+    with st.expander("📊 Final Report", expanded=False):
+        # Split the summary into lines
+        lines = summary.split('\n', 2)
+        if len(lines) >= 2:
+            # If first line contains a colon, use the part after colon as main title
+            if ':' in lines[0]:
+                main_title, subtitle_part = lines[0].split(':', 1)
+                st.markdown(f"## {subtitle_part.strip()}\n\n*{lines[1]}*\n\n{lines[2] if len(lines) > 2 else ''}")
+            else:
+                st.markdown(f"## {lines[0]}\n\n*{lines[1]}*\n\n{lines[2] if len(lines) > 2 else ''}")
+        else:
+            st.markdown(summary)
 
 def main():
     """Main application flow."""
@@ -621,8 +641,7 @@ def main():
                             st.rerun()
                 
                 if st.session_state.app_state['summary']:
-                    with st.expander("📊 Final Report", expanded=False):
-                        st.markdown(st.session_state.app_state['summary'])
+                    display_final_report(st.session_state.app_state['summary'])
     except Exception as e:
         handle_error(e, "analysis")
         return
