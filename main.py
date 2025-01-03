@@ -9,7 +9,11 @@ import random
 from typing import Any, Optional, Tuple
 from google.generativeai.types import GenerativeModel, GenerationConfig
 
-from config import config
+from config import (
+    config,
+    GEMINI_MODEL,
+    PROMPT_DESIGN_CONFIG
+)
 from utils import validate_topic, sanitize_topic
 from agents import PreAnalysisAgent, PromptDesigner, ResearchAnalyst, SynthesisExpert
 
