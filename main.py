@@ -216,26 +216,16 @@ def initialize_gemini():
         api_key = st.secrets["GOOGLE_API_KEY"]
         genai.configure(api_key=api_key)
         
-        # Configure safety settings to prevent meta-responses
-        safety_settings = {
-            "HARASSMENT": "block_none",
-            "HATE_SPEECH": "block_none",
-            "SEXUALLY_EXPLICIT": "block_none",
-            "DANGEROUS_CONTENT": "block_none"
-        }
-        
         generation_config = genai.types.GenerationConfig(
             temperature=0.7,
             candidate_count=1,
-            stop_sequences=["I will", "Let me", "First", "Now I will"],
             top_p=0.8,
             top_k=40
         )
         
         model = genai.GenerativeModel(
             model_name=GEMINI_MODEL,
-            generation_config=generation_config,
-            safety_settings=safety_settings
+            generation_config=generation_config
         )
         
         return model
