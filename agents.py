@@ -126,8 +126,8 @@ class PreAnalysisAgent(BaseAgent):
         fact_prompt = (
             f"Share one fascinating and unexpected fact about {topic}. "
             "Focus on a surprising or counter-intuitive aspect that most people wouldn't know. "
-            "Include relevant emojis and ensure the fact is both engaging and educational. "
-            "Format as a complete, well-structured sentence."
+            "Include exactly 1-2 relevant emojis (no more than 2). "
+            "Format as a complete, well-structured sentence. "
         )
         fact = self._generate_content(fact_prompt, config.PROMPT_DESIGN_CONFIG)
         
@@ -135,8 +135,8 @@ class PreAnalysisAgent(BaseAgent):
         eli5_prompt = (
             f"Explain {topic} as if explaining to a curious 10-year-old. "
             "Use simple language but don't oversimplify the concepts. "
-            "Include 2-3 clear, engaging sentences with relevant emojis. "
-            "Make it both educational and memorable."
+            "Include 2-3 clear, engaging sentences. "
+            "Add exactly 2-3 relevant emojis (no more than 3). "
         )
         eli5 = self._generate_content(eli5_prompt, config.PROMPT_DESIGN_CONFIG)
         
