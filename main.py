@@ -423,15 +423,25 @@ def display_analysis(analysis_results: List[ResearchResult]):
     """Display analysis results."""
     for i, result in enumerate(analysis_results):
         with st.expander(f"🔄 Research Analysis #{i + 1}", expanded=False):
-            if result.subtitle:
-                # Split title if it contains a colon
-                if ':' in result.title:
-                    main_title, subtitle_part = result.title.split(':', 1)
-                    st.markdown(f"## {subtitle_part.strip()}\n\n*{result.subtitle}*\n\n{result.content}")
-                else:
-                    st.markdown(f"## {result.title}\n\n*{result.subtitle}*\n\n{result.content}")
-            else:
-                st.markdown(f"## {result.title}\n\n{result.content}")
+            # Format title and subtitle
+            title = result.title.strip()
+            subtitle = result.subtitle.strip() if result.subtitle else ""
+            
+            # If title contains a colon, use part after colon as main title
+            if ':' in title:
+                _, title = title.split(':', 1)
+                title = title.strip()
+            
+            # Remove any "Title:" or "Subtitle:" prefixes
+            title = title.replace("Title:", "").strip()
+            subtitle = subtitle.replace("Subtitle:", "").strip()
+            
+            # Display with proper hierarchy
+            st.markdown(f"# {title}")
+            if subtitle:
+                st.markdown(f"## {subtitle}")
+            st.markdown("---")
+            st.markdown(result.content)
 
 def display_final_report(summary: str):
     """Display final report with proper title formatting."""
@@ -439,12 +449,25 @@ def display_final_report(summary: str):
         # Split the summary into lines
         lines = summary.split('\n', 2)
         if len(lines) >= 2:
-            # If first line contains a colon, use the part after colon as main title
-            if ':' in lines[0]:
-                main_title, subtitle_part = lines[0].split(':', 1)
-                st.markdown(f"## {subtitle_part.strip()}\n\n*{lines[1]}*\n\n{lines[2] if len(lines) > 2 else ''}")
-            else:
-                st.markdown(f"## {lines[0]}\n\n*{lines[1]}*\n\n{lines[2] if len(lines) > 2 else ''}")
+            # Get title and subtitle
+            title = lines[0].strip()
+            subtitle = lines[1].strip()
+            content = lines[2].strip() if len(lines) > 2 else ""
+            
+            # If title contains a colon, use part after colon as main title
+            if ':' in title:
+                _, title = title.split(':', 1)
+                title = title.strip()
+            
+            # Remove any "Title:" or "Subtitle:" prefixes
+            title = title.replace("Title:", "").strip()
+            subtitle = subtitle.replace("Subtitle:", "").strip()
+            
+            # Display with proper hierarchy
+            st.markdown(f"# {title}")
+            st.markdown(f"## {subtitle}")
+            st.markdown("---")
+            st.markdown(content)
         else:
             st.markdown(summary)
 
