@@ -76,18 +76,18 @@ class PromptDesigner:
             # Log the configuration being used
             logger.info(f"Using configuration: {FRAMEWORK_CONFIG}")
             
-            # Combine focus areas and base framework
-            areas_text = ", ".join(focus_areas) if focus_areas else ""
+            # Extract key themes from focus areas
+            areas_text = ", ".join(focus_areas[:3]) if focus_areas else ""  # Limit to top 3 focus areas
             
+            # Create a more focused prompt
             prompt = (
-                f"Using this research outline:\n{optimized_prompt}\n\n"
-                f"And focusing on these aspects: {areas_text}\n\n"
-                f"Create a detailed research framework for analyzing {topic}. Include:\n\n"
-                "1. Key Research Questions\n"
-                "2. Primary Areas of Investigation\n"
-                "3. Methodological Approach\n"
+                f"Create a concise research framework for {topic} focusing on these key areas: {areas_text}.\n\n"
+                "Include these sections:\n"
+                "1. Research Questions (2-3 key questions)\n"
+                "2. Core Areas to Investigate (main themes and sub-topics)\n"
+                "3. Methodology (brief overview of research approach)\n"
                 "4. Expected Outcomes\n\n"
-                "Structure each section with clear points and supporting details."
+                "Keep each section brief and focused. Use bullet points for clarity."
             )
             
             response = self.model.generate_content(
