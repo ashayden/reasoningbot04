@@ -2,7 +2,8 @@
 
 from pydantic import BaseModel, Field
 from google.generativeai.types import GenerationConfig as GeminiConfig
-from google.generativeai.types import SafetySettingDict, HarmCategory, HarmBlockThreshold
+from google.generativeai.types import SafetySettingDict
+import google.generativeai.types as gen_types
 from typing import List
 
 class GenerationConfig(BaseModel):
@@ -20,20 +21,20 @@ class AppConfig(BaseModel):
     # Safety settings - all restrictions disabled
     SAFETY_SETTINGS: List[SafetySettingDict] = [
         {
-            "category": HarmCategory.HARASSMENT,
-            "threshold": HarmBlockThreshold.BLOCK_NONE
+            "category": "HARM_CATEGORY_HARASSMENT",
+            "threshold": "BLOCK_NONE"
         },
         {
-            "category": HarmCategory.HATE_SPEECH,
-            "threshold": HarmBlockThreshold.BLOCK_NONE
+            "category": "HARM_CATEGORY_HATE_SPEECH",
+            "threshold": "BLOCK_NONE"
         },
         {
-            "category": HarmCategory.SEXUALLY_EXPLICIT,
-            "threshold": HarmBlockThreshold.BLOCK_NONE
+            "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+            "threshold": "BLOCK_NONE"
         },
         {
-            "category": HarmCategory.DANGEROUS_CONTENT,
-            "threshold": HarmBlockThreshold.BLOCK_NONE
+            "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+            "threshold": "BLOCK_NONE"
         }
     ]
     
