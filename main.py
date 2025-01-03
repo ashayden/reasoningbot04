@@ -44,55 +44,77 @@ st.set_page_config(
 # Set theme
 st.markdown("""
     <style>
-        /* Modern light theme colors */
+        /* Modern light theme colors with enhanced contrast */
         :root {
             --primary-color: #0066cc;
             --background-color: #ffffff;
             --secondary-background: #f8f9fa;
+            --container-background: #ffffff;
             --text-color: #262730;
             --border-color: #e9ecef;
             --hover-color: #f1f3f5;
+            --shadow-color: rgba(0, 0, 0, 0.05);
+            --section-border: #edf2f7;
         }
         
         /* Main container */
         .block-container { 
             max-width: 800px; 
             padding: 2rem 1rem;
+            background-color: var(--background-color);
         }
 
-        /* Expander styling */
+        /* Expander styling with enhanced contrast */
         .streamlit-expanderHeader {
             background-color: var(--secondary-background) !important;
-            border: 1px solid var(--border-color) !important;
-            border-radius: 6px !important;
+            border: 1px solid var(--section-border) !important;
+            border-radius: 8px !important;
+            box-shadow: 0 2px 4px var(--shadow-color) !important;
+            margin-bottom: 1rem !important;
+            transition: all 0.2s ease !important;
+        }
+        
+        .streamlit-expanderHeader:hover {
+            background-color: var(--hover-color) !important;
+            box-shadow: 0 4px 6px var(--shadow-color) !important;
         }
         
         .streamlit-expanderContent {
+            background-color: var(--container-background) !important;
+            border: 1px solid var(--section-border) !important;
             border-top: none !important;
-            border: 1px solid var(--border-color) !important;
-            border-radius: 0 0 6px 6px !important;
+            border-radius: 0 0 8px 8px !important;
+            padding: 1.5rem !important;
+            margin-top: -1px !important;
         }
 
-        /* Button styling */
+        /* Button styling with enhanced contrast */
         .stButton > button { 
             width: 100%;
-            border-radius: 6px !important;
+            border-radius: 8px !important;
             border: 1px solid var(--border-color) !important;
             transition: all 0.2s ease !important;
+            box-shadow: 0 1px 2px var(--shadow-color) !important;
         }
 
-        /* Focus area buttons */
+        .stButton > button:hover {
+            box-shadow: 0 2px 4px var(--shadow-color) !important;
+        }
+
+        /* Focus area buttons with enhanced contrast */
         [data-testid="baseButton-secondary"] {
             background-color: var(--secondary-background) !important;
-            border: 1px solid var(--border-color) !important;
+            border: 1px solid var(--section-border) !important;
             padding: 0.75rem !important;
             min-height: 3rem !important;
-            border-radius: 6px !important;
+            border-radius: 8px !important;
             transition: all 0.2s ease !important;
+            box-shadow: 0 1px 2px var(--shadow-color) !important;
         }
 
         [data-testid="baseButton-secondary"]:hover {
             background-color: var(--hover-color) !important;
+            box-shadow: 0 2px 4px var(--shadow-color) !important;
         }
 
         [data-testid="baseButton-primary"] {
@@ -102,29 +124,34 @@ st.markdown("""
             font-weight: 500 !important;
             padding: 0.75rem !important;
             min-height: 3rem !important;
-            border-radius: 6px !important;
+            border-radius: 8px !important;
             transition: all 0.2s ease !important;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
         }
 
         [data-testid="baseButton-primary"]:hover {
             background-color: #0052a3 !important;
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15) !important;
         }
 
         [data-testid="baseButton-primary"]:disabled {
             background-color: var(--secondary-background) !important;
             color: #6c757d !important;
             cursor: not-allowed !important;
+            box-shadow: none !important;
         }
 
-        /* Text area styling */
+        /* Text area styling with enhanced contrast */
         textarea {
             font-size: 1.1em !important;
             line-height: 1.5 !important;
             padding: 0.75rem !important;
             height: 150px !important;
-            border: 1px solid var(--border-color) !important;
-            border-radius: 6px !important;
+            border: 1px solid var(--section-border) !important;
+            border-radius: 8px !important;
             resize: vertical !important;
+            background-color: var(--container-background) !important;
+            box-shadow: 0 1px 2px var(--shadow-color) !important;
         }
 
         textarea:focus {
@@ -132,11 +159,13 @@ st.markdown("""
             box-shadow: 0 0 0 1px var(--primary-color) !important;
         }
 
-        /* Number input styling */
+        /* Number input styling with enhanced contrast */
         div[data-testid="stNumberInput"] input {
-            border: 1px solid var(--border-color) !important;
-            border-radius: 6px !important;
+            border: 1px solid var(--section-border) !important;
+            border-radius: 8px !important;
             padding: 0.5rem !important;
+            background-color: var(--container-background) !important;
+            box-shadow: 0 1px 2px var(--shadow-color) !important;
         }
 
         div[data-testid="stNumberInput"] input:focus {
@@ -144,24 +173,27 @@ st.markdown("""
             box-shadow: 0 0 0 1px var(--primary-color) !important;
         }
 
-        /* Multiselect styling */
+        /* Multiselect styling with enhanced contrast */
         div[data-testid="stMultiSelect"] [data-baseweb="select"] {
-            background-color: var(--background-color) !important;
-            border: 1px solid var(--border-color) !important;
-            border-radius: 6px !important;
+            background-color: var(--container-background) !important;
+            border: 1px solid var(--section-border) !important;
+            border-radius: 8px !important;
+            box-shadow: 0 1px 2px var(--shadow-color) !important;
         }
 
         div[data-testid="stMultiSelect"] [data-baseweb="tag"] {
             background-color: var(--primary-color) !important;
             color: white !important;
             border-radius: 4px !important;
+            box-shadow: 0 1px 2px var(--shadow-color) !important;
         }
 
-        /* Headers and text */
+        /* Headers and text with enhanced contrast */
         h1 {
             font-size: 2rem !important;
             font-weight: 600 !important;
             margin-bottom: 1rem !important;
+            color: var(--text-color) !important;
         }
 
         h2 {
@@ -171,19 +203,24 @@ st.markdown("""
             color: #4a4a4a !important;
         }
 
-        /* Markdown content */
+        /* Markdown content with enhanced contrast */
         .markdown-text-container {
             line-height: 1.6 !important;
+            background-color: var(--container-background) !important;
+            padding: 1rem !important;
+            border-radius: 8px !important;
+            box-shadow: 0 1px 2px var(--shadow-color) !important;
         }
         
-        /* Spinner */
+        /* Spinner with enhanced contrast */
         .stSpinner > div {
             border-color: var(--primary-color) !important;
         }
 
-        /* Success message */
+        /* Success message with enhanced contrast */
         .element-container .stAlert {
-            border-radius: 6px !important;
+            border-radius: 8px !important;
+            box-shadow: 0 1px 2px var(--shadow-color) !important;
         }
     </style>
 """, unsafe_allow_html=True)
