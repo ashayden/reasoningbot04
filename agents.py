@@ -68,73 +68,47 @@ class PromptDesigner:
     
     def __init__(self, model: Any):
         self.model = model
-    
-    @rate_limit_decorator
-    def generate_framework(self, topic: str, optimized_prompt: str, focus_areas: Optional[list] = None) -> Optional[str]:
-        """Generate research framework using optimized prompt and focus areas."""
-        try:
-            # Log the configuration being used
-            logger.info(f"Using configuration: {FRAMEWORK_CONFIG}")
-            
-            # Extract key themes from focus areas
-            areas_text = ", ".join(focus_areas[:3]) if focus_areas else ""  # Limit to top 3 focus areas
-            
-            # Create a more focused prompt
-            prompt = (
-                f"Create a brief research framework for {topic} focusing on: {areas_text}\n\n"
-                "Format the response in 4 short sections:\n"
-                "1. Key Questions (2-3 bullet points)\n"
-                "2. Main Topics (3-4 bullet points)\n"
-                "3. Methods (2-3 bullet points)\n"
-                "4. Expected Insights (2-3 bullet points)\n\n"
-                "Keep each bullet point to one line. Total response should be under 500 words."
-            )
-            
-            response = self.model.generate_content(
-                prompt,
-                generation_config=GenerationConfig(**FRAMEWORK_CONFIG)
-            )
-            
-            if not response or not response.text:
-                logger.error("Empty response from model")
-                return None
-                
-            # Clean up the response
-            framework = response.text.strip()
-            if len(framework) > 2000:  # Add a safety limit
-                framework = framework[:2000] + "..."
-                
-            return framework
-            
-        except Exception as e:
-            logger.error(f"Framework generation failed: {str(e)}")
-            return None
+        self._cached_framework = None  # Cache for framework to prevent regeneration
     
     @rate_limit_decorator
     def generate_focus_areas(self, topic: str) -> Optional[list]:
         """Generate focus areas for the topic."""
         try:
             prompt = (
-                f"Generate 8 key research areas for {topic}. "
-                "Format as a simple list with one topic per line. "
-                "Do not include numbers, bullets, or any other formatting."
+                f"List 8 key research areas for {topic}. "
+                "Return only the area names, one per line. "
+                "No additional formatting, comments, or descriptions."
             )
             
             response = self.model.generate_content(
                 prompt,
-                generation_config=GenerationConfig(**PROMPT_DESIGN_CONFIG)
+                generation_config=GenerationConfig(**{
+                    **PROMPT_DESIGN_CONFIG,
+                    'temperature': 0.1  # Lower temperature for more focused output
+                })
             )
             
             if not response or not response.text:
                 logger.error("Empty response from model")
                 return None
             
+            # Clean up the response - remove Python formatting and comments
+            text = response.text.strip()
+            if text.startswith('```') and text.endswith('```'):
+                text = text[text.find('\n')+1:text.rfind('\n')]
+            
             # Split by newlines and clean up each line
-            areas = [
-                line.strip()
-                for line in response.text.split('\n')
-                if line.strip() and not line.strip().startswith(('#', '-', '*', '•', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0'))
-            ]
+            areas = []
+            for line in text.split('\n'):
+                # Remove Python list formatting
+                line = line.strip().strip('[],"\'')
+                # Remove everything after # (comments)
+                if '#' in line:
+                    line = line[:line.find('#')].strip()
+                # Clean up any remaining quotes or formatting
+                line = line.strip('"\'[] ,')
+                if line and not line.startswith(('#', '-', '*', '•', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0')):
+                    areas.append(line)
             
             # Take first 8 valid areas
             valid_areas = areas[:8]
@@ -151,19 +125,98 @@ class PromptDesigner:
             return None
     
     @rate_limit_decorator
-    def design_prompt(self, topic: str, focus_areas: Optional[list] = None) -> Optional[str]:
-        """Design research prompt."""
+    def generate_framework(self, topic: str, optimized_prompt: str, focus_areas: Optional[list] = None) -> Optional[str]:
+        """Generate research framework using optimized prompt and focus areas."""
         try:
-            if focus_areas:
-                prompt = f"Create a research outline for {topic} focusing on: {', '.join(focus_areas)}"
-            else:
-                prompt = f"Create a research outline for {topic}"
+            # Return cached framework if available
+            if self._cached_framework:
+                logger.info("Using cached framework")
+                return self._cached_framework
+            
+            # Log the configuration being used
+            logger.info(f"Using configuration: {FRAMEWORK_CONFIG}")
+            
+            # Extract key themes from focus areas
+            areas_text = ", ".join(focus_areas[:3]) if focus_areas else ""  # Limit to top 3 focus areas
+            
+            # Create a detailed prompt
+            prompt = (
+                f"Create a comprehensive research framework for {topic} focusing on: {areas_text}\n\n"
+                "Format the response in 4 sections:\n"
+                "1. Key Questions (2-3 bullet points)\n"
+                "2. Main Topics (3-4 bullet points)\n"
+                "3. Methods (2-3 bullet points)\n"
+                "4. Expected Insights (2-3 bullet points)\n\n"
+                "Keep each bullet point detailed but focused. Total response should be under 1000 words."
+            )
             
             response = self.model.generate_content(
                 prompt,
-                generation_config=GenerationConfig(**PROMPT_DESIGN_CONFIG)
+                generation_config=GenerationConfig(**FRAMEWORK_CONFIG)
             )
-            return response.text if response and response.text else None
+            
+            if not response or not response.text:
+                logger.error("Empty response from model")
+                return None
+                
+            # Clean up the response
+            framework = response.text.strip()
+            if len(framework) > 2000:  # Add a safety limit
+                framework = framework[:2000] + "..."
+            
+            # Cache the framework
+            self._cached_framework = framework
+            return framework
+            
+        except Exception as e:
+            logger.error(f"Framework generation failed: {str(e)}")
+            return None
+    
+    @rate_limit_decorator
+    def design_prompt(self, topic: str, focus_areas: Optional[list] = None) -> Optional[str]:
+        """Design research prompt."""
+        try:
+            # Create a more structured prompt
+            if focus_areas:
+                prompt = (
+                    f"Create a focused research framework for analyzing {topic}, "
+                    f"specifically examining: {', '.join(focus_areas[:3])}.\n\n"
+                    "Structure the response in these sections:\n"
+                    "1. Research Questions (2-3 clear, focused questions)\n"
+                    "2. Key Areas to Investigate (3-4 main topics)\n"
+                    "3. Methodology (2-3 specific research methods)\n"
+                    "4. Expected Outcomes (2-3 anticipated findings)\n\n"
+                    "Keep each section concise but informative."
+                )
+            else:
+                prompt = (
+                    f"Create a focused research framework for analyzing {topic}.\n\n"
+                    "Structure the response in these sections:\n"
+                    "1. Research Questions (2-3 clear, focused questions)\n"
+                    "2. Key Areas to Investigate (3-4 main topics)\n"
+                    "3. Methodology (2-3 specific research methods)\n"
+                    "4. Expected Outcomes (2-3 anticipated findings)\n\n"
+                    "Keep each section concise but informative."
+                )
+            
+            response = self.model.generate_content(
+                prompt,
+                generation_config=GenerationConfig(**{
+                    **PROMPT_DESIGN_CONFIG,
+                    'temperature': 0.1  # Lower temperature for more focused output
+                })
+            )
+            
+            if not response or not response.text:
+                logger.error("Empty response from model")
+                return None
+            
+            # Clean up and format the response
+            optimized_prompt = response.text.strip()
+            if len(optimized_prompt) > 1000:  # Add a safety limit
+                optimized_prompt = optimized_prompt[:1000] + "..."
+            
+            return optimized_prompt
             
         except Exception as e:
             logger.error(f"Prompt design failed: {str(e)}")
