@@ -73,6 +73,9 @@ class PromptDesigner:
     def generate_framework(self, topic: str, optimized_prompt: str, focus_areas: Optional[list] = None) -> Optional[str]:
         """Generate research framework using optimized prompt and focus areas."""
         try:
+            # Log the configuration being used
+            logger.info(f"Using configuration: {FRAMEWORK_CONFIG}")
+            
             # Combine focus areas and base framework
             areas_text = ", ".join(focus_areas) if focus_areas else ""
             
