@@ -44,39 +44,100 @@ st.set_page_config(
 # Set theme
 st.markdown("""
     <style>
-        /* Modern light theme colors with enhanced contrast */
+        /* Modern light theme colors with enhanced contrast and readability */
         :root {
             --primary-color: #0066cc;
             --background-color: #ffffff;
             --secondary-background: #f8f9fa;
             --container-background: #ffffff;
-            --text-color: #262730;
+            --text-color: #2c3338;
             --border-color: #e9ecef;
             --hover-color: #f1f3f5;
             --shadow-color: rgba(0, 0, 0, 0.05);
             --section-border: #edf2f7;
+            --section-header-bg: #f8f9fa;
+            --subsection-header-bg: #fcfcfd;
         }
-        
-        /* Main container */
-        .block-container { 
-            max-width: 800px; 
-            padding: 2rem 1rem;
-            background-color: var(--background-color);
+
+        /* Enhanced typography */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif !important;
+            line-height: 1.6 !important;
+            color: var(--text-color) !important;
+        }
+
+        /* Section headers with enhanced contrast */
+        h1 {
+            font-size: 2.2rem !important;
+            font-weight: 700 !important;
+            margin: 1.5rem 0 1rem !important;
+            color: var(--text-color) !important;
+            letter-spacing: -0.02em !important;
+        }
+
+        h2 {
+            font-size: 1.7rem !important;
+            font-weight: 600 !important;
+            margin: 1.2rem 0 0.8rem !important;
+            color: #3a3f44 !important;
+            letter-spacing: -0.01em !important;
+            padding: 0.5rem 0 !important;
+            border-bottom: 2px solid var(--section-border) !important;
+        }
+
+        h3 {
+            font-size: 1.4rem !important;
+            font-weight: 600 !important;
+            margin: 1rem 0 0.6rem !important;
+            color: #4a4f54 !important;
+        }
+
+        /* Enhanced section styling */
+        .section-container {
+            background-color: var(--container-background) !important;
+            border: 1px solid var(--section-border) !important;
+            border-radius: 8px !important;
+            padding: 1.5rem !important;
+            margin: 1rem 0 !important;
+            box-shadow: 0 2px 4px var(--shadow-color) !important;
+        }
+
+        .section-header {
+            background-color: var(--section-header-bg) !important;
+            padding: 1rem !important;
+            margin: -1.5rem -1.5rem 1rem -1.5rem !important;
+            border-bottom: 1px solid var(--section-border) !important;
+            border-radius: 8px 8px 0 0 !important;
+        }
+
+        /* Enhanced text content */
+        p {
+            font-size: 1.1rem !important;
+            line-height: 1.7 !important;
+            margin-bottom: 1rem !important;
+            color: var(--text-color) !important;
+        }
+
+        /* List styling */
+        ul, ol {
+            padding-left: 1.5rem !important;
+            margin-bottom: 1rem !important;
+        }
+
+        li {
+            margin-bottom: 0.5rem !important;
+            line-height: 1.6 !important;
         }
 
         /* Expander styling with enhanced contrast */
         .streamlit-expanderHeader {
-            background-color: var(--secondary-background) !important;
+            background-color: var(--section-header-bg) !important;
             border: 1px solid var(--section-border) !important;
             border-radius: 8px !important;
             box-shadow: 0 2px 4px var(--shadow-color) !important;
             margin-bottom: 1rem !important;
             transition: all 0.2s ease !important;
-        }
-        
-        .streamlit-expanderHeader:hover {
-            background-color: var(--hover-color) !important;
-            box-shadow: 0 4px 6px var(--shadow-color) !important;
+            padding: 1rem !important;
         }
         
         .streamlit-expanderContent {
@@ -84,143 +145,25 @@ st.markdown("""
             border: 1px solid var(--section-border) !important;
             border-top: none !important;
             border-radius: 0 0 8px 8px !important;
-            padding: 1.5rem !important;
+            padding: 2rem !important;
             margin-top: -1px !important;
         }
 
-        /* Button styling with enhanced contrast */
-        .stButton > button { 
-            width: 100%;
-            border-radius: 8px !important;
-            border: 1px solid var(--border-color) !important;
-            transition: all 0.2s ease !important;
-            box-shadow: 0 1px 2px var(--shadow-color) !important;
+        /* Section dividers */
+        hr {
+            margin: 2rem 0 !important;
+            border: 0 !important;
+            height: 1px !important;
+            background-color: var(--section-border) !important;
         }
 
-        .stButton > button:hover {
-            box-shadow: 0 2px 4px var(--shadow-color) !important;
-        }
-
-        /* Focus area buttons with enhanced contrast */
-        [data-testid="baseButton-secondary"] {
+        /* Block quote styling */
+        blockquote {
+            border-left: 4px solid var(--primary-color) !important;
+            margin: 1rem 0 !important;
+            padding: 0.5rem 0 0.5rem 1rem !important;
             background-color: var(--secondary-background) !important;
-            border: 1px solid var(--section-border) !important;
-            padding: 0.75rem !important;
-            min-height: 3rem !important;
-            border-radius: 8px !important;
-            transition: all 0.2s ease !important;
-            box-shadow: 0 1px 2px var(--shadow-color) !important;
-        }
-
-        [data-testid="baseButton-secondary"]:hover {
-            background-color: var(--hover-color) !important;
-            box-shadow: 0 2px 4px var(--shadow-color) !important;
-        }
-
-        [data-testid="baseButton-primary"] {
-            background-color: var(--primary-color) !important;
-            border: none !important;
-            color: white !important;
-            font-weight: 500 !important;
-            padding: 0.75rem !important;
-            min-height: 3rem !important;
-            border-radius: 8px !important;
-            transition: all 0.2s ease !important;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
-        }
-
-        [data-testid="baseButton-primary"]:hover {
-            background-color: #0052a3 !important;
-            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15) !important;
-        }
-
-        [data-testid="baseButton-primary"]:disabled {
-            background-color: var(--secondary-background) !important;
-            color: #6c757d !important;
-            cursor: not-allowed !important;
-            box-shadow: none !important;
-        }
-
-        /* Text area styling with enhanced contrast */
-        textarea {
-            font-size: 1.1em !important;
-            line-height: 1.5 !important;
-            padding: 0.75rem !important;
-            height: 150px !important;
-            border: 1px solid var(--section-border) !important;
-            border-radius: 8px !important;
-            resize: vertical !important;
-            background-color: var(--container-background) !important;
-            box-shadow: 0 1px 2px var(--shadow-color) !important;
-        }
-
-        textarea:focus {
-            border-color: var(--primary-color) !important;
-            box-shadow: 0 0 0 1px var(--primary-color) !important;
-        }
-
-        /* Number input styling with enhanced contrast */
-        div[data-testid="stNumberInput"] input {
-            border: 1px solid var(--section-border) !important;
-            border-radius: 8px !important;
-            padding: 0.5rem !important;
-            background-color: var(--container-background) !important;
-            box-shadow: 0 1px 2px var(--shadow-color) !important;
-        }
-
-        div[data-testid="stNumberInput"] input:focus {
-            border-color: var(--primary-color) !important;
-            box-shadow: 0 0 0 1px var(--primary-color) !important;
-        }
-
-        /* Multiselect styling with enhanced contrast */
-        div[data-testid="stMultiSelect"] [data-baseweb="select"] {
-            background-color: var(--container-background) !important;
-            border: 1px solid var(--section-border) !important;
-            border-radius: 8px !important;
-            box-shadow: 0 1px 2px var(--shadow-color) !important;
-        }
-
-        div[data-testid="stMultiSelect"] [data-baseweb="tag"] {
-            background-color: var(--primary-color) !important;
-            color: white !important;
-            border-radius: 4px !important;
-            box-shadow: 0 1px 2px var(--shadow-color) !important;
-        }
-
-        /* Headers and text with enhanced contrast */
-        h1 {
-            font-size: 2rem !important;
-            font-weight: 600 !important;
-            margin-bottom: 1rem !important;
-            color: var(--text-color) !important;
-        }
-
-        h2 {
-            font-size: 1.5rem !important;
-            font-weight: 500 !important;
-            margin-bottom: 0.75rem !important;
-            color: #4a4a4a !important;
-        }
-
-        /* Markdown content with enhanced contrast */
-        .markdown-text-container {
-            line-height: 1.6 !important;
-            background-color: var(--container-background) !important;
-            padding: 1rem !important;
-            border-radius: 8px !important;
-            box-shadow: 0 1px 2px var(--shadow-color) !important;
-        }
-        
-        /* Spinner with enhanced contrast */
-        .stSpinner > div {
-            border-color: var(--primary-color) !important;
-        }
-
-        /* Success message with enhanced contrast */
-        .element-container .stAlert {
-            border-radius: 8px !important;
-            box-shadow: 0 1px 2px var(--shadow-color) !important;
+            border-radius: 0 4px 4px 0 !important;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -475,7 +418,7 @@ def display_analysis(analysis_results: List[ResearchResult]):
             st.markdown(result.content)
 
 def display_final_report(summary: str):
-    """Display final report with proper formatting and section hierarchy."""
+    """Display final report with enhanced formatting and section handling."""
     with st.expander("📊 Final Report", expanded=False):
         # Split content into sections
         sections = summary.split('\n\n')
@@ -485,8 +428,9 @@ def display_final_report(summary: str):
         subtitle = ""
         content_start = 1
         
-        # Look for subtitle in second line
-        if len(sections) > 1 and not sections[1].lower().startswith(('executive summary', '#', '##')):
+        # Look for subtitle in second line if it doesn't start with a section header
+        if len(sections) > 1 and not any(sections[1].lower().startswith(header) for header in 
+            ['executive summary', '#', '##', 'key findings', 'detailed analysis', 'practical implications']):
             subtitle = clean_markdown_text(sections[1])
             content_start = 2
         
@@ -494,36 +438,46 @@ def display_final_report(summary: str):
         st.markdown(f"# {title}")
         if subtitle:
             st.markdown(f"## {subtitle}")
-            
-        # Process remaining sections
+        
+        # Initialize section tracking
         current_section = None
+        section_content = []
+        
+        # Process remaining sections
         for section in sections[content_start:]:
             section = section.strip()
             if not section:
                 continue
+            
+            # Check for main section headers
+            is_main_section = any(section.lower().startswith(header) for header in 
+                ['executive summary', 'key findings', 'detailed analysis', 'practical implications'])
+            
+            if is_main_section:
+                # Output previous section if it exists
+                if current_section and section_content:
+                    st.markdown("---")
+                    st.markdown(f"## {current_section}")
+                    for content in section_content:
+                        st.markdown(content)
                 
-            # Check if this is a main section header
-            if section.lower().startswith(('executive summary', 'key findings', 'detailed analysis', 'practical implications')):
+                # Start new section
                 current_section = section.split('\n')[0]
-                # Add spacing before new main sections
-                st.markdown("---")
-                st.markdown(f"## {current_section}")
-                # Get the content after the header
-                content = '\n'.join(section.split('\n')[1:]).strip()
-                if content:
-                    st.markdown(content)
+                section_content = ['\n'.join(section.split('\n')[1:]).strip()]
             
-            # Handle subsections (identified by starting with a bullet point or number)
-            elif section.strip().startswith(('•', '-', '*', '1.', '2.', '3.', '4.', '5.')):
-                if current_section:
-                    st.markdown(section)
-            
-            # Regular content
+            # Handle subsections and content
             else:
-                st.markdown(section)
-                
-        # Add final spacing
-        st.markdown("---")
+                if current_section:
+                    section_content.append(section)
+                else:
+                    st.markdown(section)
+        
+        # Output final section if it exists
+        if current_section and section_content:
+            st.markdown("---")
+            st.markdown(f"## {current_section}")
+            for content in section_content:
+                st.markdown(content)
 
 def main():
     """Main application flow."""
