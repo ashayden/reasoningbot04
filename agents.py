@@ -89,7 +89,13 @@ class BaseAgent:
                 ]) and not any(marker in line for marker in ["🌟", "💡", "🔍", "📝", "🎯", "⚡"])
                 
                 # Check if this line has a content marker
-                has_content_marker = any(marker in line for marker in ["🌟", "💡", "🔍", "📝", "🎯", "⚡"])
+                has_content_marker = any(marker in line for marker in ["🌟", "💡", "🔍", "📝", "🎯", "⚡", "🎷", "🍲", "🎺", "🎪", "⚜️", "🎭", "🎨", "🎼", "🍜", "🌶️", "🦐", "🎸"])
+                
+                # Check if this line looks like actual content (has emojis or is a simple statement)
+                looks_like_content = (
+                    has_content_marker or 
+                    (not is_thought_starter and not is_thought_content and any(char in line for char in ".,!?"))
+                )
                 
                 if is_thought_starter:
                     in_thought_block = True
@@ -97,14 +103,14 @@ class BaseAgent:
                     logger.debug(f"Found thought starter: {line}")
                     continue
                 
-                if is_thought_content and not has_content_marker:
+                if is_thought_content and not looks_like_content:
                     in_thought_block = True
                     self._last_thoughts = line
                     logger.debug(f"Found thought content: {line}")
                     continue
                 
-                # If we're not in a thought block or we hit a content marker, add the line
-                if not in_thought_block or has_content_marker:
+                # If we're not in a thought block or the line looks like content, add it
+                if not in_thought_block or looks_like_content:
                     content_lines.append(line)
                     logger.debug(f"Adding content line: {line}")
                     in_thought_block = False
@@ -116,6 +122,14 @@ class BaseAgent:
                     content_lines.append(line)
                     logger.debug(f"Adding non-thought line from thought block: {line}")
                     in_thought_block = False
+            
+            # If we have no content lines but there's a sentence at the end that looks like content,
+            # use that as the content
+            if not content_lines:
+                last_line = lines[-1].strip()
+                if any(char in last_line for char in ".,!?") and not any(marker in last_line.lower() for marker in ["i will", "i'll", "i should", "i need", "i must"]):
+                    content_lines = [last_line]
+                    logger.debug(f"Using last line as content: {last_line}")
             
             # Join the content lines, preserving paragraph structure
             content = ""
