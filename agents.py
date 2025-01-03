@@ -212,6 +212,40 @@ class PromptDesigner(BaseAgent):
             raise ProcessingError("Failed to generate valid focus areas") from e
     
     @handle_error
+    def design_prompt(self, topic: str, focus_areas: Optional[List[str]] = None) -> Optional[str]:
+        """Design research prompt."""
+        cache_key = {"topic": topic, "areas": focus_areas}
+        cached = cache.get("prompt", cache_key, max_age=timedelta(days=1))
+        if cached:
+            return cached
+            
+        if focus_areas:
+            prompt = (
+                f"Create a focused research framework for analyzing {topic}, "
+                f"specifically examining: {', '.join(focus_areas[:3])}.\n\n"
+                "Structure the response in these sections:\n"
+                "1. Research Questions (2-3 clear, focused questions)\n"
+                "2. Key Areas to Investigate (3-4 main topics)\n"
+                "3. Methodology (2-3 specific research methods)\n"
+                "4. Expected Outcomes (2-3 anticipated findings)\n\n"
+                "Keep each section concise but informative."
+            )
+        else:
+            prompt = (
+                f"Create a focused research framework for analyzing {topic}.\n\n"
+                "Structure the response in these sections:\n"
+                "1. Research Questions (2-3 clear, focused questions)\n"
+                "2. Key Areas to Investigate (3-4 main topics)\n"
+                "3. Methodology (2-3 specific research methods)\n"
+                "4. Expected Outcomes (2-3 anticipated findings)\n\n"
+                "Keep each section concise but informative."
+            )
+        
+        result = self._generate_content(prompt, config.PROMPT_DESIGN_CONFIG)
+        cache.set("prompt", cache_key, result)
+        return result
+    
+    @handle_error
     def create_optimized_prompt(
         self,
         topic: str,

@@ -3,8 +3,7 @@
 from pydantic import BaseModel, Field
 from google.generativeai.types import GenerationConfig as GeminiConfig
 from google.generativeai.types import SafetySettingDict
-import google.generativeai.types as gen_types
-from typing import List
+from typing import List, Dict, Any
 
 class GenerationConfig(BaseModel):
     """Configuration for text generation."""
@@ -19,7 +18,7 @@ class AppConfig(BaseModel):
     GEMINI_MODEL: str = "gemini-pro"
     
     # Safety settings - all restrictions disabled
-    SAFETY_SETTINGS: List[SafetySettingDict] = [
+    SAFETY_SETTINGS: List[Dict[str, str]] = [
         {
             "category": "HARM_CATEGORY_HARASSMENT",
             "threshold": "BLOCK_NONE"
