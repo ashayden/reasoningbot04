@@ -576,10 +576,16 @@ def main():
             with analysis_container:
                 if len(st.session_state.app_state['analysis_results']) < st.session_state.app_state['iterations']:
                     with st.spinner("🔄 Performing analysis..."):
+                        # Get previous analysis content if it exists
+                        previous_analysis = None
+                        if st.session_state.app_state['analysis_results']:
+                            last_result = st.session_state.app_state['analysis_results'][-1]
+                            previous_analysis = f"{last_result.title}\n{last_result.subtitle or ''}\n{last_result.content}"
+                        
                         result = ResearchAnalyst(model).analyze(
                             topic,
                             st.session_state.app_state['framework'],
-                            st.session_state.app_state['analysis_results'][-1].content if st.session_state.app_state['analysis_results'] else None
+                            previous_analysis
                         )
                         if result:
                             st.session_state.app_state['analysis_results'].append(result)
