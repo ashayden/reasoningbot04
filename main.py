@@ -7,7 +7,7 @@ import os
 import time
 import random
 from typing import Any, Optional, Tuple
-from google.generativeai.types import GenerativeModel, GenerationConfig
+from google.generativeai.types import GenerationConfig
 
 from config import (
     config,

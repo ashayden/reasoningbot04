@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 import google.generativeai as genai
-from google.generativeai.types import GenerativeModel, GenerationConfig
+from google.generativeai.types import GenerationConfig
 
 from config import config
 from utils import handle_error, ProcessingError
@@ -79,8 +79,8 @@ class ResearchResult:
 class BaseAgent:
     """Base class for all agents."""
     
-    def __init__(self, model: GenerativeModel):
-        if not isinstance(model, GenerativeModel):
+    def __init__(self, model: Any):
+        if not isinstance(model, genai.GenerativeModel):
             raise ValueError("model must be an instance of GenerativeModel")
         self.model = model
     

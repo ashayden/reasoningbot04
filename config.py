@@ -17,7 +17,7 @@ class GenerationConfig(BaseModel):
 class AppConfig(BaseModel):
     """Main application configuration."""
     # Model configurations
-    GEMINI_MODEL: str = "gemini-exp-1206"
+    GEMINI_MODEL: str = "gemini-pro"
     
     # Generation configurations with specific tuning for each stage
     PROMPT_DESIGN_CONFIG: GenerationConfig = GenerationConfig(
