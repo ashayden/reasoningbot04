@@ -7,16 +7,9 @@ import os
 import time
 import random
 from typing import Any, Optional
+from google.generativeai.types import GenerationConfig
 
-from config import (
-    GEMINI_MODEL,
-    PROMPT_DESIGN_CONFIG,
-    FRAMEWORK_CONFIG,
-    ANALYSIS_CONFIG,
-    SYNTHESIS_CONFIG,
-    MIN_TOPIC_LENGTH,
-    MAX_TOPIC_LENGTH
-)
+from config import config
 from utils import validate_topic, sanitize_topic
 from agents import PreAnalysisAgent, PromptDesigner, ResearchAnalyst, SynthesisExpert
 
@@ -227,12 +220,12 @@ def initialize_gemini() -> Optional[Any]:
         
         # Configure the model
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(GEMINI_MODEL)
+        model = genai.GenerativeModel(config.GEMINI_MODEL)
         
         # Simple test prompt
         test_response = model.generate_content(
             "Respond with a single word: Hello",
-            generation_config=GenerationConfig(**PROMPT_DESIGN_CONFIG)
+            generation_config=GenerationConfig(**config.PROMPT_DESIGN_CONFIG.model_dump())
         )
         
         if test_response and test_response.text:
