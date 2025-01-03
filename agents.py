@@ -2,6 +2,7 @@
 
 import logging
 from typing import Any, Dict, Optional
+import time
 
 import google.generativeai as genai
 from google.generativeai.types import GenerationConfig
@@ -21,11 +22,41 @@ class PreAnalysisAgent:
     
     def __init__(self, model: Any):
         self.model = model
+        self._cached_insights = {}  # Cache for insights to prevent regeneration
+    
+    def _generate_with_backoff(self, prompt: str, max_retries: int = 3, initial_delay: float = 2.0) -> Optional[str]:
+        """Generate content with exponential backoff retry logic."""
+        delay = initial_delay
+        for attempt in range(max_retries):
+            try:
+                response = self.model.generate_content(
+                    prompt,
+                    generation_config=GenerationConfig(**PROMPT_DESIGN_CONFIG)
+                )
+                if response and response.text:
+                    return response.text
+                return None
+            except Exception as e:
+                if "429" in str(e) or "Resource has been exhausted" in str(e):
+                    if attempt == max_retries - 1:
+                        logger.error(f"Max retries ({max_retries}) reached for rate limit")
+                        raise
+                    wait_time = delay * (2 ** attempt)  # Exponential backoff
+                    logger.warning(f"Rate limit hit, waiting {wait_time:.1f}s before retry {attempt + 1}/{max_retries}")
+                    time.sleep(wait_time)
+                    continue
+                raise
+        return None
     
     @rate_limit_decorator
     def generate_insights(self, topic: str) -> Optional[Dict[str, str]]:
         """Generate quick insights about the topic."""
         try:
+            # Check cache first
+            if topic in self._cached_insights:
+                logger.info("Using cached insights")
+                return self._cached_insights[topic]
+            
             # Generate fun fact
             fact_prompt = (
                 f"Generate a single, fascinating, and unexpected fact about {topic}, presented in one sentence with emojis. "
@@ -33,31 +64,32 @@ class PreAnalysisAgent:
                 "vivid language and potentially statistics. It should challenge common assumptions."
             )
             
-            fact_response = self.model.generate_content(
-                fact_prompt,
-                generation_config=GenerationConfig(**PROMPT_DESIGN_CONFIG)
-            )
-            if not fact_response or not fact_response.text:
+            fact_response = self._generate_with_backoff(fact_prompt)
+            if not fact_response:
                 return None
+            
+            # Add delay between requests
+            time.sleep(1.0)
             
             # Generate ELI5
             eli5_prompt = (
                 f"Write a very short, engaging explanation of {topic} for a general audience. Use simple language, "
-                "a fun analogy, and emojis to make it memorable. Focus on a key, aspect "
+                "a fun analogy, and emojis to make it memorable. Focus on a key aspect "
                 "of the topic. Make it 2-3 sentences maximum."
             )
             
-            eli5_response = self.model.generate_content(
-                eli5_prompt,
-                generation_config=GenerationConfig(**PROMPT_DESIGN_CONFIG)
-            )
-            if not eli5_response or not eli5_response.text:
+            eli5_response = self._generate_with_backoff(eli5_prompt)
+            if not eli5_response:
                 return None
             
-            return {
-                'did_you_know': fact_response.text,
-                'eli5': eli5_response.text
+            insights = {
+                'did_you_know': fact_response,
+                'eli5': eli5_response
             }
+            
+            # Cache the results
+            self._cached_insights[topic] = insights
+            return insights
             
         except Exception as e:
             logger.error(f"PreAnalysis generation failed: {str(e)}")
