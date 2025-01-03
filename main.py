@@ -475,23 +475,55 @@ def display_analysis(analysis_results: List[ResearchResult]):
             st.markdown(result.content)
 
 def display_final_report(summary: str):
-    """Display final report with proper title formatting."""
+    """Display final report with proper formatting and section hierarchy."""
     with st.expander("📊 Final Report", expanded=False):
-        # Split the summary into lines and find title/subtitle
-        lines = [line.strip() for line in summary.split('\n') if line.strip()]
+        # Split content into sections
+        sections = summary.split('\n\n')
         
-        # Extract title and subtitle from first two non-empty lines
-        title = clean_markdown_text(lines[0]) if lines else ""
-        subtitle = clean_markdown_text(lines[1]) if len(lines) > 1 else ""
+        # Process title and subtitle
+        title = clean_markdown_text(sections[0]) if sections else ""
+        subtitle = ""
+        content_start = 1
         
-        # Join remaining lines as content
-        content = '\n'.join(lines[2:]) if len(lines) > 2 else ""
+        # Look for subtitle in second line
+        if len(sections) > 1 and not sections[1].lower().startswith(('executive summary', '#', '##')):
+            subtitle = clean_markdown_text(sections[1])
+            content_start = 2
         
-        # Display with proper hierarchy
+        # Display title and subtitle
         st.markdown(f"# {title}")
         if subtitle:
             st.markdown(f"## {subtitle}")
-        st.markdown(content)
+            
+        # Process remaining sections
+        current_section = None
+        for section in sections[content_start:]:
+            section = section.strip()
+            if not section:
+                continue
+                
+            # Check if this is a main section header
+            if section.lower().startswith(('executive summary', 'key findings', 'detailed analysis', 'practical implications')):
+                current_section = section.split('\n')[0]
+                # Add spacing before new main sections
+                st.markdown("---")
+                st.markdown(f"## {current_section}")
+                # Get the content after the header
+                content = '\n'.join(section.split('\n')[1:]).strip()
+                if content:
+                    st.markdown(content)
+            
+            # Handle subsections (identified by starting with a bullet point or number)
+            elif section.strip().startswith(('•', '-', '*', '1.', '2.', '3.', '4.', '5.')):
+                if current_section:
+                    st.markdown(section)
+            
+            # Regular content
+            else:
+                st.markdown(section)
+                
+        # Add final spacing
+        st.markdown("---")
 
 def main():
     """Main application flow."""
