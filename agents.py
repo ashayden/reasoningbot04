@@ -58,30 +58,8 @@ class BaseAgent:
                 
             logger.info(f"Raw response text: {full_text}")
             
-            # Split text into lines and extract actual content
-            lines = [line.strip() for line in full_text.split('\n') if line.strip()]
-            content_lines = []
-            
-            for line in lines:
-                # Skip lines that are clearly thought process
-                if any(marker in line.lower() for marker in [
-                    "first i will", "i will", "i need to", "the user wants",
-                    "i should", "i am", "i'm going to", "let me", "let's"
-                ]):
-                    continue
-                    
-                # Skip self-critique lines
-                if "draft answer" in line.lower() or "self-critique" in line.lower():
-                    continue
-                    
-                # Keep lines that look like actual content
-                if any(char in line for char in ".,!?") or any(char in line for char in "🌟💡🔍📝🎯⚡🎷🍲🎺🎪⚜️🎭🎨🎼🍜🌶️🦐🎸"):
-                    content_lines.append(line)
-            
-            # Join the content lines
-            content = ' '.join(content_lines)
-            
-            final_content = content.strip()
+            # Just clean up whitespace and return the content
+            final_content = full_text.strip()
             if not final_content:
                 logger.error("No content extracted")
                 return None
