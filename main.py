@@ -229,7 +229,7 @@ def initialize_gemini() -> Optional[Any]:
         # Simple test prompt
         test_response = model.generate_content(
             "Respond with a single word: Hello",
-            generation_config=GenerationConfig(**config.PROMPT_DESIGN_CONFIG.model_dump())
+            generation_config=config.PROMPT_DESIGN_CONFIG.model_dump()
         )
         
         if test_response and test_response.text:

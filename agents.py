@@ -87,7 +87,9 @@ class BaseAgent:
     def _generate_content(self, prompt: str, config: GenerationConfig) -> Optional[str]:
         """Generate content with error handling."""
         try:
-            response = self.model.generate_content(prompt, generation_config=config)
+            # Convert Pydantic config to dict for Gemini
+            generation_config = config.model_dump() if hasattr(config, 'model_dump') else config
+            response = self.model.generate_content(prompt, generation_config=generation_config)
             if not response or not response.text:
                 raise ProcessingError("Empty response from model")
             return response.text.strip()

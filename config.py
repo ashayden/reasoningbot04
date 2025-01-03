@@ -9,10 +9,6 @@ class GenerationConfig(BaseModel):
     top_p: float = Field(default=0.8, ge=0.0, le=1.0)
     top_k: int = Field(default=40, ge=1)
     max_output_tokens: int = Field(default=2048, ge=1)
-    
-    def to_gemini_config(self) -> GeminiConfig:
-        """Convert to Gemini's GenerationConfig."""
-        return GeminiConfig(**self.model_dump())
 
 class AppConfig(BaseModel):
     """Main application configuration."""
