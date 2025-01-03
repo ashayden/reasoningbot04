@@ -495,11 +495,16 @@ def main():
             with prompt_container:
                 if not st.session_state.app_state['prompt']:
                     with st.spinner("✍️ Optimizing prompt..."):
-                        prompt = PromptDesigner(model).design_prompt(topic)
-                        if prompt:
-                            st.session_state.app_state['prompt'] = prompt
-                            st.session_state.app_state['show_focus'] = True
-                            st.rerun()
+                        try:
+                            prompt = PromptDesigner(model).design_prompt(topic)
+                            if prompt:
+                                st.session_state.app_state['prompt'] = prompt
+                                st.session_state.app_state['show_focus'] = True
+                                st.rerun()
+                        except Exception as e:
+                            logger.error(f"Error generating prompt: {str(e)}")
+                            st.error("Failed to generate research prompt. Please try again.")
+                            return
                 
                 if st.session_state.app_state['prompt']:
                     with st.expander("✍️ Optimized Research Framework", expanded=True):
@@ -517,10 +522,26 @@ def main():
             with focus_container:
                 if not st.session_state.app_state['focus_areas']:
                     with st.spinner("🎯 Generating focus areas..."):
-                        focus_areas = PromptDesigner(model).generate_focus_areas(topic)
-                        if focus_areas:
-                            st.session_state.app_state['focus_areas'] = focus_areas
-                            st.rerun()
+                        try:
+                            focus_areas = PromptDesigner(model).generate_focus_areas(topic)
+                            if focus_areas:
+                                st.session_state.app_state['focus_areas'] = focus_areas
+                                st.rerun()
+                        except Exception as e:
+                            logger.error(f"Error generating focus areas: {str(e)}")
+                            st.error(
+                                "Failed to generate focus areas. This can happen if the topic is too broad or specific. "
+                                "You can either try again or skip focus area selection."
+                            )
+                            # Add a retry button
+                            if st.button("🔄 Retry Focus Areas", use_container_width=True):
+                                st.session_state.app_state['focus_areas'] = None
+                                st.rerun()
+                            # Add a skip button
+                            if st.button("⏭️ Skip Focus Areas", use_container_width=True):
+                                st.session_state.app_state['show_framework'] = True
+                                st.rerun()
+                            return
                 
                 if st.session_state.app_state['focus_areas']:
                     proceed, selected = display_focus_selection(
@@ -531,9 +552,15 @@ def main():
                     
                     if proceed:
                         with st.spinner("Enhancing prompt with focus areas..."):
-                            enhanced_prompt = PromptDesigner(model).design_prompt(topic, selected)
-                            if enhanced_prompt:
-                                st.session_state.app_state['enhanced_prompt'] = enhanced_prompt
+                            try:
+                                enhanced_prompt = PromptDesigner(model).design_prompt(topic, selected)
+                                if enhanced_prompt:
+                                    st.session_state.app_state['enhanced_prompt'] = enhanced_prompt
+                                    st.session_state.app_state['show_framework'] = True
+                                    st.rerun()
+                            except Exception as e:
+                                logger.error(f"Error enhancing prompt: {str(e)}")
+                                st.error("Failed to enhance prompt with focus areas. Proceeding with original prompt.")
                                 st.session_state.app_state['show_framework'] = True
                                 st.rerun()
         

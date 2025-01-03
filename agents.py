@@ -146,28 +146,61 @@ class PromptDesigner(BaseAgent):
         """Generate focus areas for the topic."""
         cached = cache.get("focus_areas", topic, max_age=timedelta(days=1))
         if cached:
+            logger.info(f"Using cached focus areas for topic: {topic}")
             return cached
             
+        logger.info(f"Generating focus areas for topic: {topic}")
+        
         prompt = (
-            f"List 8 key research areas for {topic}. "
-            "Return only the area names, one per line. "
-            "No additional formatting, comments, or descriptions."
+            f"Generate 8 key research areas for analyzing {topic}.\n\n"
+            "Requirements:\n"
+            "1. Each area should be a clear, specific aspect of the topic\n"
+            "2. Write each area on a new line\n"
+            "3. Use simple, clear phrases (3-7 words each)\n"
+            "4. No numbering, bullets, or special characters\n"
+            "5. No explanations or additional text\n\n"
+            "Example format:\n"
+            "Historical Development and Origins\n"
+            "Economic Impact and Market Trends\n"
+            "Social and Cultural Implications\n"
+            "..."
         )
         
-        response = self._generate_content(prompt, config.PROMPT_DESIGN_CONFIG)
-        
-        # Clean up the response
-        areas = [
-            line.strip().strip('[],"\'')
-            for line in response.split('\n')
-            if line.strip() and not line.strip()[0].isdigit()
-        ][:8]  # Take first 8 valid areas
-        
-        if not areas:
-            raise ProcessingError("No valid focus areas generated")
-        
-        cache.set("focus_areas", topic, areas)
-        return areas
+        try:
+            response = self._generate_content(prompt, config.PROMPT_DESIGN_CONFIG)
+            
+            # Clean up and validate each line
+            areas = []
+            for line in response.split('\n'):
+                # Clean the line
+                cleaned = line.strip()
+                cleaned = cleaned.strip('•-*[]()#').strip()
+                cleaned = cleaned.strip('1234567890.').strip()
+                cleaned = cleaned.strip('"\'').strip()
+                
+                # Validate the line
+                if (cleaned and 
+                    len(cleaned.split()) >= 2 and  # At least 2 words
+                    len(cleaned.split()) <= 7 and  # At most 7 words
+                    not any(cleaned.startswith(x) for x in ['•', '-', '*', '#', '>', '•']) and
+                    not cleaned.lower().startswith(('example', 'note:', 'format'))):
+                    areas.append(cleaned)
+            
+            # Take first 8 valid areas
+            valid_areas = areas[:8]
+            
+            if len(valid_areas) < 3:
+                logger.error(f"Not enough valid focus areas generated. Got {len(valid_areas)}: {valid_areas}")
+                raise ProcessingError("Failed to generate enough valid focus areas")
+            
+            logger.info(f"Successfully generated {len(valid_areas)} focus areas")
+            cache.set("focus_areas", topic, valid_areas)
+            return valid_areas
+            
+        except Exception as e:
+            logger.error(f"Error generating focus areas: {str(e)}")
+            logger.error(f"Raw response: {response}")
+            raise ProcessingError("Failed to generate valid focus areas") from e
     
     @handle_error
     def generate_framework(
