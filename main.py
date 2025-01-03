@@ -215,19 +215,7 @@ def initialize_gemini():
     try:
         api_key = st.secrets["GOOGLE_API_KEY"]
         genai.configure(api_key=api_key)
-        
-        generation_config = genai.types.GenerationConfig(
-            temperature=0.7,
-            candidate_count=1,
-            top_p=0.8,
-            top_k=40
-        )
-        
-        model = genai.GenerativeModel(
-            model_name=GEMINI_MODEL,
-            generation_config=generation_config
-        )
-        
+        model = genai.GenerativeModel(model_name=GEMINI_MODEL)
         return model
     except Exception as e:
         logger.error(f"Failed to initialize Gemini API: {str(e)}")
