@@ -123,15 +123,9 @@ class PreAnalysisAgent(BaseAgent):
             
             # Generate fun fact
             fact_prompt = (
-                "Generate a single sentence interesting fact related to this topic: "
-                f"'{topic}'\n\n"
-                "The fact should:\n"
-                "- Be surprising or fascinating\n"
-                "- Be true and accurate\n"
-                "- Not directly answer or summarize the topic\n"
-                "- Include 1-2 relevant emojis when appropriate\n"
-                "- Be exactly one sentence\n\n"
-                "Respond with just the fact, no additional text."
+                f"Generate a single interesting fact about {topic}. "
+                "Make it surprising and include 1-2 relevant emojis. "
+                "Keep it to one sentence."
             )
             
             logger.info("Generating fun fact...")
@@ -143,19 +137,9 @@ class PreAnalysisAgent(BaseAgent):
             
             # Generate ELI5
             eli5_prompt = (
-                "Explain this topic in extremely simple terms: "
-                f"'{topic}'\n\n"
-                "Requirements:\n"
-                "- Use very simple, straightforward language\n"
-                "- Be 1-3 sentences maximum\n"
-                "- Include 1-3 relevant emojis when appropriate\n"
-                "- If it's a question, answer it directly\n"
-                "- If it's a topic, give a high-level overview\n"
-                "- Start your response with the explanation directly - no prefacing thoughts\n"
-                "- Do not include any meta-commentary or thinking process\n\n"
-                "Example format:\n"
-                "New York is a big city with tall buildings and lots of people 🌆. It's famous for its pizza 🍕 and busy streets.\n\n"
-                "Respond with just the explanation, no additional text."
+                f"Explain {topic} in extremely simple terms. "
+                "Use basic words, 1-3 sentences, and 1-3 emojis. "
+                "Example: New York is a big city with tall buildings and lots of people 🌆. It's famous for its pizza 🍕 and busy streets."
             )
             
             logger.info("Generating ELI5 explanation...")
@@ -182,24 +166,11 @@ class PromptDesigner(BaseAgent):
     def generate_focus_areas(self, topic: str) -> Optional[list]:
         """Generate potential focus areas for the topic."""
         try:
-            prompt = f"""Analyze this topic/question and generate a list of 8-12 potential focus areas: '{topic}'
-
-            The focus areas should include:
-            - Core sub-topics within the main topic
-            - Related fields or disciplines
-            - Specific aspects or angles
-            - Relevant issues or challenges
-            - Important considerations
-            - Key applications or implications
-            
-            Each focus area should be:
-            - Concise (2-5 words)
-            - Specific and meaningful
-            - Relevant to the topic
-            - Distinct from other areas
-            
-            Format: Return only a Python list of strings, one focus area per item.
-            Example: ["Machine Learning Applications", "Ethical Implications", "Data Privacy", ...]"""
+            prompt = f"""Generate 8-12 focus areas for analyzing {topic}.
+            Include core sub-topics, related fields, specific aspects, key issues, and important considerations.
+            Each focus area should be 2-5 words, specific, and distinct.
+            Format as a Python list of strings.
+            Example: ["Machine Learning Applications", "Ethical Implications", "Data Privacy"]"""
             
             response_text = self.generate_content(prompt, PROMPT_DESIGN_CONFIG)
             if not response_text:
@@ -224,14 +195,13 @@ class PromptDesigner(BaseAgent):
     
     def design_prompt(self, topic: str, selected_focus_areas: Optional[list] = None) -> Optional[str]:
         """Design an optimal prompt for the given topic."""
-        base_prompt = f"""As an expert prompt engineer, create a detailed prompt that will guide the development 
-        of a research framework for analyzing '{topic}'."""
+        base_prompt = f"""Create a detailed research framework prompt for analyzing {topic}."""
         
         if selected_focus_areas:
             focus_areas_str = "\n".join(f"- {area}" for area in selected_focus_areas)
-            base_prompt += f"\n\nPay special attention to these selected focus areas:\n{focus_areas_str}"
+            base_prompt += f"\nFocus on these areas:\n{focus_areas_str}"
         
-        base_prompt += "\nFocus on the essential aspects that need to be investigated while maintaining analytical rigor and academic standards."
+        base_prompt += "\nEnsure the framework covers essential aspects while maintaining academic rigor."
         
         return self.generate_content(base_prompt, PROMPT_DESIGN_CONFIG)
 
