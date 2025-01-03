@@ -31,7 +31,7 @@ class BaseAgent:
         return self._last_thoughts
     
     def _extract_content(self, response: Any) -> Optional[str]:
-        """Extract content from response, separating thoughts from actual content."""
+        """Extract content from response."""
         try:
             if not response:
                 logger.error("Empty response from model")
@@ -58,97 +58,13 @@ class BaseAgent:
                 
             logger.info(f"Raw response text: {full_text}")
             
-            # Split text into lines and filter out thought process
-            lines = full_text.split('\n')
-            content_lines = []
-            in_thought_block = False
-            
-            thought_starters = [
-                "first i will", "i will", "thoughts:", "thinking process:", "let me",
-                "i need to", "i'll", "step 1:", "step 2:", "the user wants",
-                "draft answer:", "self-critique:", "i am thinking", "i should",
-                "my approach:", "i'm going to", "let's", "here's how", "my plan:",
-                "i understand", "to answer this", "to respond", "my response:",
-                "my analysis:", "i can see", "i notice", "i observe",
-                "first,", "second,", "third,", "finally,", "next,",
-                "to start,", "to begin,", "i must", "i have to"
-            ]
-            
-            for line in lines:
-                line = line.strip()
-                if not line:
-                    continue
-                
-                # Check if this line starts a thought block
-                is_thought_starter = any(line.lower().startswith(starter.lower()) for starter in thought_starters)
-                
-                # Check if this line is part of a thought block
-                is_thought_content = any(marker in line.lower() for marker in [
-                    "i will", "i'll", "i should", "i need", "i must",
-                    "i have to", "i am", "i'm", "let me", "let's"
-                ]) and not any(marker in line for marker in ["🌟", "💡", "🔍", "📝", "🎯", "⚡"])
-                
-                # Check if this line has a content marker
-                has_content_marker = any(marker in line for marker in ["🌟", "💡", "🔍", "📝", "🎯", "⚡", "🎷", "🍲", "🎺", "🎪", "⚜️", "🎭", "🎨", "🎼", "🍜", "🌶️", "🦐", "🎸"])
-                
-                # Check if this line looks like actual content (has emojis or is a simple statement)
-                looks_like_content = (
-                    has_content_marker or 
-                    (not is_thought_starter and not is_thought_content and any(char in line for char in ".,!?"))
-                )
-                
-                if is_thought_starter:
-                    in_thought_block = True
-                    self._last_thoughts = line
-                    logger.debug(f"Found thought starter: {line}")
-                    continue
-                
-                if is_thought_content and not looks_like_content:
-                    in_thought_block = True
-                    self._last_thoughts = line
-                    logger.debug(f"Found thought content: {line}")
-                    continue
-                
-                # If we're not in a thought block or the line looks like content, add it
-                if not in_thought_block or looks_like_content:
-                    content_lines.append(line)
-                    logger.debug(f"Adding content line: {line}")
-                    in_thought_block = False
-                    continue
-                
-                # If we're in a thought block but the line doesn't look like a thought,
-                # add it and end the thought block
-                if in_thought_block and not is_thought_content:
-                    content_lines.append(line)
-                    logger.debug(f"Adding non-thought line from thought block: {line}")
-                    in_thought_block = False
-            
-            # If we have no content lines but there's a sentence at the end that looks like content,
-            # use that as the content
-            if not content_lines:
-                last_line = lines[-1].strip()
-                if any(char in last_line for char in ".,!?") and not any(marker in last_line.lower() for marker in ["i will", "i'll", "i should", "i need", "i must"]):
-                    content_lines = [last_line]
-                    logger.debug(f"Using last line as content: {last_line}")
-            
-            # Join the content lines, preserving paragraph structure
-            content = ""
-            current_paragraph = []
-            
-            for line in content_lines:
-                if not line.strip():
-                    if current_paragraph:
-                        content += " ".join(current_paragraph) + "\n\n"
-                        current_paragraph = []
-                else:
-                    current_paragraph.append(line)
-            
-            if current_paragraph:
-                content += " ".join(current_paragraph)
+            # Clean up the text
+            lines = [line.strip() for line in full_text.split('\n') if line.strip()]
+            content = '\n'.join(lines)
             
             final_content = content.strip()
             if not final_content:
-                logger.error("No content extracted after filtering thoughts")
+                logger.error("No content extracted")
                 return None
                 
             logger.info(f"Extracted content: {final_content}")

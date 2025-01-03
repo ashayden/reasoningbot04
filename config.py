@@ -1,7 +1,10 @@
 """Configuration settings for the MARA application."""
 
-# Model configurations
-GEMINI_MODEL = "gemini-2.0-flash-thinking-exp-1219"
+import os
+from typing import Dict, Any
+
+# Model configuration
+GEMINI_MODEL = "gemini-exp-1206"
 PREANALYSIS_CONFIG = {
     "temperature": 0.7,
     "top_p": 0.8,
