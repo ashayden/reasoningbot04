@@ -251,7 +251,7 @@ class PromptDesigner(BaseAgent):
         topic: str,
         focus_areas: Optional[List[str]] = None
     ) -> Optional[str]:
-        """Create an optimized research prompt."""
+        """Create an optimized prompt for the Framework Engineer."""
         cache_key = {"topic": topic, "areas": focus_areas}
         cached = cache.get("optimized_prompt", cache_key, max_age=timedelta(days=1))
         if cached:
@@ -260,15 +260,21 @@ class PromptDesigner(BaseAgent):
         focus_text = ", ".join(focus_areas) if focus_areas else "all relevant aspects"
         
         prompt = (
-            f"Create a comprehensive research prompt for analyzing {topic}, focusing on {focus_text}.\n\n"
-            "The prompt should:\n"
-            "1. Define the scope clearly\n"
-            "2. Identify key research objectives\n"
-            "3. Specify areas requiring detailed investigation\n"
-            "4. Include methodological considerations\n"
-            "5. Note potential challenges and limitations\n"
-            "6. Suggest approaches for synthesis\n\n"
-            "Format the prompt as a clear, detailed paragraph that guides thorough research."
+            f"As a Framework Engineer, develop a comprehensive research framework for analyzing {topic}.\n\n"
+            f"Focus Areas: {focus_text}\n\n"
+            "Your framework should:\n"
+            "1. Be specifically tailored to this topic and focus areas\n"
+            "2. Define clear research boundaries and scope\n"
+            "3. Identify key research objectives and questions\n"
+            "4. Specify methodological approaches\n"
+            "5. Outline data collection and analysis strategies\n"
+            "6. Consider potential challenges and limitations\n"
+            "7. Suggest evaluation criteria for findings\n\n"
+            "This framework will guide a Research Analyst in conducting a thorough, "
+            "systematic investigation of the topic. Ensure the framework provides clear "
+            "direction while allowing for discovery of unexpected insights.\n\n"
+            "The framework should enable progressive deepening of analysis across multiple "
+            "research iterations, with each iteration building upon previous findings."
         )
         
         result = self._generate_content(prompt, config.PROMPT_DESIGN_CONFIG)

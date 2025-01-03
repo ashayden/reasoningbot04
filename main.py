@@ -533,19 +533,19 @@ def main():
                 if not st.session_state.app_state['framework']:
                     with st.spinner("🔨 Building research framework..."):
                         try:
-                            # First, create optimized prompt
-                            optimized_prompt = PromptDesigner(model).create_optimized_prompt(
+                            # First, create optimized prompt for the Framework Engineer
+                            prompt_for_framework = PromptDesigner(model).create_optimized_prompt(
                                 topic,
                                 st.session_state.app_state.get('selected_areas')
                             )
                             
-                            if optimized_prompt:
-                                st.session_state.app_state['prompt'] = optimized_prompt
+                            if prompt_for_framework:
+                                st.session_state.app_state['prompt'] = prompt_for_framework
                                 
-                                # Then generate framework using the prompt
+                                # Then have Framework Engineer create topic-specific framework
                                 framework = FrameworkEngineer(model).create_framework(
                                     topic,
-                                    optimized_prompt,
+                                    prompt_for_framework,
                                     st.session_state.app_state.get('selected_areas')
                                 )
                                 
@@ -560,18 +560,20 @@ def main():
                             return
                 
                 if st.session_state.app_state['prompt']:
-                    with st.expander("✍️ Optimized Research Framework", expanded=True):
+                    with st.expander("✍️ Optimized Prompt", expanded=True):
                         st.markdown("---")
+                        st.markdown("**Instructions for Framework Development:**")
                         st.markdown(st.session_state.app_state['prompt'])
                         st.markdown("---")
                 
                 if st.session_state.app_state['framework']:
-                    with st.expander("📄 Research Framework", expanded=True):
+                    with st.expander("📄 Topic-Specific Research Framework", expanded=True):
                         try:
                             st.markdown("---")
+                            st.markdown("**Research Framework to Guide Analysis:**")
                             st.markdown(st.session_state.app_state['framework'])
                             st.markdown("---")
-                            st.success("Framework generated successfully! Proceeding with analysis...")
+                            st.success("Framework generated successfully! Proceeding with research analysis following this framework...")
                         except Exception as e:
                             logger.error(f"Error displaying framework: {str(e)}")
                             st.error("Error displaying framework. Please try again.")
