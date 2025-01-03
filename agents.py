@@ -42,8 +42,8 @@ class PreAnalysisAgent:
             
             # Generate ELI5
             eli5_prompt = (
-                f"Write a very short, engaging explanation of {topic} for a child. Use simple language, "
-                "a fun analogy, and emojis to make it memorable. Focus on a key, child-friendly aspect "
+                f"Write a very short, engaging explanation of {topic} for a general audience. Use simple language, "
+                "a fun analogy, and emojis to make it memorable. Focus on a key, aspect "
                 "of the topic. Make it 2-3 sentences maximum."
             )
             
