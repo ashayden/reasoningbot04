@@ -18,6 +18,7 @@ from utils import validate_topic, sanitize_topic
 from agents import (
     PreAnalysisAgent,
     PromptDesigner,
+    FrameworkEngineer,
     ResearchAnalyst,
     SynthesisExpert,
     ResearchResult
@@ -200,18 +201,18 @@ if 'app_state' not in st.session_state:
         'topic': None,
         'iterations': None,
         'insights': None,
-        'prompt': None,
         'focus_areas': None,
         'selected_areas': [],
+        'prompt': None,
         'framework': None,
         'analysis_results': [],
         'summary': None,
         'show_insights': False,
-        'show_prompt': False,
         'show_focus': False,
         'show_framework': False,
         'show_analysis': False,
-        'show_summary': False
+        'show_summary': False,
+        'focus_selection_complete': False
     }
 
 # Initialize Gemini
@@ -306,20 +307,17 @@ def reset_state(topic, iterations):
         'topic': topic,
         'iterations': iterations,
         'insights': None,
-        'prompt': None,
         'focus_areas': None,
         'selected_areas': [],
-        'enhanced_prompt': None,
+        'prompt': None,
         'framework': None,
         'analysis_results': [],
         'summary': None,
         'show_insights': True,
-        'show_prompt': False,
         'show_focus': False,
         'show_framework': False,
         'show_analysis': False,
         'show_summary': False,
-        'error': None,
         'focus_selection_complete': False
     }
     
@@ -469,7 +467,6 @@ def main():
     try:
         # Create containers with proper styling
         insights_container = st.container()
-        prompt_container = st.container()
         focus_container = st.container()
         framework_container = st.container()
         analysis_container = st.container()
@@ -484,7 +481,7 @@ def main():
                             insights = PreAnalysisAgent(model).generate_insights(topic)
                             if insights:
                                 st.session_state.app_state['insights'] = insights
-                                st.session_state.app_state['show_prompt'] = True
+                                st.session_state.app_state['show_focus'] = True
                                 st.rerun()
                     
                     if st.session_state.app_state['insights']:
@@ -492,33 +489,6 @@ def main():
                 except Exception as e:
                     handle_error(e, "insights")
                     return
-        
-        # Process prompt
-        if st.session_state.app_state['show_prompt']:
-            with prompt_container:
-                if not st.session_state.app_state['prompt']:
-                    with st.spinner("✍️ Optimizing prompt..."):
-                        try:
-                            prompt = PromptDesigner(model).create_optimized_prompt(topic)
-                            if prompt:
-                                st.session_state.app_state['prompt'] = prompt
-                                st.session_state.app_state['show_focus'] = True
-                                st.rerun()
-                        except Exception as e:
-                            logger.error(f"Error generating prompt: {str(e)}")
-                            st.error("Failed to generate research prompt. Please try again.")
-                            return
-                
-                if st.session_state.app_state['prompt']:
-                    with st.expander("✍️ Optimized Research Framework", expanded=True):
-                        # Add a divider for visual separation
-                        st.markdown("---")
-                        # Display the full prompt with proper formatting
-                        st.markdown(st.session_state.app_state['prompt'])
-                        # Add another divider
-                        st.markdown("---")
-                        # Add a success message
-                        st.success("Research framework generated successfully! Proceeding with focus areas...")
         
         # Handle focus areas
         if st.session_state.app_state['show_focus']:
@@ -554,48 +524,53 @@ def main():
                     st.session_state.app_state['selected_areas'] = selected
                     
                     if proceed:
-                        with st.spinner("Enhancing prompt with focus areas..."):
-                            try:
-                                enhanced_prompt = PromptDesigner(model).create_optimized_prompt(topic, selected)
-                                if enhanced_prompt:
-                                    st.session_state.app_state['enhanced_prompt'] = enhanced_prompt
-                                    st.session_state.app_state['show_framework'] = True
-                                    st.rerun()
-                            except Exception as e:
-                                logger.error(f"Error enhancing prompt: {str(e)}")
-                                st.error("Failed to enhance prompt with focus areas. Proceeding with original prompt.")
-                                st.session_state.app_state['show_framework'] = True
-                                st.rerun()
+                        st.session_state.app_state['show_framework'] = True
+                        st.rerun()
         
         # Process framework
         if st.session_state.app_state['show_framework']:
             with framework_container:
                 if not st.session_state.app_state['framework']:
-                    with st.spinner("🔨 Building analysis framework..."):
-                        # Get the optimized prompt and focus areas
-                        optimized_prompt = st.session_state.app_state.get('enhanced_prompt') or st.session_state.app_state.get('prompt')
-                        focus_areas = st.session_state.app_state.get('selected_areas')
-                        
-                        framework = PromptDesigner(model).generate_framework(
-                            topic,
-                            optimized_prompt,
-                            focus_areas
-                        )
-                        if framework:
-                            st.session_state.app_state['framework'] = framework
-                            st.session_state.app_state['show_analysis'] = True
-                            st.rerun()
+                    with st.spinner("🔨 Building research framework..."):
+                        try:
+                            # First, create optimized prompt
+                            optimized_prompt = PromptDesigner(model).create_optimized_prompt(
+                                topic,
+                                st.session_state.app_state.get('selected_areas')
+                            )
+                            
+                            if optimized_prompt:
+                                st.session_state.app_state['prompt'] = optimized_prompt
+                                
+                                # Then generate framework using the prompt
+                                framework = FrameworkEngineer(model).create_framework(
+                                    topic,
+                                    optimized_prompt,
+                                    st.session_state.app_state.get('selected_areas')
+                                )
+                                
+                                if framework:
+                                    st.session_state.app_state['framework'] = framework
+                                    st.session_state.app_state['show_analysis'] = True
+                                    st.rerun()
+                                    
+                        except Exception as e:
+                            logger.error(f"Error generating framework: {str(e)}")
+                            st.error("Failed to generate research framework. Please try again.")
+                            return
+                
+                if st.session_state.app_state['prompt']:
+                    with st.expander("✍️ Optimized Research Framework", expanded=True):
+                        st.markdown("---")
+                        st.markdown(st.session_state.app_state['prompt'])
+                        st.markdown("---")
                 
                 if st.session_state.app_state['framework']:
                     with st.expander("📄 Research Framework", expanded=True):
                         try:
-                            # Add a divider for visual separation
                             st.markdown("---")
-                            # Display the framework with proper formatting
                             st.markdown(st.session_state.app_state['framework'])
-                            # Add another divider
                             st.markdown("---")
-                            # Add a success message
                             st.success("Framework generated successfully! Proceeding with analysis...")
                         except Exception as e:
                             logger.error(f"Error displaying framework: {str(e)}")
@@ -615,6 +590,9 @@ def main():
                         result = ResearchAnalyst(model).analyze(
                             topic,
                             st.session_state.app_state['framework'],
+                            st.session_state.app_state['prompt'],
+                            len(st.session_state.app_state['analysis_results']),
+                            st.session_state.app_state['iterations'],
                             previous_analysis
                         )
                         if result:
