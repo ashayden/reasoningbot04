@@ -490,8 +490,15 @@ def main():
                             st.rerun()
                 
                 if st.session_state.app_state['prompt']:
-                    with st.expander("✍️ Optimized Prompt", expanded=False):
+                    with st.expander("✍️ Optimized Research Framework", expanded=True):
+                        # Add a divider for visual separation
+                        st.markdown("---")
+                        # Display the full prompt with proper formatting
                         st.markdown(st.session_state.app_state['prompt'])
+                        # Add another divider
+                        st.markdown("---")
+                        # Add a success message
+                        st.success("Research framework generated successfully! Proceeding with focus areas...")
         
         # Handle focus areas
         if st.session_state.app_state['show_focus']:
