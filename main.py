@@ -427,74 +427,33 @@ def display_analysis(analysis_results: List[ResearchResult]):
     """Display analysis results."""
     for i, result in enumerate(analysis_results):
         with st.expander(f"🔄 Research Analysis #{i + 1}", expanded=False):
-            # Format title and subtitle
-            title = clean_markdown_text(result.title.strip())
-            subtitle = clean_markdown_text(result.subtitle.strip()) if result.subtitle else ""
-            
-            # If title contains a colon, use part after colon as main title
-            if ':' in title:
-                _, title = title.split(':', 1)
-                title = title.strip()
-            
-            # Remove any "Title:" or "Subtitle:" prefixes
-            title = title.replace("Title:", "").strip()
-            subtitle = subtitle.replace("Subtitle:", "").strip()
+            # Clean and format title/subtitle
+            title = clean_markdown_text(result.title)
+            subtitle = clean_markdown_text(result.subtitle) if result.subtitle else ""
             
             # Display with proper hierarchy
             st.markdown(f"# {title}")
             if subtitle:
                 st.markdown(f"## {subtitle}")
-            st.markdown("---")
             st.markdown(result.content)
 
 def display_final_report(summary: str):
     """Display final report with proper title formatting."""
     with st.expander("📊 Final Report", expanded=False):
-        # Split the summary into lines
-        lines = summary.split('\n')
+        # Split the summary into lines and find title/subtitle
+        lines = [line.strip() for line in summary.split('\n') if line.strip()]
         
-        # Find title and subtitle
-        title = None
-        subtitle = None
-        content_start = 0
-        
-        # Look for title and subtitle in first few lines
-        for i, line in enumerate(lines):
-            line = line.strip()
-            if not line:  # Skip empty lines
-                continue
-            if not title:
-                title = clean_markdown_text(line)
-                content_start = i + 1
-            elif not subtitle:
-                subtitle = clean_markdown_text(line)
-                content_start = i + 1
-                break
+        # Extract title and subtitle from first two non-empty lines
+        title = clean_markdown_text(lines[0]) if lines else ""
+        subtitle = clean_markdown_text(lines[1]) if len(lines) > 1 else ""
         
         # Join remaining lines as content
-        content = '\n'.join(lines[content_start:]).strip()
-        
-        # If title contains a colon, use part after colon as subtitle
-        if title and ':' in title:
-            main_title, subtitle_part = title.split(':', 1)
-            title = clean_markdown_text(main_title)
-            # Only use the part after colon as subtitle if we don't already have one
-            if not subtitle:
-                subtitle = clean_markdown_text(subtitle_part)
-        
-        # Remove any "Title:" or "Subtitle:" prefixes
-        if title:
-            title = title.replace("Title:", "").strip()
-        if subtitle:
-            subtitle = subtitle.replace("Subtitle:", "").strip()
+        content = '\n'.join(lines[2:]) if len(lines) > 2 else ""
         
         # Display with proper hierarchy
-        if title:
-            st.markdown(f"# {title}")
+        st.markdown(f"# {title}")
         if subtitle:
             st.markdown(f"## {subtitle}")
-        if title or subtitle:
-            st.markdown("---")
         st.markdown(content)
 
 def main():
