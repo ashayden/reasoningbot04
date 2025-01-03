@@ -104,18 +104,37 @@ class PromptDesigner:
     def generate_focus_areas(self, topic: str) -> Optional[list]:
         """Generate focus areas for the topic."""
         try:
-            prompt = f"List 8 key aspects of {topic} that should be researched. Format as bullet points."
+            prompt = (
+                f"Generate 8 key research areas for {topic}. "
+                "Format as a simple list with one topic per line. "
+                "Do not include numbers, bullets, or any other formatting."
+            )
+            
             response = self.model.generate_content(
                 prompt,
                 generation_config=GenerationConfig(**PROMPT_DESIGN_CONFIG)
             )
             
             if not response or not response.text:
+                logger.error("Empty response from model")
                 return None
             
-            # Extract bullet points
-            lines = [line.strip().lstrip('-*•').strip() for line in response.text.split('\n')]
-            return [line for line in lines if line][:8]
+            # Split by newlines and clean up each line
+            areas = [
+                line.strip()
+                for line in response.text.split('\n')
+                if line.strip() and not line.strip().startswith(('#', '-', '*', '•', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0'))
+            ]
+            
+            # Take first 8 valid areas
+            valid_areas = areas[:8]
+            
+            if not valid_areas:
+                logger.error("No valid focus areas found in response")
+                return None
+                
+            logger.info(f"Generated {len(valid_areas)} focus areas")
+            return valid_areas
             
         except Exception as e:
             logger.error(f"Focus areas generation failed: {str(e)}")
