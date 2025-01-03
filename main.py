@@ -6,8 +6,8 @@ import google.generativeai as genai
 import os
 import time
 import random
-from typing import Any, Optional
-from google.generativeai.types import GenerationConfig
+from typing import Any, Optional, Tuple
+from google.generativeai.types import GenerativeModel, GenerationConfig
 
 from config import config
 from utils import validate_topic, sanitize_topic
