@@ -15,7 +15,7 @@ from config import (
     MAX_TOPIC_LENGTH
 )
 from utils import validate_topic, sanitize_topic
-from agents import PreAnalysisAgent, PromptDesigner, FrameworkEngineer, ResearchAnalyst, SynthesisExpert
+from agents import PreAnalysisAgent, PromptDesigner, ResearchAnalyst, SynthesisExpert
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

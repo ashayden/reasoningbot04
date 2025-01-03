@@ -4,7 +4,6 @@ import logging
 from typing import Any, Dict, Optional
 
 import google.generativeai as genai
-import streamlit as st
 from google.generativeai.types import GenerationConfig
 
 from config import (
@@ -33,13 +32,28 @@ def extract_response_text(response: Any) -> Optional[str]:
         logger.error(f"Failed to extract response text: {str(e)}")
         return None
 
-class PreAnalysisAgent:
+class BaseAgent:
+    """Base class for all agents."""
+    
+    def __init__(self, model: Any):
+        self.model = model
+    
+    @rate_limit_decorator
+    def generate_content(self, prompt: str, config: Dict[str, Any]) -> Optional[str]:
+        """Generate content with rate limiting and error handling."""
+        try:
+            response = self.model.generate_content(
+                prompt,
+                generation_config=GenerationConfig(**config)
+            )
+            return extract_response_text(response)
+        except Exception as e:
+            logger.error(f"Content generation error: {str(e)}")
+            return None
+
+class PreAnalysisAgent(BaseAgent):
     """Quick insights agent."""
     
-    def __init__(self, model):
-        """Initialize the agent with a model."""
-        self.model = model
-        
     def generate_insights(self, topic: str) -> Optional[Dict[str, str]]:
         """Generate quick insights about the topic."""
         try:
@@ -50,8 +64,7 @@ class PreAnalysisAgent:
                 "vivid language and potentially statistics. It should challenge common assumptions."
             )
             
-            fact_response = self.model.generate_content(fact_prompt)
-            fact_text = extract_response_text(fact_response)
+            fact_text = self.generate_content(fact_prompt, PROMPT_DESIGN_CONFIG)
             if not fact_text:
                 return None
             
@@ -62,8 +75,7 @@ class PreAnalysisAgent:
                 "of the topic. Make it 2-3 sentences maximum."
             )
             
-            eli5_response = self.model.generate_content(eli5_prompt)
-            eli5_text = extract_response_text(eli5_response)
+            eli5_text = self.generate_content(eli5_prompt, PROMPT_DESIGN_CONFIG)
             if not eli5_text:
                 return None
             
@@ -76,13 +88,9 @@ class PreAnalysisAgent:
             logger.error(f"PreAnalysis generation failed: {str(e)}")
             return None
 
-class PromptDesigner:
+class PromptDesigner(BaseAgent):
     """Research framework designer."""
     
-    def __init__(self, model):
-        """Initialize the agent with a model."""
-        self.model = model
-        
     def generate_framework(self, topic: str) -> Optional[str]:
         """Generate research framework."""
         try:
@@ -97,27 +105,55 @@ class PromptDesigner:
                 "Structure each section with clear points and supporting details."
             )
             
-            response = self.model.generate_content(prompt)
-            return extract_response_text(response)
+            return self.generate_content(prompt, FRAMEWORK_CONFIG)
             
         except Exception as e:
             logger.error(f"Framework generation failed: {str(e)}")
             return None
+    
+    def generate_focus_areas(self, topic: str) -> Optional[list]:
+        """Generate focus areas for the topic."""
+        try:
+            prompt = f"List 8 key aspects of {topic} that should be researched. Format as bullet points."
+            response = self.generate_content(prompt, PROMPT_DESIGN_CONFIG)
+            
+            if not response:
+                return None
+            
+            # Extract bullet points
+            lines = [line.strip().lstrip('-*•').strip() for line in response.split('\n')]
+            return [line for line in lines if line][:8]
+            
+        except Exception as e:
+            logger.error(f"Focus areas generation failed: {str(e)}")
+            return None
+    
+    def design_prompt(self, topic: str, focus_areas: Optional[list] = None) -> Optional[str]:
+        """Design research prompt."""
+        try:
+            if focus_areas:
+                prompt = f"Create a research outline for {topic} focusing on: {', '.join(focus_areas)}"
+            else:
+                prompt = f"Create a research outline for {topic}"
+            
+            return self.generate_content(prompt, PROMPT_DESIGN_CONFIG)
+            
+        except Exception as e:
+            logger.error(f"Prompt design failed: {str(e)}")
+            return None
 
-class ResearchAnalyst:
+class ResearchAnalyst(BaseAgent):
     """Research analyst."""
     
-    def __init__(self, model):
-        """Initialize the agent with a model."""
-        self.model = model
-        
-    def analyze(self, topic: str, framework: str, aspect: str) -> Optional[Dict[str, str]]:
+    def analyze(self, topic: str, framework: str, previous: Optional[str] = None) -> Optional[Dict[str, str]]:
         """Analyze a specific aspect of the topic."""
         try:
-            prompt = f"Research this aspect of {topic}: {aspect}\n\nFramework context:\n{framework}"
+            if previous:
+                prompt = f"Continue the research on {topic}, building on: {previous}"
+            else:
+                prompt = f"Research {topic} using this framework: {framework}"
             
-            response = self.model.generate_content(prompt)
-            result = extract_response_text(response)
+            result = self.generate_content(prompt, ANALYSIS_CONFIG)
             if not result:
                 return None
             
@@ -135,13 +171,9 @@ class ResearchAnalyst:
             logger.error(f"Research analysis failed: {str(e)}")
             return None
 
-class SynthesisExpert:
+class SynthesisExpert(BaseAgent):
     """Research synthesizer."""
     
-    def __init__(self, model):
-        """Initialize the agent with a model."""
-        self.model = model
-        
     def synthesize(self, topic: str, research_results: list) -> Optional[str]:
         """Create final synthesis."""
         try:
@@ -155,8 +187,7 @@ class SynthesisExpert:
                 "4. Conclusion (clear takeaways)"
             )
             
-            response = self.model.generate_content(prompt)
-            return extract_response_text(response)
+            return self.generate_content(prompt, SYNTHESIS_CONFIG)
             
         except Exception as e:
             logger.error(f"Research synthesis failed: {str(e)}")
