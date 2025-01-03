@@ -32,164 +32,162 @@ logger = logging.getLogger(__name__)
 st.set_page_config(
     page_title="M.A.R.A. - Multi-Agent Reasoning Assistant",
     page_icon="🤖",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="collapsed",
+    menu_items={
+        'Get Help': None,
+        'Report a bug': None,
+        'About': None
+    }
 )
 
-# Custom CSS and Logo
+# Set dark theme
 st.markdown("""
-<style>
-.block-container { 
-    max-width: 800px; 
-    padding: 2rem 1rem; 
-}
+    <style>
+        /* Dark theme colors */
+        :root {
+            --background-color: #0E1117;
+            --text-color: #FAFAFA;
+            --secondary-background-color: #262730;
+            --border-color: #333333;
+            --accent-color: #0066cc;
+        }
+        
+        /* Main container */
+        .block-container { 
+            max-width: 800px; 
+            padding: 2rem 1rem;
+            background-color: var(--background-color);
+            color: var(--text-color);
+        }
 
-.stButton > button { 
-    width: 100%; 
-}
+        /* Expander styling */
+        .streamlit-expanderHeader {
+            background-color: var(--secondary-background-color) !important;
+            color: var(--text-color) !important;
+            border: 1px solid var(--border-color) !important;
+        }
+        
+        .streamlit-expanderContent {
+            background-color: var(--background-color) !important;
+            color: var(--text-color) !important;
+            border: 1px solid var(--border-color) !important;
+        }
 
-/* Focus area buttons */
-[data-testid="baseButton-secondary"] {
-    background-color: rgba(30, 30, 30, 0.6) !important;
-    border: 1px solid #333 !important;
-    color: white !important;
-    padding: 0.75rem !important;
-    min-height: 3rem !important;
-    transition: all 0.2s ease !important;
-}
+        /* Button styling */
+        .stButton > button { 
+            width: 100%;
+            background-color: var(--secondary-background-color) !important;
+            color: var(--text-color) !important;
+            border: 1px solid var(--border-color) !important;
+        }
 
-[data-testid="baseButton-secondary"]:hover {
-    background-color: rgba(42, 42, 42, 0.8) !important;
-    border-color: #444 !important;
-}
+        /* Focus area buttons */
+        [data-testid="baseButton-secondary"] {
+            background-color: var(--secondary-background-color) !important;
+            border: 1px solid var(--border-color) !important;
+            color: var(--text-color) !important;
+            padding: 0.75rem !important;
+            min-height: 3rem !important;
+            transition: all 0.2s ease !important;
+        }
 
-[data-testid="baseButton-primary"] {
-    background-color: rgba(0, 102, 204, 0.2) !important;
-    border: 1px solid #0066cc !important;
-    box-shadow: 0 0 0 1px #0066cc !important;
-    color: #0066cc !important;
-    font-weight: 500 !important;
-    padding: 0.75rem !important;
-    min-height: 3rem !important;
-    transition: all 0.2s ease !important;
-}
+        [data-testid="baseButton-secondary"]:hover {
+            background-color: rgba(42, 42, 42, 0.8) !important;
+            border-color: var(--border-color) !important;
+        }
 
-[data-testid="baseButton-primary"]:hover {
-    background-color: rgba(0, 102, 204, 0.3) !important;
-}
+        [data-testid="baseButton-primary"] {
+            background-color: rgba(0, 102, 204, 0.2) !important;
+            border: 1px solid var(--accent-color) !important;
+            box-shadow: 0 0 0 1px var(--accent-color) !important;
+            color: var(--text-color) !important;
+            font-weight: 500 !important;
+            padding: 0.75rem !important;
+            min-height: 3rem !important;
+            transition: all 0.2s ease !important;
+        }
 
-[data-testid="baseButton-primary"]:disabled {
-    background-color: #1E1E1E !important;
-    border-color: #333 !important;
-    box-shadow: none !important;
-    color: #4a4a4a !important;
-    cursor: not-allowed !important;
-}
+        [data-testid="baseButton-primary"]:hover {
+            background-color: rgba(0, 102, 204, 0.3) !important;
+        }
 
-div[data-testid="stImage"] { 
-    text-align: center; 
-}
+        [data-testid="baseButton-primary"]:disabled {
+            background-color: var(--secondary-background-color) !important;
+            border-color: var(--border-color) !important;
+            box-shadow: none !important;
+            color: #4a4a4a !important;
+            cursor: not-allowed !important;
+        }
 
-div[data-testid="stImage"] > img { 
-    max-width: 800px; 
-    width: 100%; 
-}
+        /* Text area styling */
+        textarea {
+            font-size: 1.1em !important;
+            line-height: 1.5 !important;
+            padding: 0.5em !important;
+            height: 150px !important;
+            background-color: var(--secondary-background-color) !important;
+            border: 1px solid var(--border-color) !important;
+            color: var(--text-color) !important;
+        }
 
-textarea {
-    font-size: 1.1em !important;
-    line-height: 1.5 !important;
-    padding: 0.5em !important;
-    height: 150px !important;
-    background-color: #1E1E1E !important;
-    border: 1px solid #333 !important;
-    color: #fff !important;
-}
+        /* Number input styling */
+        div[data-testid="stNumberInput"] input {
+            color: var(--text-color) !important;
+            background-color: var(--secondary-background-color) !important;
+            border: 1px solid var(--border-color) !important;
+        }
 
-/* Number input styling */
-div[data-testid="stNumberInput"] input {
-    color: #fff !important;
-    background-color: #1E1E1E !important;
-    border: 1px solid #333 !important;
-}
+        div[data-testid="stNumberInput"] button {
+            background-color: var(--secondary-background-color) !important;
+            border: none !important;
+            color: var(--text-color) !important;
+        }
 
-div[data-testid="stNumberInput"] button {
-    background-color: #333 !important;
-    border: none !important;
-    color: #fff !important;
-}
+        div[data-testid="stNumberInput"] button:hover {
+            background-color: var(--secondary-background-color) !important;
+        }
 
-div[data-testid="stNumberInput"] button:hover {
-    background-color: #444 !important;
-}
+        /* Multiselect styling */
+        div[data-testid="stMultiSelect"] [data-baseweb="select"] {
+            background-color: var(--secondary-background-color) !important;
+            border: 1px solid var(--border-color) !important;
+            color: var(--text-color) !important;
+        }
 
-/* Multiselect styling */
-div[data-testid="stMultiSelect"] {
-    width: 100% !important;
-    max-width: none !important;
-}
+        div[data-testid="stMultiSelect"] [data-baseweb="tag"] {
+            background-color: rgba(0, 102, 204, 0.2) !important;
+            border: 1px solid var(--accent-color) !important;
+            color: var(--text-color) !important;
+        }
 
-div[data-testid="stMultiSelect"] > div {
-    width: 100% !important;
-    max-width: none !important;
-}
+        /* Headers and text */
+        h1, h2, h3, h4, h5, h6, p {
+            color: var(--text-color) !important;
+        }
 
-/* Hide the inner text input */
-div[data-testid="stMultiSelect"] input[type="text"] {
-    display: none !important;
-}
+        /* Links */
+        a {
+            color: var(--accent-color) !important;
+        }
 
-/* Style the select container */
-div[data-testid="stMultiSelect"] [data-baseweb="select"] {
-    background-color: #1E1E1E !important;
-    border: 1px solid #333 !important;
-    border-radius: 4px !important;
-}
-
-/* Style the placeholder and selected items */
-div[data-testid="stMultiSelect"] [data-baseweb="select"] > div:first-child {
-    background-color: #1E1E1E !important;
-    border: none !important;
-    color: #fff !important;
-    min-height: 40px !important;
-    padding: 8px 12px !important;
-}
-
-/* Style the dropdown arrow */
-div[data-testid="stMultiSelect"] [role="button"] {
-    color: #fff !important;
-}
-
-/* Style selected items */
-div[data-testid="stMultiSelect"] [data-baseweb="tag"] {
-    background-color: rgba(0, 102, 204, 0.2) !important;
-    border: 1px solid #0066cc !important;
-    color: #fff !important;
-}
-
-/* Style the dropdown list */
-div[data-testid="stMultiSelect"] [role="listbox"] {
-    background-color: #1E1E1E !important;
-    border: 1px solid #333 !important;
-    margin-top: 4px !important;
-}
-
-/* Style dropdown options */
-div[data-testid="stMultiSelect"] [role="option"] {
-    background-color: #1E1E1E !important;
-    color: #fff !important;
-    padding: 8px 12px !important;
-}
-
-/* Style hover state of options */
-div[data-testid="stMultiSelect"] [role="option"]:hover {
-    background-color: #333 !important;
-}
-
-/* Style selected options in dropdown */
-div[data-testid="stMultiSelect"] [aria-selected="true"] {
-    background-color: rgba(0, 102, 204, 0.2) !important;
-    color: #fff !important;
-}
-</style>
+        /* Code blocks */
+        code {
+            background-color: var(--secondary-background-color) !important;
+            color: var(--text-color) !important;
+            border: 1px solid var(--border-color) !important;
+        }
+        
+        /* Markdown content */
+        .markdown-text-container {
+            color: var(--text-color) !important;
+        }
+        
+        /* Spinner */
+        .stSpinner > div {
+            border-color: var(--accent-color) !important;
+        }
+    </style>
 """, unsafe_allow_html=True)
 
 # Logo/Header
