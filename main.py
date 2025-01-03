@@ -707,13 +707,6 @@ def main():
                             st.error("Failed to generate research framework. Please try again.")
                             return
                 
-                if st.session_state.app_state['prompt']:
-                    with st.expander("✍️ Optimized Prompt", expanded=False):
-                        st.markdown("---")
-                        st.markdown("**Instructions for Framework Development:**")
-                        st.markdown(st.session_state.app_state['prompt'])
-                        st.markdown("---")
-                
                 if st.session_state.app_state['framework']:
                     with st.expander("📄 Topic-Specific Research Framework", expanded=False):
                         try:
