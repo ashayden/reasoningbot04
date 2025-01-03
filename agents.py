@@ -293,7 +293,7 @@ class FrameworkEngineer(BaseAgent):
         return framework
 
 class ResearchAnalyst(BaseAgent):
-    """Research analyst."""
+    """Research analyst with Nobel laureate expertise."""
     
     @handle_error
     def analyze(
@@ -305,7 +305,7 @@ class ResearchAnalyst(BaseAgent):
         total_iterations: int,
         previous: Optional[str] = None
     ) -> Optional[ResearchResult]:
-        """Analyze a specific aspect of the topic."""
+        """Analyze a specific aspect of the topic with Nobel-level expertise."""
         # Adjust temperature based on iteration
         base_temp = 0.6
         temp_increment = 0.1
@@ -314,38 +314,64 @@ class ResearchAnalyst(BaseAgent):
         analysis_config = config.ANALYSIS_CONFIG.model_dump()
         analysis_config['temperature'] = current_temp
         
+        # Expert perspective prompt
+        expert_prompt = (
+            "You are a Nobel laureate with deep expertise in fields relevant to this topic. "
+            "Your analysis should reflect this level of understanding while remaining accessible. "
+            "Draw upon your theoretical knowledge and practical experience to provide unique insights. "
+            "Consider interdisciplinary connections and emerging research directions.\n\n"
+        )
+        
         if previous:
             prompt = (
-                f"Iteration {iteration + 1} of {total_iterations} - Research Analysis\n\n"
+                f"{expert_prompt}"
+                f"Iteration {iteration + 1} of {total_iterations} - Advanced Research Analysis\n\n"
                 f"Topic: {topic}\n"
                 f"Previous Analysis:\n{previous}\n\n"
                 f"Framework:\n{framework}\n\n"
                 f"Optimized Prompt:\n{optimized_prompt}\n\n"
+                "Building upon the previous analysis:\n"
+                "1. Identify a specific aspect or implication from the previous analysis to explore deeper\n"
+                "2. Focus on uncovering novel connections and theoretical frameworks\n"
+                "3. Apply advanced research methodologies to this narrowed focus\n\n"
                 "Structure your response with:\n"
-                "1. A clear, informative title reflecting this iteration's focus\n"
-                "2. A brief subtitle capturing the key focus area\n"
-                "3. Detailed analysis with specific examples and evidence\n"
-                "4. At least 3 key findings or implications\n"
-                "5. Citations and references where applicable\n\n"
-                "Format with clear sections and bullet points.\n"
-                "Build upon previous insights without repetition.\n"
+                "1. A clear, informative title reflecting this iteration's specific focus\n"
+                "2. A brief subtitle capturing the key theoretical framework or methodology\n"
+                "3. Detailed analysis incorporating:\n"
+                "   - Advanced theoretical frameworks\n"
+                "   - Empirical evidence and data\n"
+                "   - Novel research directions\n"
+                "   - Interdisciplinary connections\n"
+                "4. At least 3 significant findings or theoretical implications\n"
+                "5. Rigorous academic citations and references\n\n"
+                "Format with clear sections and academic precision.\n"
+                "Ensure progressive depth and specialization from previous analysis.\n"
                 f"Note: This is iteration {iteration + 1} of {total_iterations}, "
-                f"with analysis temperature set to {current_temp} for increased variety."
+                f"with analysis temperature set to {current_temp} for increased theoretical exploration."
             )
         else:
             prompt = (
-                f"Iteration 1 of {total_iterations} - Initial Research Analysis\n\n"
+                f"{expert_prompt}"
+                f"Iteration 1 of {total_iterations} - Initial Advanced Research Analysis\n\n"
                 f"Topic: {topic}\n"
                 f"Framework:\n{framework}\n\n"
                 f"Optimized Prompt:\n{optimized_prompt}\n\n"
+                "Establish the foundation for progressive analysis:\n"
+                "1. Identify the core theoretical frameworks relevant to the topic\n"
+                "2. Map the current state of research and key debates\n"
+                "3. Highlight areas requiring deeper investigation\n\n"
                 "Structure your response with:\n"
-                "1. A clear, informative title reflecting the initial analysis\n"
-                "2. A brief subtitle capturing the key focus area\n"
-                "3. Detailed analysis with specific examples and evidence\n"
-                "4. At least 3 key findings or implications\n"
-                "5. Citations and references where applicable\n\n"
-                "Format with clear sections and bullet points.\n"
-                f"Note: This is iteration 1 of {total_iterations}, "
+                "1. A clear, informative title reflecting the foundational analysis\n"
+                "2. A brief subtitle capturing the primary theoretical framework\n"
+                "3. Detailed analysis incorporating:\n"
+                "   - Fundamental theories and models\n"
+                "   - Current research landscape\n"
+                "   - Critical gaps and opportunities\n"
+                "   - Methodological considerations\n"
+                "4. At least 3 significant findings or theoretical implications\n"
+                "5. Rigorous academic citations and references\n\n"
+                "Format with clear sections and academic precision.\n"
+                f"Note: This is iteration 1 of {total_iterations}, establishing the foundation "
                 f"with analysis temperature set to {current_temp}."
             )
         
@@ -361,11 +387,11 @@ class ResearchAnalyst(BaseAgent):
         return result
 
 class SynthesisExpert(BaseAgent):
-    """Research synthesizer."""
+    """Academic research synthesizer."""
     
     @handle_error
     def synthesize(self, topic: str, research_results: List[ResearchResult]) -> Optional[str]:
-        """Create final synthesis report."""
+        """Create final synthesis report with academic rigor."""
         summary_points = []
         for result in research_results:
             summary = [
@@ -377,47 +403,62 @@ class SynthesisExpert(BaseAgent):
             summary_points.append('\n'.join(summary))
         
         prompt = (
-            f"Create a comprehensive final report synthesizing research on {topic}.\n\n"
+            "As an academic synthesis expert, create a comprehensive final report that maintains "
+            "scholarly rigor while ensuring clarity and accessibility. Use precise language and "
+            "academic terminology where necessary, but prioritize clear communication. Avoid "
+            "oversimplification while making complex concepts understandable.\n\n"
+            f"Topic: {topic}\n\n"
             "Research Findings:\n"
             + "\n\n---\n\n".join(summary_points)
-            + "\n\nCreate a detailed report following this structure:\n\n"
-            "Title: [Descriptive title reflecting main focus]\n"
-            "Subtitle: [Specific aspect of analysis]\n\n"
+            + "\n\nCreate a detailed academic report following this structure:\n\n"
+            "Title: [Descriptive title reflecting the theoretical framework and focus]\n"
+            "Subtitle: [Specific theoretical or methodological aspect]\n\n"
             "1. Executive Summary\n"
-            "   - 2-3 paragraphs synthesizing key findings with citations\n"
-            "   - Highlight major discoveries\n"
-            "   - Summarize methodology\n\n"
+            "   - 2-3 paragraphs synthesizing key theoretical contributions\n"
+            "   - Highlight significant empirical findings\n"
+            "   - Detail methodological innovations\n"
+            "   - Emphasize theoretical implications\n\n"
             "2. Key Insights\n"
-            "   - 4-6 major insights with citations\n"
-            "   - Focus on significant findings\n"
-            "   - Connect to methodology\n\n"
+            "   - 4-6 major theoretical or empirical insights\n"
+            "   - Connect findings to established frameworks\n"
+            "   - Identify paradigm shifts or extensions\n"
+            "   - Highlight methodological advances\n\n"
             "3. Analysis\n"
-            "   - Synthesize all findings\n"
-            "   - Integrate perspectives\n"
-            "   - Evaluate evidence\n"
-            "   - Organize by themes\n\n"
+            "   - Synthesize theoretical frameworks\n"
+            "   - Integrate empirical evidence\n"
+            "   - Evaluate methodological approaches\n"
+            "   - Develop theoretical models\n"
+            "   - Address research gaps\n\n"
             "4. Conclusion\n"
-            "   - Summarize key findings\n"
-            "   - Discuss impacts\n"
-            "   - Suggest future directions\n"
-            "   - Make recommendations\n\n"
+            "   - Summarize theoretical contributions\n"
+            "   - Discuss practical implications\n"
+            "   - Suggest research directions\n"
+            "   - Propose theoretical extensions\n\n"
             "5. Further Considerations\n"
-            "   - Present counter-arguments\n"
-            "   - Discuss limitations\n"
-            "   - Note uncertainties\n"
-            "   - Identify challenges\n\n"
+            "   - Present theoretical counter-arguments\n"
+            "   - Discuss methodological limitations\n"
+            "   - Address theoretical uncertainties\n"
+            "   - Identify empirical challenges\n\n"
             "6. Recommended Readings\n"
-            "   - List essential sources\n"
-            "   - Include recent research\n"
-            "   - Add methodology guides\n"
-            "   - List digital resources\n\n"
+            "   - List seminal theoretical works\n"
+            "   - Include recent empirical studies\n"
+            "   - Add methodological frameworks\n"
+            "   - Reference review articles\n\n"
             "7. Works Cited\n"
             "   - Use APA 7th edition format\n"
-            "   - Include all in-text citations\n"
-            "   - Add DOIs where available\n"
+            "   - Prioritize peer-reviewed sources\n"
+            "   - Include DOIs and permanent links\n"
             "   - List primary sources first\n"
             "   - Each entry on new line with bullet (*)\n\n"
-            "Format with clear sections, proper citations, and professional academic style."
+            "Guidelines:\n"
+            "- Maintain academic rigor throughout\n"
+            "- Use precise terminology when needed\n"
+            "- Define complex concepts clearly\n"
+            "- Support claims with evidence\n"
+            "- Ensure logical flow between sections\n"
+            "- Balance depth with accessibility\n"
+            "- Avoid unnecessary jargon\n"
+            "- Use clear, concise language"
         )
         
         return self._generate_content(prompt, config.SYNTHESIS_CONFIG) 
