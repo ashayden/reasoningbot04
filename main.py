@@ -213,52 +213,38 @@ if 'app_state' not in st.session_state:
 
 # Initialize Gemini
 @st.cache_resource
-def initialize_gemini(api_key: str) -> Optional[Any]:
+def initialize_gemini() -> Optional[Any]:
     """Initialize and test the Gemini model."""
     try:
+        # Get API key from Streamlit secrets
+        api_key = st.secrets["GOOGLE_API_KEY"]
+        if not api_key:
+            logger.error("No API key found in secrets")
+            st.error("Missing API key. Please configure GOOGLE_API_KEY in Streamlit secrets.")
+            return None
+            
         logger.info("Testing Gemini model initialization...")
         
         # Configure the model
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel(GEMINI_MODEL)
         
-        # Test with exponential backoff
-        max_retries = 5
-        initial_delay = 3.0
-        delay = initial_delay
+        # Simple test prompt
+        test_response = model.generate_content(
+            "Respond with a single word: Hello",
+            generation_config=GenerationConfig(**PROMPT_DESIGN_CONFIG)
+        )
         
-        for attempt in range(max_retries):
-            try:
-                # Simple test prompt
-                test_response = model.generate_content(
-                    "Respond with a single word: Hello",
-                    generation_config=GenerationConfig(**{
-                        'temperature': 0.1,
-                        'candidate_count': 1,
-                        'max_output_tokens': 10
-                    })
-                )
-                
-                if test_response and test_response.text:
-                    logger.info("Gemini model initialized successfully")
-                    return model
-                    
-                logger.error("Empty response from model test")
-                return None
-                
-            except Exception as e:
-                if "429" in str(e) or "Resource has been exhausted" in str(e):
-                    if attempt == max_retries - 1:
-                        logger.error(f"Max retries ({max_retries}) reached for model initialization")
-                        raise
-                    wait_time = delay * (2 ** attempt) + random.uniform(0, 1)  # Add jitter
-                    logger.warning(f"Rate limit hit during initialization, waiting {wait_time:.1f}s before retry {attempt + 1}/{max_retries}")
-                    time.sleep(wait_time)
-                    continue
-                raise
+        if test_response and test_response.text:
+            logger.info("Gemini model initialized successfully")
+            return model
+            
+        logger.error("Empty response from model test")
+        return None
                 
     except Exception as e:
         logger.error(f"Failed to initialize or test Gemini model: {str(e)}")
+        st.error(f"Failed to initialize Gemini model: {str(e)}")
         return None
 
 # Initialize model early
