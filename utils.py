@@ -3,7 +3,8 @@
 import logging
 import time
 from functools import wraps
-from typing import Dict, Tuple, Optional
+from typing import Any, Callable, Dict, Tuple, Optional
+import random
 
 import streamlit as st
 from config import MIN_TOPIC_LENGTH, MAX_TOPIC_LENGTH, MAX_REQUESTS_PER_MINUTE
@@ -30,12 +31,40 @@ class RateLimiter:
 
 rate_limiter = RateLimiter(MAX_REQUESTS_PER_MINUTE)
 
-def rate_limit_decorator(func):
-    """Decorator to apply rate limiting to functions."""
+def exponential_backoff(attempt: int, max_delay: float = 32.0) -> float:
+    """Calculate delay with jitter for exponential backoff."""
+    delay = min(max_delay, (2 ** attempt) + random.uniform(0, 1))
+    return delay
+
+def retry_with_backoff(max_retries: int = 3):
+    """Decorator to retry functions with exponential backoff."""
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            attempt = 0
+            while attempt < max_retries:
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    if "429" in str(e) or "Resource has been exhausted" in str(e):
+                        attempt += 1
+                        if attempt == max_retries:
+                            logger.error(f"Max retries ({max_retries}) reached for rate limit")
+                            raise
+                        delay = exponential_backoff(attempt)
+                        logger.warning(f"Rate limit hit, retrying in {delay:.2f} seconds (attempt {attempt}/{max_retries})")
+                        time.sleep(delay)
+                    else:
+                        raise
+            return None
+        return wrapper
+    return decorator
+
+def rate_limit_decorator(func: Callable) -> Callable:
+    """Decorator to handle rate limiting."""
+    @retry_with_backoff()
     @wraps(func)
-    def wrapper(*args, **kwargs):
-        if not rate_limiter.can_proceed():
-            raise Exception("Rate limit exceeded. Please wait before making more requests.")
+    def wrapper(*args, **kwargs) -> Any:
         return func(*args, **kwargs)
     return wrapper
 
