@@ -329,6 +329,10 @@ def reset_state(topic, iterations):
         'just_completed': False
     }
 
+def clean_markdown_text(text: str) -> str:
+    """Clean text of literal markdown characters."""
+    return text.strip('*').strip()
+
 def display_insights(insights: dict):
     """Display insights in proper containers."""
     with st.container():
@@ -424,8 +428,8 @@ def display_analysis(analysis_results: List[ResearchResult]):
     for i, result in enumerate(analysis_results):
         with st.expander(f"🔄 Research Analysis #{i + 1}", expanded=False):
             # Format title and subtitle
-            title = result.title.strip()
-            subtitle = result.subtitle.strip() if result.subtitle else ""
+            title = clean_markdown_text(result.title.strip())
+            subtitle = clean_markdown_text(result.subtitle.strip()) if result.subtitle else ""
             
             # If title contains a colon, use part after colon as main title
             if ':' in title:
@@ -450,8 +454,8 @@ def display_final_report(summary: str):
         lines = summary.split('\n', 2)
         if len(lines) >= 2:
             # Get title and subtitle
-            title = lines[0].strip()
-            subtitle = lines[1].strip()
+            title = clean_markdown_text(lines[0].strip())
+            subtitle = clean_markdown_text(lines[1].strip())
             content = lines[2].strip() if len(lines) > 2 else ""
             
             # If title contains a colon, use part after colon as main title
@@ -469,7 +473,7 @@ def display_final_report(summary: str):
             st.markdown("---")
             st.markdown(content)
         else:
-            st.markdown(summary)
+            st.markdown(clean_markdown_text(summary))
 
 def main():
     """Main application flow."""
