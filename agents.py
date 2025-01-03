@@ -356,8 +356,8 @@ class ResearchAnalyst(BaseAgent):
         
         # Expert perspective prompt
         expert_prompt = (
-            "You are a Nobel laureate with deep expertise in fields relevant to this topic. "
-            "Your analysis should reflect this level of understanding while remaining accessible. "
+            "You are an expert researcher and Nobel laureate with deep expertise in fields relevant to this topic. "
+            "Your research should be thorough and should reflect this level of understanding. "
             "Focus exclusively on the topic and specified focus areas, providing unique insights "
             "and uncovering meaningful connections within this scope.\n\n"
         )
@@ -465,8 +465,8 @@ class SynthesisExpert(BaseAgent):
         
         prompt = (
             "As an academic synthesis expert, create a comprehensive final report that addresses "
-            f"the core question or topic: '{topic}'. Focus exclusively on synthesizing the research "
-            "findings and their direct implications. Maintain scholarly precision while ensuring "
+            f"the core question or topic: '{topic}'. Focus exclusively on synthesizing the findings "
+            "from the research analyst's research and their direct implications. Maintain scholarly precision while ensuring "
             "the content is engaging and accessible.\n\n"
             "Research Findings:\n"
             + "\n\n---\n\n".join(summary_points)
