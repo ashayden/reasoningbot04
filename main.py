@@ -499,7 +499,7 @@ def main():
                 if not st.session_state.app_state['prompt']:
                     with st.spinner("✍️ Optimizing prompt..."):
                         try:
-                            prompt = PromptDesigner(model).design_prompt(topic)
+                            prompt = PromptDesigner(model).create_optimized_prompt(topic)
                             if prompt:
                                 st.session_state.app_state['prompt'] = prompt
                                 st.session_state.app_state['show_focus'] = True
@@ -556,7 +556,7 @@ def main():
                     if proceed:
                         with st.spinner("Enhancing prompt with focus areas..."):
                             try:
-                                enhanced_prompt = PromptDesigner(model).design_prompt(topic, selected)
+                                enhanced_prompt = PromptDesigner(model).create_optimized_prompt(topic, selected)
                                 if enhanced_prompt:
                                     st.session_state.app_state['enhanced_prompt'] = enhanced_prompt
                                     st.session_state.app_state['show_framework'] = True
