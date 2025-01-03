@@ -13,7 +13,7 @@ PROMPT_DESIGN_CONFIG = {
 FRAMEWORK_CONFIG = {
     "temperature": 0.7,
     "candidate_count": 1,
-    "max_output_tokens": 4096
+    "max_output_tokens": 2048
 }
 
 # Research Analysis settings
@@ -24,13 +24,13 @@ ANALYSIS_MAX_TEMP = 0.9
 ANALYSIS_CONFIG = {
     "temperature": 0.7,
     "candidate_count": 1,
-    "max_output_tokens": 8192
+    "max_output_tokens": 4096
 }
 
 SYNTHESIS_CONFIG = {
     "temperature": 0.7,
     "candidate_count": 1,
-    "max_output_tokens": 8192
+    "max_output_tokens": 4096
 }
 
 # Input validation
