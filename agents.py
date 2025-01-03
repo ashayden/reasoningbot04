@@ -70,17 +70,20 @@ class PromptDesigner:
         self.model = model
     
     @rate_limit_decorator
-    def generate_framework(self, topic: str) -> Optional[str]:
-        """Generate research framework."""
+    def generate_framework(self, topic: str, optimized_prompt: str, focus_areas: Optional[list] = None) -> Optional[str]:
+        """Generate research framework using optimized prompt and focus areas."""
         try:
+            # Combine focus areas and base framework
+            areas_text = ", ".join(focus_areas) if focus_areas else ""
+            
             prompt = (
+                f"Using this research outline:\n{optimized_prompt}\n\n"
+                f"And focusing on these aspects: {areas_text}\n\n"
                 f"Create a detailed research framework for analyzing {topic}. Include:\n\n"
-                "1. Culture (music, food, traditions)\n"
-                "2. History (colonialism, key events)\n"
-                "3. Economy (tourism, industry)\n"
-                "4. Environment (geography, climate)\n"
-                "5. Society (demographics, community)\n"
-                "6. Politics (governance, issues)\n\n"
+                "1. Key Research Questions\n"
+                "2. Primary Areas of Investigation\n"
+                "3. Methodological Approach\n"
+                "4. Expected Outcomes\n\n"
                 "Structure each section with clear points and supporting details."
             )
             

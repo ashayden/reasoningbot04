@@ -498,9 +498,14 @@ def main():
             with framework_container:
                 if not st.session_state.app_state['framework']:
                     with st.spinner("🔨 Building analysis framework..."):
-                        framework = FrameworkEngineer(model).create_framework(
-                            st.session_state.app_state['prompt'],
-                            st.session_state.app_state.get('enhanced_prompt')
+                        # Get the optimized prompt and focus areas
+                        optimized_prompt = st.session_state.app_state.get('enhanced_prompt') or st.session_state.app_state.get('prompt')
+                        focus_areas = st.session_state.app_state.get('selected_areas')
+                        
+                        framework = PromptDesigner(model).generate_framework(
+                            topic,
+                            optimized_prompt,
+                            focus_areas
                         )
                         if framework:
                             st.session_state.app_state['framework'] = framework
