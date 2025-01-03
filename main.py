@@ -57,6 +57,7 @@ st.markdown("""
             --section-border: #edf2f7;
             --section-header-bg: #f8f9fa;
             --subsection-header-bg: #fcfcfd;
+            --button-text: #ffffff;
         }
 
         /* Enhanced typography */
@@ -85,14 +86,46 @@ st.markdown("""
             border-bottom: 2px solid var(--section-border) !important;
         }
 
-        h3 {
-            font-size: 1.4rem !important;
-            font-weight: 600 !important;
-            margin: 1rem 0 0.6rem !important;
-            color: #4a4f54 !important;
+        /* Enhanced button styling */
+        .stButton > button {
+            height: 3rem !important;
+            padding: 0.5rem 2rem !important;
+            font-size: 1.1rem !important;
+            font-weight: 500 !important;
+            letter-spacing: 0.02em !important;
+            border-radius: 8px !important;
+            border: none !important;
+            background-color: var(--primary-color) !important;
+            color: var(--button-text) !important;
+            box-shadow: 0 2px 4px var(--shadow-color) !important;
+            transition: all 0.2s ease !important;
+            text-align: center !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            width: 100% !important;
         }
 
-        /* Enhanced section styling */
+        .stButton > button:hover {
+            background-color: #0052a3 !important;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+            transform: translateY(-1px) !important;
+        }
+
+        .stButton > button:active {
+            transform: translateY(0) !important;
+            box-shadow: 0 2px 4px var(--shadow-color) !important;
+        }
+
+        .stButton > button:disabled {
+            background-color: var(--border-color) !important;
+            color: #6c757d !important;
+            cursor: not-allowed !important;
+            box-shadow: none !important;
+            transform: none !important;
+        }
+
+        /* Section styling */
         .section-container {
             background-color: var(--container-background) !important;
             border: 1px solid var(--section-border) !important;
@@ -103,11 +136,34 @@ st.markdown("""
         }
 
         .section-header {
-            background-color: var(--section-header-bg) !important;
+            font-size: 1.7rem !important;
+            font-weight: 600 !important;
+            color: #3a3f44 !important;
             padding: 1rem !important;
             margin: -1.5rem -1.5rem 1rem -1.5rem !important;
-            border-bottom: 1px solid var(--section-border) !important;
+            border-bottom: 2px solid var(--section-border) !important;
+            background-color: var(--section-header-bg) !important;
             border-radius: 8px 8px 0 0 !important;
+        }
+
+        /* Expander styling */
+        .streamlit-expanderHeader {
+            background-color: var(--section-header-bg) !important;
+            border: 1px solid var(--section-border) !important;
+            border-radius: 8px !important;
+            box-shadow: 0 2px 4px var(--shadow-color) !important;
+            margin-bottom: 1rem !important;
+            transition: all 0.2s ease !important;
+            padding: 1rem !important;
+        }
+        
+        .streamlit-expanderContent {
+            background-color: var(--container-background) !important;
+            border: 1px solid var(--section-border) !important;
+            border-top: none !important;
+            border-radius: 0 0 8px 8px !important;
+            padding: 2rem !important;
+            margin-top: -1px !important;
         }
 
         /* Enhanced text content */
@@ -127,26 +183,6 @@ st.markdown("""
         li {
             margin-bottom: 0.5rem !important;
             line-height: 1.6 !important;
-        }
-
-        /* Expander styling with enhanced contrast */
-        .streamlit-expanderHeader {
-            background-color: var(--section-header-bg) !important;
-            border: 1px solid var(--section-border) !important;
-            border-radius: 8px !important;
-            box-shadow: 0 2px 4px var(--shadow-color) !important;
-            margin-bottom: 1rem !important;
-            transition: all 0.2s ease !important;
-            padding: 1rem !important;
-        }
-        
-        .streamlit-expanderContent {
-            background-color: var(--container-background) !important;
-            border: 1px solid var(--section-border) !important;
-            border-top: none !important;
-            border-radius: 0 0 8px 8px !important;
-            padding: 2rem !important;
-            margin-top: -1px !important;
         }
 
         /* Section dividers */
@@ -462,10 +498,8 @@ def display_final_report(summary: str):
                         st.markdown(content)
                 
                 # Start new section
-                current_section = section.split('\n')[0]
+                current_section = section.split('\n')[0].replace(':', '')  # Remove any colons from section headers
                 section_content = ['\n'.join(section.split('\n')[1:]).strip()]
-            
-            # Handle subsections and content
             else:
                 if current_section:
                     section_content.append(section)
