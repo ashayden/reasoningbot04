@@ -356,12 +356,12 @@ def display_focus_selection(focus_areas: list, selected_areas: list) -> tuple[bo
                 
                 # Create the multiselect with callback
                 selected = st.multiselect(
-                    "",  # Empty label since we show it above
+                    "Select Focus Areas",  # Add proper label
                     options=focus_areas,
                     default=st.session_state.focus_area_state['selected'],
                     key="focus_select",
                     on_change=on_selection_change,
-                    label_visibility="collapsed",
+                    label_visibility="collapsed",  # Hide label but keep it for accessibility
                     placeholder="Select one or more focus areas..."
                 )
                 

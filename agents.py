@@ -113,15 +113,19 @@ class PreAnalysisAgent(BaseAgent):
         
         # Generate fun fact
         fact_prompt = (
-            f"Share one fascinating and unexpected fact about {topic} in a single sentence. "
-            "Include relevant emojis. Focus on a surprising or counter-intuitive aspect."
+            f"Share one fascinating and unexpected fact about {topic}. "
+            "Focus on a surprising or counter-intuitive aspect that most people wouldn't know. "
+            "Include relevant emojis and ensure the fact is both engaging and educational. "
+            "Format as a complete, well-structured sentence."
         )
         fact = self._generate_content(fact_prompt, config.PROMPT_DESIGN_CONFIG)
         
         # Generate ELI5
         eli5_prompt = (
-            f"Explain {topic} in 2-3 simple sentences for a general audience. "
-            "Use basic language and add relevant emojis."
+            f"Explain {topic} as if explaining to a curious 10-year-old. "
+            "Use simple language but don't oversimplify the concepts. "
+            "Include 2-3 clear, engaging sentences with relevant emojis. "
+            "Make it both educational and memorable."
         )
         eli5 = self._generate_content(eli5_prompt, config.PROMPT_DESIGN_CONFIG)
         
@@ -244,13 +248,31 @@ class ResearchAnalyst(BaseAgent):
     ) -> Optional[ResearchResult]:
         """Analyze a specific aspect of the topic."""
         if previous:
-            prompt = f"Continue the research on {topic}, building on: {previous}"
+            prompt = (
+                f"Continue the research analysis on {topic}, building on this previous insight:\n\n"
+                f"{previous}\n\n"
+                "Structure your response with:\n"
+                "1. A clear, informative title\n"
+                "2. A brief subtitle that captures the key focus\n"
+                "3. Detailed analysis with specific examples and evidence\n"
+                "4. At least 3 key findings or implications\n"
+                "Format with clear sections and bullet points where appropriate."
+            )
         else:
-            prompt = f"Research {topic} using this framework: {framework}"
+            prompt = (
+                f"Conduct a thorough research analysis on {topic} using this framework:\n\n"
+                f"{framework}\n\n"
+                "Structure your response with:\n"
+                "1. A clear, informative title\n"
+                "2. A brief subtitle that captures the key focus\n"
+                "3. Detailed analysis with specific examples and evidence\n"
+                "4. At least 3 key findings or implications\n"
+                "Format with clear sections and bullet points where appropriate."
+            )
         
         response = self._generate_content(prompt, config.ANALYSIS_CONFIG)
         
-        # Split into title and content
+        # Split into title, subtitle, and content
         lines = response.split('\n', 2)
         result = ResearchResult(
             title=lines[0].strip(),
@@ -264,18 +286,20 @@ class SynthesisExpert(BaseAgent):
     """Research synthesizer."""
     
     @handle_error
-    def synthesize(self, topic: str, research_results: List[str]) -> Optional[str]:
+    def synthesize(self, topic: str, research_results: List[ResearchResult]) -> Optional[str]:
         """Create final synthesis."""
         # Extract key points efficiently
         summary_points = []
         for result in research_results:
-            lines = result.split('\n')
-            summary = [lines[0]]  # Always include first line
+            summary = [result.title]  # Start with the title
+            if result.subtitle:
+                summary.append(result.subtitle)
             
-            # Add up to 3 bullet points efficiently
+            # Add content with bullet points
+            content_lines = result.content.split('\n')
             bullets = []
-            for line in lines[1:]:
-                if line.strip().startswith(('•', '-')):
+            for line in content_lines:
+                if line.strip().startswith(('•', '-', '*')):
                     bullets.append(line)
                     if len(bullets) == 3:
                         break
@@ -285,8 +309,14 @@ class SynthesisExpert(BaseAgent):
             summary_points.append('\n'.join(summary))
         
         prompt = (
-            f"Synthesize these research findings about {topic}:\n\n"
+            f"Create a comprehensive synthesis of these research findings about {topic}:\n\n"
             + "\n---\n".join(summary_points)
+            + "\n\nStructure your synthesis with:\n"
+            "1. Executive Summary (2-3 sentences)\n"
+            "2. Key Findings (3-4 bullet points)\n"
+            "3. Analysis (2-3 paragraphs)\n"
+            "4. Implications & Recommendations (2-3 bullet points)\n"
+            "Ensure each section is detailed and well-supported by the research."
         )
         
         return self._generate_content(prompt, config.SYNTHESIS_CONFIG) 
