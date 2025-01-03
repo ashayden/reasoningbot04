@@ -506,9 +506,13 @@ def display_final_report(summary: str):
         subtitle = ""
         content_start = 1
         
-        # Clean title by removing labels
+        # Clean title by removing labels and markdown characters
         if title:
-            title = title.replace("Main Title:", "").replace("Title:", "").strip()
+            title = (title.replace("Main Title:", "")
+                    .replace("Title:", "")
+                    .replace("##", "")
+                    .replace("#", "")
+                    .strip())
         
         # Look for subtitle in second line if it doesn't start with a section header
         if len(sections) > 1 and not any(sections[1].lower().startswith(header) for header in 
@@ -518,14 +522,17 @@ def display_final_report(summary: str):
             subtitle = subtitle.replace("Descriptive Subtitle:", "").replace("Subtitle:", "").strip()
             content_start = 2
         
-        # Display title and subtitle
-        st.markdown(f"# {title}")
+        # Display title and subtitle with proper heading styles
+        st.markdown(f"<h1 style='font-size: 2.2rem; font-weight: 700; margin: 1.5rem 0 1rem;'>{title}</h1>", unsafe_allow_html=True)
         if subtitle:
-            st.markdown(f"## {subtitle}")
+            st.markdown(f"<h2 style='font-size: 1.7rem; font-weight: 600; margin: 1.2rem 0 0.8rem;'>{subtitle}</h2>", unsafe_allow_html=True)
         
         # Initialize section tracking
         current_section = None
         section_content = []
+        
+        # Define consistent section header style
+        section_header_style = "font-size: 1.7rem; font-weight: 600; margin: 1.2rem 0 0.8rem; color: #3a3f44; letter-spacing: -0.01em; padding: 0.5rem 0; border-bottom: 2px solid var(--section-border);"
         
         # Process remaining sections
         for section in sections[content_start:]:
@@ -541,8 +548,8 @@ def display_final_report(summary: str):
                 # Output previous section if it exists
                 if current_section and section_content:
                     st.markdown("---")
-                    st.markdown(f"## {current_section}")
-                    # Join content with proper spacing for executive summary
+                    st.markdown(f"<h2 style='{section_header_style}'>{current_section}</h2>", unsafe_allow_html=True)
+                    # Join content with proper spacing for all sections
                     if current_section.lower() == "executive summary":
                         st.markdown(" ".join(section_content))
                     else:
@@ -550,7 +557,7 @@ def display_final_report(summary: str):
                             st.markdown(content)
                 
                 # Start new section
-                current_section = section.split('\n')[0].replace(':', '')  # Remove any colons from section headers
+                current_section = section.split('\n')[0].replace(':', '').strip()  # Remove any colons from section headers
                 section_content = ['\n'.join(section.split('\n')[1:]).strip()]
             else:
                 if current_section:
@@ -561,8 +568,8 @@ def display_final_report(summary: str):
         # Output final section if it exists
         if current_section and section_content:
             st.markdown("---")
-            st.markdown(f"## {current_section}")
-            # Join content with proper spacing for executive summary
+            st.markdown(f"<h2 style='{section_header_style}'>{current_section}</h2>", unsafe_allow_html=True)
+            # Join content with proper spacing for all sections
             if current_section.lower() == "executive summary":
                 st.markdown(" ".join(section_content))
             else:
