@@ -25,6 +25,22 @@ from utils import (
 
 logger = logging.getLogger(__name__)
 
+def extract_response_text(response: Any) -> Optional[str]:
+    """Extract text from a Gemini model response."""
+    try:
+        if hasattr(response, "parts"):
+            return "".join(part.text for part in response.parts if hasattr(part, "text")).strip()
+        elif hasattr(response, "text"):
+            return response.text.strip()
+        elif hasattr(response, "candidates"):
+            for candidate in response.candidates:
+                if hasattr(candidate.content, "parts"):
+                    return "".join(part.text for part in candidate.content.parts if hasattr(part, "text")).strip()
+        return None
+    except Exception as e:
+        logger.error(f"Failed to extract response text: {str(e)}")
+        return None
+
 class PreAnalysisAgent:
     """Agent responsible for generating quick insights before main analysis."""
     
@@ -33,19 +49,11 @@ class PreAnalysisAgent:
         self.model = model
         
     def generate_insights(self, topic: str) -> Optional[Dict[str, str]]:
-        """Generate quick insights about the topic.
-        
-        Args:
-            topic: The topic to analyze
-            
-        Returns:
-            Dictionary containing 'did_you_know' and 'eli5' sections,
-            or None if generation fails
-        """
+        """Generate quick insights about the topic."""
         try:
             # Generate fun fact with higher creativity
             fact_config = {
-                "temperature": 0.9,  # Higher temperature for more creative facts
+                "temperature": 0.9,
                 "top_p": 0.9,
                 "top_k": 40,
                 "candidate_count": 1
@@ -69,12 +77,13 @@ class PreAnalysisAgent:
                 fact_prompt,
                 generation_config=GenerationConfig(**fact_config)
             )
-            if not fact_response:
+            fact_text = extract_response_text(fact_response)
+            if not fact_text:
                 return None
             
             # Generate ELI5 with balanced creativity
             eli5_config = {
-                "temperature": 0.7,  # Balanced temperature for creative yet clear explanations
+                "temperature": 0.7,
                 "top_p": 0.8,
                 "top_k": 30,
                 "candidate_count": 1
@@ -100,12 +109,13 @@ class PreAnalysisAgent:
                 eli5_prompt,
                 generation_config=GenerationConfig(**eli5_config)
             )
-            if not eli5_response:
+            eli5_text = extract_response_text(eli5_response)
+            if not eli5_text:
                 return None
             
             return {
-                'did_you_know': fact_response.text.strip(),
-                'eli5': eli5_response.text.strip()
+                'did_you_know': fact_text,
+                'eli5': eli5_text
             }
             
         except Exception as e:
