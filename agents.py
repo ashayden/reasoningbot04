@@ -1,36 +1,111 @@
 """Agent implementations for the MARA application."""
 
 import logging
-from typing import Any, Dict, Optional
+import sqlite3
+import json
+import hashlib
+from typing import Any, Dict, Optional, List
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 
 import google.generativeai as genai
-from google.generativeai.types import GenerationConfig
+from google.generativeai.types import GenerativeModel, GenerationConfig
 
-from config import (
-    PROMPT_DESIGN_CONFIG,
-    FRAMEWORK_CONFIG,
-    ANALYSIS_CONFIG,
-    SYNTHESIS_CONFIG
-)
-from utils import handle_error
+from config import config
+from utils import handle_error, ProcessingError
 
 logger = logging.getLogger(__name__)
 
-class PreAnalysisAgent:
-    """Quick insights agent."""
+class Cache:
+    """SQLite-based persistent cache."""
     
-    def __init__(self, model: Any):
+    def __init__(self, db_path: str = "cache.db"):
+        self.db_path = db_path
+        self._init_db()
+    
+    def _init_db(self):
+        """Initialize the cache database."""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS cache (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL,
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+    
+    def _generate_key(self, prefix: str, data: Any) -> str:
+        """Generate a cache key."""
+        data_str = json.dumps(data, sort_keys=True)
+        return f"{prefix}:{hashlib.sha256(data_str.encode()).hexdigest()}"
+    
+    def get(self, prefix: str, data: Any, max_age: Optional[timedelta] = None) -> Optional[Any]:
+        """Retrieve value from cache."""
+        key = self._generate_key(prefix, data)
+        with sqlite3.connect(self.db_path) as conn:
+            if max_age:
+                cutoff = datetime.now() - max_age
+                result = conn.execute(
+                    "SELECT value FROM cache WHERE key = ? AND timestamp > ?",
+                    (key, cutoff)
+                ).fetchone()
+            else:
+                result = conn.execute(
+                    "SELECT value FROM cache WHERE key = ?",
+                    (key,)
+                ).fetchone()
+        
+        return json.loads(result[0]) if result else None
+    
+    def set(self, prefix: str, data: Any, value: Any):
+        """Store value in cache."""
+        key = self._generate_key(prefix, data)
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO cache (key, value) VALUES (?, ?)",
+                (key, json.dumps(value))
+            )
+
+# Global cache instance
+cache = Cache()
+
+@dataclass
+class ResearchResult:
+    """Data class for research results."""
+    title: str
+    subtitle: Optional[str] = None
+    content: str = ""
+
+class BaseAgent:
+    """Base class for all agents."""
+    
+    def __init__(self, model: GenerativeModel):
+        if not isinstance(model, GenerativeModel):
+            raise ValueError("model must be an instance of GenerativeModel")
         self.model = model
-        self._cached_insights = {}  # Cache for insights to prevent regeneration
+    
+    def _generate_content(self, prompt: str, config: GenerationConfig) -> Optional[str]:
+        """Generate content with error handling."""
+        try:
+            response = self.model.generate_content(prompt, generation_config=config)
+            if not response or not response.text:
+                raise ProcessingError("Empty response from model")
+            return response.text.strip()
+        except Exception as e:
+            logger.exception(f"Error generating content: {str(e)}")
+            raise ProcessingError(f"Failed to generate content: {str(e)}")
+
+class PreAnalysisAgent(BaseAgent):
+    """Quick insights agent."""
     
     @handle_error
     def generate_insights(self, topic: str) -> Optional[Dict[str, str]]:
         """Generate quick insights about the topic."""
-        # Check cache first
-        cache_key = topic.lower().strip()
-        if cache_key in self._cached_insights:
+        # Try cache first
+        cached = cache.get("insights", topic, max_age=timedelta(days=1))
+        if cached:
             logger.info(f"Using cached insights for topic: {topic}")
-            return self._cached_insights[cache_key]
+            return cached
         
         logger.info(f"Generating new insights for topic: {topic}")
         
@@ -39,101 +114,74 @@ class PreAnalysisAgent:
             f"Share one fascinating and unexpected fact about {topic} in a single sentence. "
             "Include relevant emojis. Focus on a surprising or counter-intuitive aspect."
         )
-        
-        fact_response = self.model.generate_content(
-            fact_prompt,
-            generation_config=GenerationConfig(**PROMPT_DESIGN_CONFIG)
-        )
-        if not fact_response or not fact_response.text:
-            logger.error("Failed to generate fun fact")
-            return None
+        fact = self._generate_content(fact_prompt, config.PROMPT_DESIGN_CONFIG)
         
         # Generate ELI5
         eli5_prompt = (
             f"Explain {topic} in 2-3 simple sentences for a general audience. "
             "Use basic language and add relevant emojis."
         )
-        
-        eli5_response = self.model.generate_content(
-            eli5_prompt,
-            generation_config=GenerationConfig(**PROMPT_DESIGN_CONFIG)
-        )
-        if not eli5_response or not eli5_response.text:
-            logger.error("Failed to generate ELI5 explanation")
-            return None
+        eli5 = self._generate_content(eli5_prompt, config.PROMPT_DESIGN_CONFIG)
         
         insights = {
-            'did_you_know': fact_response.text.strip(),
-            'eli5': eli5_response.text.strip()
+            'did_you_know': fact,
+            'eli5': eli5
         }
         
         # Cache the results
-        self._cached_insights[cache_key] = insights
-        logger.info(f"Successfully generated and cached insights for: {topic}")
+        cache.set("insights", topic, insights)
         return insights
 
-class PromptDesigner:
+class PromptDesigner(BaseAgent):
     """Research framework designer."""
     
-    def __init__(self, model: Any):
-        self.model = model
-        self._cached_framework = None  # Cache for framework to prevent regeneration
-    
     @handle_error
-    def generate_focus_areas(self, topic: str) -> Optional[list]:
+    def generate_focus_areas(self, topic: str) -> Optional[List[str]]:
         """Generate focus areas for the topic."""
+        cached = cache.get("focus_areas", topic, max_age=timedelta(days=1))
+        if cached:
+            return cached
+            
         prompt = (
             f"List 8 key research areas for {topic}. "
             "Return only the area names, one per line. "
             "No additional formatting, comments, or descriptions."
         )
         
-        response = self.model.generate_content(
-            prompt,
-            generation_config=GenerationConfig(**PROMPT_DESIGN_CONFIG)
-        )
-        
-        if not response or not response.text:
-            logger.error("Empty response from model")
-            return None
+        response = self._generate_content(prompt, config.PROMPT_DESIGN_CONFIG)
         
         # Clean up the response
-        text = response.text.strip()
-        if text.startswith('```') and text.endswith('```'):
-            text = text[text.find('\n')+1:text.rfind('\n')]
+        areas = [
+            line.strip().strip('[],"\'')
+            for line in response.split('\n')
+            if line.strip() and not line.strip()[0].isdigit()
+        ][:8]  # Take first 8 valid areas
         
-        # Split by newlines and clean up each line
-        areas = []
-        for line in text.split('\n'):
-            line = line.strip().strip('[],"\'')
-            if '#' in line:
-                line = line[:line.find('#')].strip()
-            line = line.strip('"\'[] ,')
-            if line and not line.startswith(('#', '-', '*', '•', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0')):
-                areas.append(line)
+        if not areas:
+            raise ProcessingError("No valid focus areas generated")
         
-        # Take first 8 valid areas
-        valid_areas = areas[:8]
-        
-        if not valid_areas:
-            logger.error("No valid focus areas found in response")
-            return None
-            
-        logger.info(f"Generated {len(valid_areas)} focus areas")
-        return valid_areas
+        cache.set("focus_areas", topic, areas)
+        return areas
     
     @handle_error
-    def generate_framework(self, topic: str, optimized_prompt: str, focus_areas: Optional[list] = None) -> Optional[str]:
+    def generate_framework(
+        self,
+        topic: str,
+        optimized_prompt: str,
+        focus_areas: Optional[List[str]] = None
+    ) -> Optional[str]:
         """Generate research framework using optimized prompt and focus areas."""
-        # Return cached framework if available
-        if self._cached_framework:
-            logger.info("Using cached framework")
-            return self._cached_framework
+        cache_key = {
+            "topic": topic,
+            "prompt": optimized_prompt,
+            "areas": focus_areas
+        }
+        cached = cache.get("framework", cache_key, max_age=timedelta(days=1))
+        if cached:
+            return cached
         
-        # Extract key themes from focus areas
-        areas_text = ", ".join(focus_areas[:3]) if focus_areas else ""  # Limit to top 3 focus areas
+        areas_text = ", ".join(focus_areas[:3]) if focus_areas else ""
         
-        # Create a detailed prompt
         prompt = (
             f"Create a comprehensive research framework for {topic} focusing on: {areas_text}\n\n"
             "Format the response in 4 sections:\n"
@@ -144,26 +192,18 @@ class PromptDesigner:
             "Keep each bullet point detailed but focused."
         )
         
-        response = self.model.generate_content(
-            prompt,
-            generation_config=GenerationConfig(**FRAMEWORK_CONFIG)
-        )
-        
-        if not response or not response.text:
-            logger.error("Empty response from model")
-            return None
-            
-        # Clean up the response
-        framework = response.text.strip()
-        
-        # Cache the framework
-        self._cached_framework = framework
+        framework = self._generate_content(prompt, config.FRAMEWORK_CONFIG)
+        cache.set("framework", cache_key, framework)
         return framework
     
     @handle_error
-    def design_prompt(self, topic: str, focus_areas: Optional[list] = None) -> Optional[str]:
+    def design_prompt(self, topic: str, focus_areas: Optional[List[str]] = None) -> Optional[str]:
         """Design research prompt."""
-        # Create a structured prompt
+        cache_key = {"topic": topic, "areas": focus_areas}
+        cached = cache.get("prompt", cache_key, max_age=timedelta(days=1))
+        if cached:
+            return cached
+            
         if focus_areas:
             prompt = (
                 f"Create a focused research framework for analyzing {topic}, "
@@ -186,87 +226,65 @@ class PromptDesigner:
                 "Keep each section concise but informative."
             )
         
-        response = self.model.generate_content(
-            prompt,
-            generation_config=GenerationConfig(**PROMPT_DESIGN_CONFIG)
-        )
-        
-        if not response or not response.text:
-            logger.error("Empty response from model")
-            return None
-        
-        return response.text.strip()
+        result = self._generate_content(prompt, config.PROMPT_DESIGN_CONFIG)
+        cache.set("prompt", cache_key, result)
+        return result
 
-class ResearchAnalyst:
+class ResearchAnalyst(BaseAgent):
     """Research analyst."""
     
-    def __init__(self, model: Any):
-        self.model = model
-    
     @handle_error
-    def analyze(self, topic: str, framework: str, previous: Optional[str] = None) -> Optional[Dict[str, str]]:
+    def analyze(
+        self,
+        topic: str,
+        framework: str,
+        previous: Optional[str] = None
+    ) -> Optional[ResearchResult]:
         """Analyze a specific aspect of the topic."""
         if previous:
             prompt = f"Continue the research on {topic}, building on: {previous}"
         else:
             prompt = f"Research {topic} using this framework: {framework}"
         
-        response = self.model.generate_content(
-            prompt,
-            generation_config=GenerationConfig(**ANALYSIS_CONFIG)
-        )
-        if not response or not response.text:
-            return None
+        response = self._generate_content(prompt, config.ANALYSIS_CONFIG)
         
         # Split into title and content
-        lines = response.text.split('\n', 1)
-        title = lines[0].strip() if len(lines) > 0 else "Research Analysis"
-        content = lines[1].strip() if len(lines) > 1 else response.text
+        lines = response.split('\n', 2)
+        result = ResearchResult(
+            title=lines[0].strip(),
+            subtitle=lines[1].strip() if len(lines) > 2 else None,
+            content=lines[-1].strip()
+        )
         
-        return {
-            'title': title,
-            'content': content
-        }
+        return result
 
-class SynthesisExpert:
+class SynthesisExpert(BaseAgent):
     """Research synthesizer."""
     
-    def __init__(self, model: Any):
-        self.model = model
-    
     @handle_error
-    def synthesize(self, topic: str, research_results: list) -> Optional[str]:
+    def synthesize(self, topic: str, research_results: List[str]) -> Optional[str]:
         """Create final synthesis."""
-        # Limit the input size by extracting key points
+        # Extract key points efficiently
         summary_points = []
         for result in research_results:
-            # Extract first paragraph and any bullet points
             lines = result.split('\n')
-            summary = lines[0]  # Always include first line
-            bullets = [line for line in lines if line.strip().startswith('•') or line.strip().startswith('-')]
+            summary = [lines[0]]  # Always include first line
+            
+            # Add up to 3 bullet points efficiently
+            bullets = []
+            for line in lines[1:]:
+                if line.strip().startswith(('•', '-')):
+                    bullets.append(line)
+                    if len(bullets) == 3:
+                        break
+            
             if bullets:
-                summary += '\n' + '\n'.join(bullets[:3])  # Include up to 3 bullet points
-            summary_points.append(summary)
+                summary.extend(bullets)
+            summary_points.append('\n'.join(summary))
         
-        # Create a focused synthesis prompt
         prompt = (
-            f"Create a concise synthesis of this research about {topic}. "
-            "Format the response in these sections:\n"
-            "1. Key Findings (3-4 bullet points)\n"
-            "2. Analysis (2-3 paragraphs)\n"
-            "3. Conclusion (1 paragraph)\n\n"
-            "Research points to synthesize:\n"
-            f"{' '.join(summary_points)}\n\n"
-            "Keep the response focused."
+            f"Synthesize these research findings about {topic}:\n\n"
+            + "\n---\n".join(summary_points)
         )
         
-        response = self.model.generate_content(
-            prompt,
-            generation_config=GenerationConfig(**SYNTHESIS_CONFIG)
-        )
-        
-        if not response or not response.text:
-            logger.error("Empty response from synthesis")
-            return None
-        
-        return response.text.strip() 
+        return self._generate_content(prompt, config.SYNTHESIS_CONFIG) 
