@@ -230,7 +230,10 @@ def initialize_gemini() -> Optional[Any]:
         
         # Configure the model
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(config.GEMINI_MODEL)
+        model = genai.GenerativeModel(
+            config.GEMINI_MODEL,
+            safety_settings=config.SAFETY_SETTINGS
+        )
         
         # Simple test prompt
         test_response = model.generate_content(

@@ -90,11 +90,22 @@ class BaseAgent:
             # Convert Pydantic config to dict for Gemini
             generation_config = config.model_dump() if hasattr(config, 'model_dump') else config
             response = self.model.generate_content(prompt, generation_config=generation_config)
-            if not response or not response.text:
-                raise ProcessingError("Empty response from model")
+            
+            # Handle potential safety blocks
+            if not response.text:
+                if hasattr(response, 'prompt_feedback'):
+                    logger.error(f"Content blocked due to safety settings: {response.prompt_feedback}")
+                    raise ProcessingError("Content generation blocked by safety settings. Please try rephrasing your request.")
+                else:
+                    logger.error("Empty response from model with no feedback")
+                    raise ProcessingError("Empty response from model")
+            
             return response.text.strip()
+            
         except Exception as e:
             logger.exception(f"Error generating content: {str(e)}")
+            if "safety" in str(e).lower():
+                raise ProcessingError("Content generation was blocked by safety settings. Please try rephrasing your request.")
             raise ProcessingError(f"Failed to generate content: {str(e)}")
 
 class PreAnalysisAgent(BaseAgent):

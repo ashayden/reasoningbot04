@@ -2,6 +2,8 @@
 
 from pydantic import BaseModel, Field
 from google.generativeai.types import GenerationConfig as GeminiConfig
+from google.generativeai.types import SafetySettingDict, HarmCategory, HarmBlockThreshold
+from typing import List
 
 class GenerationConfig(BaseModel):
     """Configuration for text generation."""
@@ -14,6 +16,26 @@ class AppConfig(BaseModel):
     """Main application configuration."""
     # Model configurations
     GEMINI_MODEL: str = "gemini-pro"
+    
+    # Safety settings - using more permissive thresholds
+    SAFETY_SETTINGS: List[SafetySettingDict] = [
+        {
+            "category": HarmCategory.HARASSMENT,
+            "threshold": HarmBlockThreshold.MEDIUM_AND_ABOVE
+        },
+        {
+            "category": HarmCategory.HATE_SPEECH,
+            "threshold": HarmBlockThreshold.MEDIUM_AND_ABOVE
+        },
+        {
+            "category": HarmCategory.SEXUALLY_EXPLICIT,
+            "threshold": HarmBlockThreshold.HIGH
+        },
+        {
+            "category": HarmCategory.DANGEROUS_CONTENT,
+            "threshold": HarmBlockThreshold.HIGH
+        }
+    ]
     
     # Generation configurations with specific tuning for each stage
     PROMPT_DESIGN_CONFIG: GenerationConfig = GenerationConfig(
