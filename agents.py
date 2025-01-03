@@ -90,10 +90,7 @@ class PromptDesigner:
         
         response = self.model.generate_content(
             prompt,
-            generation_config=GenerationConfig(**{
-                **PROMPT_DESIGN_CONFIG,
-                'temperature': 0.1  # Lower temperature for more focused output
-            })
+            generation_config=GenerationConfig(**PROMPT_DESIGN_CONFIG)
         )
         
         if not response or not response.text:
@@ -191,10 +188,7 @@ class PromptDesigner:
         
         response = self.model.generate_content(
             prompt,
-            generation_config=GenerationConfig(**{
-                **PROMPT_DESIGN_CONFIG,
-                'temperature': 0.1  # Lower temperature for more focused output
-            })
+            generation_config=GenerationConfig(**PROMPT_DESIGN_CONFIG)
         )
         
         if not response or not response.text:
