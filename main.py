@@ -513,8 +513,19 @@ def main():
                             st.rerun()
                 
                 if st.session_state.app_state['framework']:
-                    with st.expander("📄 Research Framework", expanded=False):
-                        st.markdown(st.session_state.app_state['framework'])
+                    with st.expander("📄 Research Framework", expanded=True):
+                        try:
+                            # Add a divider for visual separation
+                            st.markdown("---")
+                            # Display the framework with proper formatting
+                            st.markdown(st.session_state.app_state['framework'])
+                            # Add another divider
+                            st.markdown("---")
+                            # Add a success message
+                            st.success("Framework generated successfully! Proceeding with analysis...")
+                        except Exception as e:
+                            logger.error(f"Error displaying framework: {str(e)}")
+                            st.error("Error displaying framework. Please try again.")
         
         # Process analysis
         if st.session_state.app_state['show_analysis']:
