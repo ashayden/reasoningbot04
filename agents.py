@@ -81,20 +81,30 @@ class PromptDesigner:
             
             # Create a more focused prompt
             prompt = (
-                f"Create a concise research framework for {topic} focusing on these key areas: {areas_text}.\n\n"
-                "Include these sections:\n"
-                "1. Research Questions (2-3 key questions)\n"
-                "2. Core Areas to Investigate (main themes and sub-topics)\n"
-                "3. Methodology (brief overview of research approach)\n"
-                "4. Expected Outcomes\n\n"
-                "Keep each section brief and focused. Use bullet points for clarity."
+                f"Create a brief research framework for {topic} focusing on: {areas_text}\n\n"
+                "Format the response in 4 short sections:\n"
+                "1. Key Questions (2-3 bullet points)\n"
+                "2. Main Topics (3-4 bullet points)\n"
+                "3. Methods (2-3 bullet points)\n"
+                "4. Expected Insights (2-3 bullet points)\n\n"
+                "Keep each bullet point to one line. Total response should be under 500 words."
             )
             
             response = self.model.generate_content(
                 prompt,
                 generation_config=GenerationConfig(**FRAMEWORK_CONFIG)
             )
-            return response.text if response and response.text else None
+            
+            if not response or not response.text:
+                logger.error("Empty response from model")
+                return None
+                
+            # Clean up the response
+            framework = response.text.strip()
+            if len(framework) > 2000:  # Add a safety limit
+                framework = framework[:2000] + "..."
+                
+            return framework
             
         except Exception as e:
             logger.error(f"Framework generation failed: {str(e)}")
