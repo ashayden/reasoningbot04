@@ -422,7 +422,7 @@ def process_stage(stage_name: str, container, process_fn, next_stage: str = None
                             if next_stage:
                                 st.session_state.app_state[f'show_{next_stage}'] = True
                                 logger.info(f"Moving to next stage: {next_stage}")
-                                st.experimental_rerun()  # Use experimental_rerun for more reliable state updates
+                                st.rerun()  # Use experimental_rerun for more reliable state updates
                         else:
                             # Handle failed processing
                             logger.error(f"Process function for {stage_name} returned None")
