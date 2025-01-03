@@ -215,21 +215,47 @@ class SynthesisExpert:
     def synthesize(self, topic: str, research_results: list) -> Optional[str]:
         """Create final synthesis."""
         try:
+            # Limit the input size by extracting key points
+            summary_points = []
+            for result in research_results:
+                # Extract first paragraph and any bullet points
+                lines = result.split('\n')
+                summary = lines[0]  # Always include first line
+                bullets = [line for line in lines if line.strip().startswith('•') or line.strip().startswith('-')]
+                if bullets:
+                    summary += '\n' + '\n'.join(bullets[:3])  # Include up to 3 bullet points
+                summary_points.append(summary)
+            
+            # Create a focused synthesis prompt
             prompt = (
-                f"Synthesize this research about {topic}:\n\n"
-                f"{' '.join(research_results)}\n\n"
-                "Create a comprehensive report with:\n"
-                "1. Executive Summary (2-3 paragraphs)\n"
-                "2. Key Findings (bullet points)\n"
-                "3. Analysis (detailed discussion)\n"
-                "4. Conclusion (clear takeaways)"
+                f"Create a concise synthesis of this research about {topic}. "
+                "Format the response in these sections:\n"
+                "1. Key Findings (3-4 bullet points)\n"
+                "2. Analysis (2-3 paragraphs)\n"
+                "3. Conclusion (1 paragraph)\n\n"
+                "Research points to synthesize:\n"
+                f"{' '.join(summary_points)}\n\n"
+                "Keep the response focused and under 1000 words."
             )
             
             response = self.model.generate_content(
                 prompt,
-                generation_config=GenerationConfig(**SYNTHESIS_CONFIG)
+                generation_config=GenerationConfig(**{
+                    **SYNTHESIS_CONFIG,
+                    'max_output_tokens': 2048  # Reduce token limit
+                })
             )
-            return response.text if response and response.text else None
+            
+            if not response or not response.text:
+                logger.error("Empty response from synthesis")
+                return None
+            
+            # Clean up and format the response
+            synthesis = response.text.strip()
+            if len(synthesis) > 2000:  # Add a safety limit
+                synthesis = synthesis[:2000] + "..."
+            
+            return synthesis
             
         except Exception as e:
             logger.error(f"Research synthesis failed: {str(e)}")
