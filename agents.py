@@ -374,9 +374,9 @@ class ResearchAnalyst(BaseAgent):
                 "1. Identify a specific aspect or implication from the previous analysis to explore deeper\n"
                 "2. Focus on uncovering novel connections and theoretical frameworks\n"
                 "3. Apply advanced research methodologies to this narrowed focus\n\n"
-                "Structure your response with:\n"
-                "1. A clear, informative title reflecting this iteration's specific focus\n"
-                "2. A brief subtitle capturing the key theoretical framework or methodology\n"
+                "Format your response with:\n"
+                "1. A concise main title (without 'Title:' prefix)\n"
+                "2. A descriptive subtitle on the next line (without 'Subtitle:' prefix)\n"
                 "3. Detailed analysis incorporating:\n"
                 "   - Advanced theoretical frameworks\n"
                 "   - Empirical evidence and data\n"
@@ -400,9 +400,9 @@ class ResearchAnalyst(BaseAgent):
                 "1. Identify the core theoretical frameworks relevant to the topic\n"
                 "2. Map the current state of research and key debates\n"
                 "3. Highlight areas requiring deeper investigation\n\n"
-                "Structure your response with:\n"
-                "1. A clear, informative title reflecting the foundational analysis\n"
-                "2. A brief subtitle capturing the primary theoretical framework\n"
+                "Format your response with:\n"
+                "1. A concise main title (without 'Title:' prefix)\n"
+                "2. A descriptive subtitle on the next line (without 'Subtitle:' prefix)\n"
                 "3. Detailed analysis incorporating:\n"
                 "   - Fundamental theories and models\n"
                 "   - Current research landscape\n"
@@ -417,11 +417,27 @@ class ResearchAnalyst(BaseAgent):
         
         response = self._generate_content(prompt, GenerationConfig(**analysis_config))
         
+        # Split response into title, subtitle, and content
         lines = response.split('\n', 2)
+        if len(lines) >= 2:
+            title = lines[0].strip()
+            subtitle = lines[1].strip()
+            content = lines[2].strip() if len(lines) > 2 else ""
+            
+            # If title contains a colon, split into main title and subtitle
+            if ':' in title:
+                main_title, subtitle_part = title.split(':', 1)
+                title = main_title.strip()
+                subtitle = subtitle_part.strip()
+        else:
+            title = lines[0].strip()
+            subtitle = None
+            content = ""
+        
         result = ResearchResult(
-            title=lines[0].strip(),
-            subtitle=lines[1].strip() if len(lines) > 2 else None,
-            content=lines[-1].strip()
+            title=title,
+            subtitle=subtitle,
+            content=content
         )
         
         return result
@@ -449,41 +465,47 @@ class SynthesisExpert(BaseAgent):
             f"Topic: {topic}\n\n"
             "Research Findings:\n"
             + "\n\n---\n\n".join(summary_points)
-            + "\n\nCreate a detailed academic report following this structure:\n\n"
-            "Title: [Descriptive title capturing the core theoretical contribution]\n"
-            "Subtitle: [Specific methodological or analytical focus]\n\n"
-            "1. Executive Summary\n"
-            "   - Open with a compelling research context\n"
+            + "\n\nCreate a detailed academic report with this structure:\n\n"
+            "1. Format the title as:\n"
+            "   - Main title (concise, without 'Title:' prefix)\n"
+            "   - Descriptive subtitle on next line (without 'Subtitle:' prefix)\n\n"
+            "2. Begin with Executive Summary\n"
+            "   - Open with compelling research context\n"
             "   - Present key theoretical contributions\n"
             "   - Highlight empirical significance\n"
             "   - Emphasize practical implications\n\n"
-            "2. Key Insights\n"
+            "3. Key Insights\n"
             "   - Present 4-6 major findings\n"
             "   - Support each with specific evidence\n"
             "   - Connect to established frameworks\n"
             "   - Identify emerging patterns\n\n"
-            "3. Analysis\n"
+            "4. Analysis\n"
             "   - Begin each paragraph with a clear topic sentence\n"
             "   - Support claims with specific examples\n"
             "   - Integrate multiple theoretical perspectives\n"
             "   - Build logical connections between ideas\n"
             "   - Address critical research gaps\n\n"
-            "4. Implications\n"
+            "5. Implications\n"
             "   - Present concrete theoretical advances\n"
             "   - Specify practical applications\n"
             "   - Outline future research directions\n"
             "   - Describe potential impact\n\n"
-            "5. Critical Considerations\n"
+            "6. Critical Considerations\n"
             "   - Examine counter-arguments\n"
             "   - Address methodological constraints\n"
             "   - Discuss theoretical limitations\n"
             "   - Suggest mitigation strategies\n\n"
-            "6. Essential References\n"
+            "7. Conclusion\n"
+            "   - Synthesize key findings\n"
+            "   - Highlight significant contributions\n"
+            "   - Present forward-looking perspective\n"
+            "   - End with impactful closing statement\n\n"
+            "8. Essential References\n"
             "   - Highlight seminal works\n"
             "   - Include recent developments\n"
             "   - Reference key methodologies\n"
             "   - List influential reviews\n\n"
-            "7. Bibliography\n"
+            "9. Bibliography\n"
             "   - Follow APA 7th edition format\n"
             "   - Prioritize peer-reviewed sources\n"
             "   - Include DOIs when available\n"
