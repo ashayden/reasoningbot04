@@ -89,6 +89,7 @@ st.markdown("""
         /* Enhanced button styling */
         .stButton > button {
             height: 3rem !important;
+            min-width: 120px !important;
             padding: 0.5rem 2rem !important;
             font-size: 1.1rem !important;
             font-weight: 500 !important;
@@ -99,11 +100,34 @@ st.markdown("""
             color: var(--button-text) !important;
             box-shadow: 0 2px 4px var(--shadow-color) !important;
             transition: all 0.2s ease !important;
-            text-align: center !important;
-            display: flex !important;
+            display: inline-flex !important;
             align-items: center !important;
             justify-content: center !important;
+            gap: 0.5rem !important;
             width: 100% !important;
+            position: relative !important;
+            line-height: 1 !important;
+        }
+
+        /* Button icon/emoji styling */
+        .stButton > button svg,
+        .stButton > button img,
+        .stButton > button span {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            vertical-align: middle !important;
+            line-height: 1 !important;
+        }
+
+        /* Ensure emojis are centered */
+        .stButton > button::before {
+            margin-right: 0.5rem !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            vertical-align: middle !important;
+            line-height: 1 !important;
         }
 
         .stButton > button:hover {
@@ -123,6 +147,24 @@ st.markdown("""
             cursor: not-allowed !important;
             box-shadow: none !important;
             transform: none !important;
+        }
+
+        /* Primary button specific styling */
+        [data-testid="baseButton-primary"] {
+            background-color: var(--primary-color) !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 0.5rem !important;
+        }
+
+        /* Secondary button specific styling */
+        [data-testid="baseButton-secondary"] {
+            background-color: var(--secondary-background) !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 0.5rem !important;
         }
 
         /* Section styling */
