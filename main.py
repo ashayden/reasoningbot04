@@ -6,7 +6,7 @@ import google.generativeai as genai
 import os
 import time
 import random
-from typing import Any, Optional, Tuple
+from typing import Any, Optional, Tuple, List
 from google.generativeai.types import GenerationConfig
 
 from config import (
@@ -15,7 +15,13 @@ from config import (
     PROMPT_DESIGN_CONFIG
 )
 from utils import validate_topic, sanitize_topic
-from agents import PreAnalysisAgent, PromptDesigner, ResearchAnalyst, SynthesisExpert
+from agents import (
+    PreAnalysisAgent,
+    PromptDesigner,
+    ResearchAnalyst,
+    SynthesisExpert,
+    ResearchResult
+)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -412,6 +418,15 @@ def display_focus_selection(focus_areas: list, selected_areas: list) -> tuple[bo
         
         return False, st.session_state.focus_area_state['selected']
 
+def display_analysis(analysis_results: List[ResearchResult]):
+    """Display analysis results."""
+    for i, result in enumerate(analysis_results):
+        with st.expander(f"🔄 Research Analysis #{i + 1}", expanded=False):
+            if result.subtitle:
+                st.markdown(f"## {result.title}\n\n*{result.subtitle}*\n\n{result.content}")
+            else:
+                st.markdown(f"## {result.title}\n\n{result.content}")
+
 def main():
     """Main application flow."""
     # Input form
@@ -564,29 +579,17 @@ def main():
                         result = ResearchAnalyst(model).analyze(
                             topic,
                             st.session_state.app_state['framework'],
-                            st.session_state.app_state['analysis_results'][-1] if st.session_state.app_state['analysis_results'] else None
+                            st.session_state.app_state['analysis_results'][-1].content if st.session_state.app_state['analysis_results'] else None
                         )
                         if result:
-                            # Format the analysis content with proper spacing
-                            content = []
-                            if result['title']:
-                                content.append(f"# {result['title']}")
-                            if result['subtitle']:
-                                content.append(f"*{result['subtitle']}*")
-                            if result['content']:
-                                content.append(result['content'])
-                            
-                            formatted_content = '\n\n'.join(content)
-                            st.session_state.app_state['analysis_results'].append(formatted_content)
+                            st.session_state.app_state['analysis_results'].append(result)
                             
                             if len(st.session_state.app_state['analysis_results']) == st.session_state.app_state['iterations']:
                                 st.session_state.app_state['show_summary'] = True
                             st.rerun()
                 
                 # Display analysis results
-                for i, result in enumerate(st.session_state.app_state['analysis_results']):
-                    with st.expander(f"🔄 Research Analysis #{i + 1}", expanded=False):
-                        st.markdown(result)
+                display_analysis(st.session_state.app_state['analysis_results'])
         
         # Process summary
         if st.session_state.app_state['show_summary']:
@@ -602,7 +605,7 @@ def main():
                             st.rerun()
                 
                 if st.session_state.app_state['summary']:
-                    with st.expander("📊 Final Report", expanded=False):
+                    with st.expander("📊 Final Report", expanded=True):
                         st.markdown(st.session_state.app_state['summary'])
     except Exception as e:
         handle_error(e, "analysis")
