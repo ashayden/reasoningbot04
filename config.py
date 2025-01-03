@@ -1,7 +1,7 @@
 """Configuration settings for the MARA application."""
 
 # Model configurations
-GEMINI_MODEL = "gemini-2.0-flash-exp"
+GEMINI_MODEL = "gemini-exp-1206"
 
 # Generation configurations
 PROMPT_DESIGN_CONFIG = {
