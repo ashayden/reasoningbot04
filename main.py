@@ -464,10 +464,16 @@ def display_final_report(summary: str):
         subtitle = ""
         content_start = 1
         
+        # Clean title by removing labels
+        if title:
+            title = title.replace("Main Title:", "").replace("Title:", "").strip()
+        
         # Look for subtitle in second line if it doesn't start with a section header
         if len(sections) > 1 and not any(sections[1].lower().startswith(header) for header in 
             ['executive summary', '#', '##', 'key findings', 'detailed analysis', 'practical implications']):
             subtitle = clean_markdown_text(sections[1])
+            # Clean subtitle by removing labels
+            subtitle = subtitle.replace("Descriptive Subtitle:", "").replace("Subtitle:", "").strip()
             content_start = 2
         
         # Display title and subtitle
@@ -494,8 +500,12 @@ def display_final_report(summary: str):
                 if current_section and section_content:
                     st.markdown("---")
                     st.markdown(f"## {current_section}")
-                    for content in section_content:
-                        st.markdown(content)
+                    # Join content with proper spacing for executive summary
+                    if current_section.lower() == "executive summary":
+                        st.markdown(" ".join(section_content))
+                    else:
+                        for content in section_content:
+                            st.markdown(content)
                 
                 # Start new section
                 current_section = section.split('\n')[0].replace(':', '')  # Remove any colons from section headers
@@ -510,8 +520,12 @@ def display_final_report(summary: str):
         if current_section and section_content:
             st.markdown("---")
             st.markdown(f"## {current_section}")
-            for content in section_content:
-                st.markdown(content)
+            # Join content with proper spacing for executive summary
+            if current_section.lower() == "executive summary":
+                st.markdown(" ".join(section_content))
+            else:
+                for content in section_content:
+                    st.markdown(content)
 
 def main():
     """Main application flow."""
