@@ -87,11 +87,9 @@ class BaseAgent:
     def _generate_content(self, prompt: str, config: GenerationConfig) -> Optional[str]:
         """Generate content with error handling."""
         try:
-            # Convert Pydantic config to dict for Gemini
             generation_config = config.model_dump() if hasattr(config, 'model_dump') else config
             response = self.model.generate_content(prompt, generation_config=generation_config)
             
-            # Handle potential safety blocks
             if not response.text:
                 if hasattr(response, 'prompt_feedback'):
                     logger.error(f"Content blocked due to safety settings: {response.prompt_feedback}")
@@ -114,7 +112,6 @@ class PreAnalysisAgent(BaseAgent):
     @handle_error
     def generate_insights(self, topic: str) -> Optional[Dict[str, str]]:
         """Generate quick insights about the topic."""
-        # Try cache first
         cached = cache.get("insights", topic, max_age=timedelta(days=1))
         if cached:
             logger.info(f"Using cached insights for topic: {topic}")
@@ -122,7 +119,6 @@ class PreAnalysisAgent(BaseAgent):
         
         logger.info(f"Generating new insights for topic: {topic}")
         
-        # Generate fun fact
         fact_prompt = (
             f"Share one fascinating and unexpected fact about {topic}. "
             "Focus on a surprising or counter-intuitive aspect that most people wouldn't know. "
@@ -135,7 +131,6 @@ class PreAnalysisAgent(BaseAgent):
         )
         fact = self._generate_content(fact_prompt, config.PROMPT_DESIGN_CONFIG)
         
-        # Generate ELI5
         eli5_prompt = (
             f"If '{topic}' is a question, answer it simply. "
             "Otherwise, explain {topic} in a way that's easy to understand. "
@@ -154,7 +149,6 @@ class PreAnalysisAgent(BaseAgent):
             'eli5': eli5
         }
         
-        # Cache the results
         cache.set("insights", topic, insights)
         return insights
 
@@ -188,25 +182,20 @@ class PromptDesigner(BaseAgent):
         
         try:
             response = self._generate_content(prompt, config.PROMPT_DESIGN_CONFIG)
-            
-            # Clean up and validate each line
             areas = []
             for line in response.split('\n'):
-                # Clean the line
                 cleaned = line.strip()
                 cleaned = cleaned.strip('•-*[]()#').strip()
                 cleaned = cleaned.strip('1234567890.').strip()
                 cleaned = cleaned.strip('"\'').strip()
                 
-                # Validate the line
                 if (cleaned and 
-                    len(cleaned.split()) >= 2 and  # At least 2 words
-                    len(cleaned.split()) <= 7 and  # At most 7 words
+                    len(cleaned.split()) >= 2 and
+                    len(cleaned.split()) <= 7 and
                     not any(cleaned.startswith(x) for x in ['•', '-', '*', '#', '>', '•']) and
                     not cleaned.lower().startswith(('example', 'note:', 'format'))):
                     areas.append(cleaned)
             
-            # Take first 8 valid areas
             valid_areas = areas[:8]
             
             if len(valid_areas) < 3:
@@ -223,13 +212,46 @@ class PromptDesigner(BaseAgent):
             raise ProcessingError("Failed to generate valid focus areas") from e
     
     @handle_error
-    def generate_framework(
+    def create_optimized_prompt(
+        self,
+        topic: str,
+        focus_areas: Optional[List[str]] = None
+    ) -> Optional[str]:
+        """Create an optimized research prompt."""
+        cache_key = {"topic": topic, "areas": focus_areas}
+        cached = cache.get("optimized_prompt", cache_key, max_age=timedelta(days=1))
+        if cached:
+            return cached
+            
+        focus_text = ", ".join(focus_areas) if focus_areas else "all relevant aspects"
+        
+        prompt = (
+            f"Create a comprehensive research prompt for analyzing {topic}, focusing on {focus_text}.\n\n"
+            "The prompt should:\n"
+            "1. Define the scope clearly\n"
+            "2. Identify key research objectives\n"
+            "3. Specify areas requiring detailed investigation\n"
+            "4. Include methodological considerations\n"
+            "5. Note potential challenges and limitations\n"
+            "6. Suggest approaches for synthesis\n\n"
+            "Format the prompt as a clear, detailed paragraph that guides thorough research."
+        )
+        
+        result = self._generate_content(prompt, config.PROMPT_DESIGN_CONFIG)
+        cache.set("optimized_prompt", cache_key, result)
+        return result
+
+class FrameworkEngineer(BaseAgent):
+    """Research framework engineer."""
+    
+    @handle_error
+    def create_framework(
         self,
         topic: str,
         optimized_prompt: str,
         focus_areas: Optional[List[str]] = None
     ) -> Optional[str]:
-        """Generate research framework using optimized prompt and focus areas."""
+        """Create a comprehensive research framework."""
         cache_key = {
             "topic": topic,
             "prompt": optimized_prompt,
@@ -239,55 +261,36 @@ class PromptDesigner(BaseAgent):
         if cached:
             return cached
         
-        areas_text = ", ".join(focus_areas[:3]) if focus_areas else ""
-        
         prompt = (
-            f"Create a comprehensive research framework for {topic} focusing on: {areas_text}\n\n"
-            "Format the response in 4 sections:\n"
-            "1. Key Questions (2-3 bullet points)\n"
-            "2. Main Topics (3-4 bullet points)\n"
-            "3. Methods (2-3 bullet points)\n"
-            "4. Expected Insights (2-3 bullet points)\n\n"
-            "Keep each bullet point detailed but focused."
+            f"Create a comprehensive research framework based on this prompt:\n\n"
+            f"{optimized_prompt}\n\n"
+            "Structure the framework with these sections:\n\n"
+            "1. Research Objectives\n"
+            "   - Primary objective\n"
+            "   - Secondary objectives\n"
+            "   - Specific goals\n\n"
+            "2. Methodology\n"
+            "   - Research approach\n"
+            "   - Data collection methods\n"
+            "   - Analysis techniques\n\n"
+            "3. Key Areas of Investigation\n"
+            "   - Primary focus areas\n"
+            "   - Secondary themes\n"
+            "   - Cross-cutting issues\n\n"
+            "4. Expected Outcomes\n"
+            "   - Anticipated findings\n"
+            "   - Potential insights\n"
+            "   - Success criteria\n\n"
+            "5. Research Parameters\n"
+            "   - Scope boundaries\n"
+            "   - Limitations\n"
+            "   - Assumptions\n\n"
+            "Format with clear headings and bullet points."
         )
         
         framework = self._generate_content(prompt, config.FRAMEWORK_CONFIG)
         cache.set("framework", cache_key, framework)
         return framework
-    
-    @handle_error
-    def design_prompt(self, topic: str, focus_areas: Optional[List[str]] = None) -> Optional[str]:
-        """Design research prompt."""
-        cache_key = {"topic": topic, "areas": focus_areas}
-        cached = cache.get("prompt", cache_key, max_age=timedelta(days=1))
-        if cached:
-            return cached
-            
-        if focus_areas:
-            prompt = (
-                f"Create a focused research framework for analyzing {topic}, "
-                f"specifically examining: {', '.join(focus_areas[:3])}.\n\n"
-                "Structure the response in these sections:\n"
-                "1. Research Questions (2-3 clear, focused questions)\n"
-                "2. Key Areas to Investigate (3-4 main topics)\n"
-                "3. Methodology (2-3 specific research methods)\n"
-                "4. Expected Outcomes (2-3 anticipated findings)\n\n"
-                "Keep each section concise but informative."
-            )
-        else:
-            prompt = (
-                f"Create a focused research framework for analyzing {topic}.\n\n"
-                "Structure the response in these sections:\n"
-                "1. Research Questions (2-3 clear, focused questions)\n"
-                "2. Key Areas to Investigate (3-4 main topics)\n"
-                "3. Methodology (2-3 specific research methods)\n"
-                "4. Expected Outcomes (2-3 anticipated findings)\n\n"
-                "Keep each section concise but informative."
-            )
-        
-        result = self._generate_content(prompt, config.PROMPT_DESIGN_CONFIG)
-        cache.set("prompt", cache_key, result)
-        return result
 
 class ResearchAnalyst(BaseAgent):
     """Research analyst."""
@@ -297,36 +300,57 @@ class ResearchAnalyst(BaseAgent):
         self,
         topic: str,
         framework: str,
+        optimized_prompt: str,
+        iteration: int,
+        total_iterations: int,
         previous: Optional[str] = None
     ) -> Optional[ResearchResult]:
         """Analyze a specific aspect of the topic."""
+        # Adjust temperature based on iteration
+        base_temp = 0.6
+        temp_increment = 0.1
+        current_temp = min(base_temp + (iteration * temp_increment), 0.9)
+        
+        analysis_config = config.ANALYSIS_CONFIG.model_dump()
+        analysis_config['temperature'] = current_temp
+        
         if previous:
             prompt = (
-                f"Continue the research analysis on {topic}, building on this previous insight:\n\n"
-                f"{previous}\n\n"
+                f"Iteration {iteration + 1} of {total_iterations} - Research Analysis\n\n"
+                f"Topic: {topic}\n"
+                f"Previous Analysis:\n{previous}\n\n"
+                f"Framework:\n{framework}\n\n"
+                f"Optimized Prompt:\n{optimized_prompt}\n\n"
                 "Structure your response with:\n"
-                "1. A clear, informative title that reflects this iteration's focus\n"
-                "2. A brief subtitle that captures the key focus area\n"
+                "1. A clear, informative title reflecting this iteration's focus\n"
+                "2. A brief subtitle capturing the key focus area\n"
                 "3. Detailed analysis with specific examples and evidence\n"
                 "4. At least 3 key findings or implications\n"
-                "Format with clear sections and bullet points where appropriate.\n"
-                "Ensure this analysis builds upon and doesn't repeat the previous insights."
+                "5. Citations and references where applicable\n\n"
+                "Format with clear sections and bullet points.\n"
+                "Build upon previous insights without repetition.\n"
+                f"Note: This is iteration {iteration + 1} of {total_iterations}, "
+                f"with analysis temperature set to {current_temp} for increased variety."
             )
         else:
             prompt = (
-                f"Conduct a thorough research analysis on {topic} using this framework:\n\n"
-                f"{framework}\n\n"
+                f"Iteration 1 of {total_iterations} - Initial Research Analysis\n\n"
+                f"Topic: {topic}\n"
+                f"Framework:\n{framework}\n\n"
+                f"Optimized Prompt:\n{optimized_prompt}\n\n"
                 "Structure your response with:\n"
-                "1. A clear, informative title that reflects the initial analysis\n"
-                "2. A brief subtitle that captures the key focus area\n"
+                "1. A clear, informative title reflecting the initial analysis\n"
+                "2. A brief subtitle capturing the key focus area\n"
                 "3. Detailed analysis with specific examples and evidence\n"
                 "4. At least 3 key findings or implications\n"
-                "Format with clear sections and bullet points where appropriate."
+                "5. Citations and references where applicable\n\n"
+                "Format with clear sections and bullet points.\n"
+                f"Note: This is iteration 1 of {total_iterations}, "
+                f"with analysis temperature set to {current_temp}."
             )
         
-        response = self._generate_content(prompt, config.ANALYSIS_CONFIG)
+        response = self._generate_content(prompt, GenerationConfig(**analysis_config))
         
-        # Split into title, subtitle, and content
         lines = response.split('\n', 2)
         result = ResearchResult(
             title=lines[0].strip(),
@@ -341,36 +365,59 @@ class SynthesisExpert(BaseAgent):
     
     @handle_error
     def synthesize(self, topic: str, research_results: List[ResearchResult]) -> Optional[str]:
-        """Create final synthesis."""
-        # Extract key points efficiently
+        """Create final synthesis report."""
         summary_points = []
         for result in research_results:
-            summary = [result.title]  # Start with the title
-            if result.subtitle:
-                summary.append(result.subtitle)
-            
-            # Add content with bullet points
-            content_lines = result.content.split('\n')
-            bullets = []
-            for line in content_lines:
-                if line.strip().startswith(('•', '-', '*')):
-                    bullets.append(line)
-                    if len(bullets) == 3:
-                        break
-            
-            if bullets:
-                summary.extend(bullets)
+            summary = [
+                f"Title: {result.title}",
+                f"Focus: {result.subtitle or 'N/A'}",
+                "Key Points:",
+                result.content
+            ]
             summary_points.append('\n'.join(summary))
         
         prompt = (
-            f"Create a comprehensive synthesis of these research findings about {topic}:\n\n"
-            + "\n---\n".join(summary_points)
-            + "\n\nStructure your synthesis with:\n"
-            "1. Executive Summary (2-3 sentences)\n"
-            "2. Key Findings (3-4 bullet points)\n"
-            "3. Analysis (2-3 paragraphs)\n"
-            "4. Implications & Recommendations (2-3 bullet points)\n"
-            "Ensure each section is detailed and well-supported by the research."
+            f"Create a comprehensive final report synthesizing research on {topic}.\n\n"
+            "Research Findings:\n"
+            + "\n\n---\n\n".join(summary_points)
+            + "\n\nCreate a detailed report following this structure:\n\n"
+            "Title: [Descriptive title reflecting main focus]\n"
+            "Subtitle: [Specific aspect of analysis]\n\n"
+            "1. Executive Summary\n"
+            "   - 2-3 paragraphs synthesizing key findings with citations\n"
+            "   - Highlight major discoveries\n"
+            "   - Summarize methodology\n\n"
+            "2. Key Insights\n"
+            "   - 4-6 major insights with citations\n"
+            "   - Focus on significant findings\n"
+            "   - Connect to methodology\n\n"
+            "3. Analysis\n"
+            "   - Synthesize all findings\n"
+            "   - Integrate perspectives\n"
+            "   - Evaluate evidence\n"
+            "   - Organize by themes\n\n"
+            "4. Conclusion\n"
+            "   - Summarize key findings\n"
+            "   - Discuss impacts\n"
+            "   - Suggest future directions\n"
+            "   - Make recommendations\n\n"
+            "5. Further Considerations\n"
+            "   - Present counter-arguments\n"
+            "   - Discuss limitations\n"
+            "   - Note uncertainties\n"
+            "   - Identify challenges\n\n"
+            "6. Recommended Readings\n"
+            "   - List essential sources\n"
+            "   - Include recent research\n"
+            "   - Add methodology guides\n"
+            "   - List digital resources\n\n"
+            "7. Works Cited\n"
+            "   - Use APA 7th edition format\n"
+            "   - Include all in-text citations\n"
+            "   - Add DOIs where available\n"
+            "   - List primary sources first\n"
+            "   - Each entry on new line with bullet (*)\n\n"
+            "Format with clear sections, proper citations, and professional academic style."
         )
         
         return self._generate_content(prompt, config.SYNTHESIS_CONFIG) 
