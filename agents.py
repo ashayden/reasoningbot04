@@ -3,6 +3,7 @@
 import logging
 from typing import Any, Dict, Optional
 import time
+import random
 
 import google.generativeai as genai
 from google.generativeai.types import GenerationConfig
@@ -23,28 +24,50 @@ class PreAnalysisAgent:
     def __init__(self, model: Any):
         self.model = model
         self._cached_insights = {}  # Cache for insights to prevent regeneration
+        self._last_request_time = 0  # Track last request time
+        self._min_request_interval = 2.0  # Minimum seconds between requests
     
-    def _generate_with_backoff(self, prompt: str, max_retries: int = 3, initial_delay: float = 2.0) -> Optional[str]:
+    def _wait_for_rate_limit(self):
+        """Ensure minimum time between requests."""
+        current_time = time.time()
+        elapsed = current_time - self._last_request_time
+        if elapsed < self._min_request_interval:
+            wait_time = self._min_request_interval - elapsed
+            logger.info(f"Rate limiting: waiting {wait_time:.1f}s")
+            time.sleep(wait_time)
+        self._last_request_time = time.time()
+    
+    def _generate_with_backoff(self, prompt: str, max_retries: int = 5, initial_delay: float = 3.0) -> Optional[str]:
         """Generate content with exponential backoff retry logic."""
         delay = initial_delay
         for attempt in range(max_retries):
             try:
+                self._wait_for_rate_limit()  # Enforce rate limiting
+                
+                logger.info(f"Attempt {attempt + 1}/{max_retries}")
                 response = self.model.generate_content(
                     prompt,
-                    generation_config=GenerationConfig(**PROMPT_DESIGN_CONFIG)
+                    generation_config=GenerationConfig(**{
+                        **PROMPT_DESIGN_CONFIG,
+                        'candidate_count': 1,  # Ensure single response
+                    })
                 )
+                
                 if response and response.text:
-                    return response.text
+                    return response.text.strip()
+                logger.warning("Empty response from model")
                 return None
+                
             except Exception as e:
                 if "429" in str(e) or "Resource has been exhausted" in str(e):
                     if attempt == max_retries - 1:
                         logger.error(f"Max retries ({max_retries}) reached for rate limit")
                         raise
-                    wait_time = delay * (2 ** attempt)  # Exponential backoff
+                    wait_time = delay * (2 ** attempt) + random.uniform(0, 1)  # Add jitter
                     logger.warning(f"Rate limit hit, waiting {wait_time:.1f}s before retry {attempt + 1}/{max_retries}")
                     time.sleep(wait_time)
                     continue
+                logger.error(f"Error generating content: {str(e)}")
                 raise
         return None
     
@@ -52,34 +75,39 @@ class PreAnalysisAgent:
     def generate_insights(self, topic: str) -> Optional[Dict[str, str]]:
         """Generate quick insights about the topic."""
         try:
-            # Check cache first
-            if topic in self._cached_insights:
-                logger.info("Using cached insights")
-                return self._cached_insights[topic]
+            # Normalize topic for caching
+            cache_key = topic.lower().strip()
             
-            # Generate fun fact
+            # Check cache first
+            if cache_key in self._cached_insights:
+                logger.info(f"Using cached insights for topic: {topic}")
+                return self._cached_insights[cache_key]
+            
+            logger.info(f"Generating new insights for topic: {topic}")
+            
+            # Generate fun fact with retries
             fact_prompt = (
-                f"Generate a single, fascinating, and unexpected fact about {topic}, presented in one sentence with emojis. "
-                "The fact needs to be surprising, unique, and counter-intuitive, revealing a lesser-known aspect with "
-                "vivid language and potentially statistics. It should challenge common assumptions."
+                f"Share one fascinating and unexpected fact about {topic} in a single sentence. "
+                "Include relevant emojis. Focus on a surprising or counter-intuitive aspect."
             )
             
             fact_response = self._generate_with_backoff(fact_prompt)
             if not fact_response:
+                logger.error("Failed to generate fun fact")
                 return None
             
             # Add delay between requests
-            time.sleep(1.0)
+            time.sleep(2.0)  # Increased delay between requests
             
-            # Generate ELI5
+            # Generate ELI5 with retries
             eli5_prompt = (
-                f"Write a very short, engaging explanation of {topic} for a general audience. Use simple language, "
-                "a fun analogy, and emojis to make it memorable. Focus on a key aspect "
-                "of the topic. Make it 2-3 sentences maximum."
+                f"Explain {topic} in 2-3 simple sentences for a general audience. "
+                "Use basic language and add relevant emojis."
             )
             
             eli5_response = self._generate_with_backoff(eli5_prompt)
             if not eli5_response:
+                logger.error("Failed to generate ELI5 explanation")
                 return None
             
             insights = {
@@ -88,7 +116,8 @@ class PreAnalysisAgent:
             }
             
             # Cache the results
-            self._cached_insights[topic] = insights
+            self._cached_insights[cache_key] = insights
+            logger.info(f"Successfully generated and cached insights for: {topic}")
             return insights
             
         except Exception as e:
