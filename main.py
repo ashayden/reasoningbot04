@@ -336,7 +336,11 @@ def display_insights(insights: dict):
             st.markdown(insights['did_you_know'])
         
         with st.expander("⚡ ELI5", expanded=True):
-            st.markdown(insights['eli5'])
+            # Extract just the explanation part after the colon if it exists
+            eli5_content = insights['eli5']
+            if ':' in eli5_content:
+                eli5_content = eli5_content.split(':', 1)[1].strip()
+            st.markdown(eli5_content)
 
 def display_focus_selection(focus_areas: list, selected_areas: list) -> tuple[bool, list]:
     """Display focus area selection with proper state handling."""
@@ -447,29 +451,51 @@ def display_final_report(summary: str):
     """Display final report with proper title formatting."""
     with st.expander("📊 Final Report", expanded=False):
         # Split the summary into lines
-        lines = summary.split('\n', 2)
-        if len(lines) >= 2:
-            # Get title and subtitle
-            title = clean_markdown_text(lines[0].strip())
-            subtitle = clean_markdown_text(lines[1].strip())
-            content = lines[2].strip() if len(lines) > 2 else ""
-            
-            # If title contains a colon, use part after colon as main title
-            if ':' in title:
-                _, title = title.split(':', 1)
-                title = title.strip()
-            
-            # Remove any "Title:" or "Subtitle:" prefixes
+        lines = summary.split('\n')
+        
+        # Find title and subtitle
+        title = None
+        subtitle = None
+        content_start = 0
+        
+        # Look for title and subtitle in first few lines
+        for i, line in enumerate(lines):
+            line = line.strip()
+            if not line:  # Skip empty lines
+                continue
+            if not title:
+                title = clean_markdown_text(line)
+                content_start = i + 1
+            elif not subtitle:
+                subtitle = clean_markdown_text(line)
+                content_start = i + 1
+                break
+        
+        # Join remaining lines as content
+        content = '\n'.join(lines[content_start:]).strip()
+        
+        # If title contains a colon, use part after colon as subtitle
+        if title and ':' in title:
+            main_title, subtitle_part = title.split(':', 1)
+            title = clean_markdown_text(main_title)
+            # Only use the part after colon as subtitle if we don't already have one
+            if not subtitle:
+                subtitle = clean_markdown_text(subtitle_part)
+        
+        # Remove any "Title:" or "Subtitle:" prefixes
+        if title:
             title = title.replace("Title:", "").strip()
+        if subtitle:
             subtitle = subtitle.replace("Subtitle:", "").strip()
-            
-            # Display with proper hierarchy
+        
+        # Display with proper hierarchy
+        if title:
             st.markdown(f"# {title}")
+        if subtitle:
             st.markdown(f"## {subtitle}")
+        if title or subtitle:
             st.markdown("---")
-            st.markdown(content)
-        else:
-            st.markdown(clean_markdown_text(summary))
+        st.markdown(content)
 
 def main():
     """Main application flow."""
