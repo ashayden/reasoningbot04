@@ -560,14 +560,14 @@ def main():
                             return
                 
                 if st.session_state.app_state['prompt']:
-                    with st.expander("✍️ Optimized Prompt", expanded=True):
+                    with st.expander("✍️ Optimized Prompt", expanded=False):
                         st.markdown("---")
                         st.markdown("**Instructions for Framework Development:**")
                         st.markdown(st.session_state.app_state['prompt'])
                         st.markdown("---")
                 
                 if st.session_state.app_state['framework']:
-                    with st.expander("📄 Topic-Specific Research Framework", expanded=True):
+                    with st.expander("📄 Topic-Specific Research Framework", expanded=False):
                         try:
                             st.markdown("---")
                             st.markdown("**Research Framework to Guide Analysis:**")
@@ -621,7 +621,7 @@ def main():
                             st.rerun()
                 
                 if st.session_state.app_state['summary']:
-                    with st.expander("📊 Final Report", expanded=True):
+                    with st.expander("📊 Final Report", expanded=False):
                         st.markdown(st.session_state.app_state['summary'])
     except Exception as e:
         handle_error(e, "analysis")
