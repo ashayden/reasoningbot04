@@ -41,10 +41,12 @@ def display_insights(insights: Dict[str, str]) -> None:
     if not insights:
         return
         
-    with st.expander("💡 Initial Insights", expanded=True):
-        st.markdown("## Did You Know?")
+    # Display Did You Know section
+    with st.expander("💡 Did You Know?", expanded=True):
         st.info(insights.get('did_you_know', ''))
-        st.markdown("## TL;DR")
+    
+    # Display TL;DR section
+    with st.expander("📝 TL;DR", expanded=True):
         st.markdown(insights.get('eli5', ''))
 
 def display_focus_areas(state, handle_continue: Callable, handle_skip: Callable) -> None:
