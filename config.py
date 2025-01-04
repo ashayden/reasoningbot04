@@ -1,84 +1,50 @@
 """Configuration settings for the MARA application."""
 
-from pydantic import BaseModel, Field
-from google.generativeai.types import GenerationConfig as GeminiConfig
-from google.generativeai.types import SafetySettingDict
-from typing import List, Dict, Any
+import os
+from typing import Dict, Any
 
-class GenerationConfig(BaseModel):
-    """Configuration for text generation."""
-    temperature: float = Field(default=0.7, ge=0.0, le=1.0)
-    top_p: float = Field(default=0.8, ge=0.0, le=1.0)
-    top_k: int = Field(default=40, ge=1)
-    max_output_tokens: int = Field(default=2048, ge=1)
+# Model configuration
+GEMINI_MODEL = "gemini-exp-1206"
+PREANALYSIS_CONFIG = {
+    "temperature": 0.7,
+    "top_p": 0.8,
+    "top_k": 40,
+    "max_output_tokens": 1024,
+}
 
-class AppConfig(BaseModel):
-    """Main application configuration."""
-    # Model configurations
-    GEMINI_MODEL: str = "gemini-pro"
-    
-    # Safety settings - all restrictions disabled
-    SAFETY_SETTINGS: List[Dict[str, str]] = [
-        {
-            "category": "HARM_CATEGORY_HARASSMENT",
-            "threshold": "BLOCK_NONE"
-        },
-        {
-            "category": "HARM_CATEGORY_HATE_SPEECH",
-            "threshold": "BLOCK_NONE"
-        },
-        {
-            "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-            "threshold": "BLOCK_NONE"
-        },
-        {
-            "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
-            "threshold": "BLOCK_NONE"
-        }
-    ]
-    
-    # Generation configurations with specific tuning for each stage
-    PROMPT_DESIGN_CONFIG: GenerationConfig = GenerationConfig(
-        temperature=0.7,
-        top_p=0.9,
-        max_output_tokens=2048
-    )
-    
-    FRAMEWORK_CONFIG: GenerationConfig = GenerationConfig(
-        temperature=0.6,
-        top_p=0.8,
-        max_output_tokens=4096
-    )
-    
-    ANALYSIS_CONFIG: GenerationConfig = GenerationConfig(
-        temperature=0.6,  # Base temperature, will be adjusted per iteration
-        top_p=0.9,
-        max_output_tokens=8192
-    )
-    
-    SYNTHESIS_CONFIG: GenerationConfig = GenerationConfig(
-        temperature=0.7,
-        top_p=0.9,
-        max_output_tokens=16384  # Increased for detailed final report
-    )
-    
-    # Input validation
-    MIN_TOPIC_LENGTH: int = Field(default=3, ge=1)
-    MAX_TOPIC_LENGTH: int = Field(default=200, le=1000)
-    
-    # Research parameters
-    MIN_ITERATIONS: int = Field(default=1, ge=1)
-    MAX_ITERATIONS: int = Field(default=5, le=10)
-    DEFAULT_ITERATIONS: int = Field(default=2, ge=1, le=5)
+# Generation configurations
+PROMPT_DESIGN_CONFIG = {
+    "temperature": 0.1,
+    "candidate_count": 1,
+    "max_output_tokens": 1024
+}
 
-# Create a global config instance
-config = AppConfig()
+FRAMEWORK_CONFIG = {
+    "temperature": 0.1,
+    "candidate_count": 1,
+    "max_output_tokens": 4096
+}
 
-# For backward compatibility
-GEMINI_MODEL = config.GEMINI_MODEL
-PROMPT_DESIGN_CONFIG = config.PROMPT_DESIGN_CONFIG.model_dump()
-FRAMEWORK_CONFIG = config.FRAMEWORK_CONFIG.model_dump()
-ANALYSIS_CONFIG = config.ANALYSIS_CONFIG.model_dump()
-SYNTHESIS_CONFIG = config.SYNTHESIS_CONFIG.model_dump()
-MIN_TOPIC_LENGTH = config.MIN_TOPIC_LENGTH
-MAX_TOPIC_LENGTH = config.MAX_TOPIC_LENGTH 
+# Research Analysis settings
+ANALYSIS_BASE_TEMP = 0.7
+ANALYSIS_TEMP_INCREMENT = 0.1
+ANALYSIS_MAX_TEMP = 0.9
+
+ANALYSIS_CONFIG = {
+    "temperature": ANALYSIS_BASE_TEMP,
+    "candidate_count": 1,
+    "max_output_tokens": 8192
+}
+
+SYNTHESIS_CONFIG = {
+    "temperature": 0.5,
+    "candidate_count": 1,
+    "max_output_tokens": 8192
+}
+
+# Input validation
+MIN_TOPIC_LENGTH = 3
+MAX_TOPIC_LENGTH = 200
+
+# Rate limiting
+MAX_REQUESTS_PER_MINUTE = 60 

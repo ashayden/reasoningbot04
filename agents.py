@@ -1,535 +1,632 @@
 """Agent implementations for the MARA application."""
 
 import logging
-import sqlite3
-import json
-import hashlib
-from typing import Any, Dict, Optional, List
-from dataclasses import dataclass
-from datetime import datetime, timedelta
+from typing import Dict, Any, Optional, List
 
 import google.generativeai as genai
+import streamlit as st
 from google.generativeai.types import GenerationConfig
 
-from config import config
-from utils import handle_error, ProcessingError
+from config import (
+    PROMPT_DESIGN_CONFIG,
+    FRAMEWORK_CONFIG,
+    ANALYSIS_CONFIG,
+    SYNTHESIS_CONFIG,
+    PREANALYSIS_CONFIG
+)
+from utils import rate_limit_decorator, parse_title_content
 
 logger = logging.getLogger(__name__)
-
-class Cache:
-    """SQLite-based persistent cache."""
-    
-    def __init__(self, db_path: str = "cache.db"):
-        self.db_path = db_path
-        self._init_db()
-    
-    def _init_db(self):
-        """Initialize the cache database."""
-        with sqlite3.connect(self.db_path) as conn:
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS cache (
-                    key TEXT PRIMARY KEY,
-                    value TEXT NOT NULL,
-                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-    
-    def _generate_key(self, prefix: str, data: Any) -> str:
-        """Generate a cache key."""
-        data_str = json.dumps(data, sort_keys=True)
-        return f"{prefix}:{hashlib.sha256(data_str.encode()).hexdigest()}"
-    
-    def get(self, prefix: str, data: Any, max_age: Optional[timedelta] = None) -> Optional[Any]:
-        """Retrieve value from cache."""
-        key = self._generate_key(prefix, data)
-        with sqlite3.connect(self.db_path) as conn:
-            if max_age:
-                cutoff = datetime.now() - max_age
-                result = conn.execute(
-                    "SELECT value FROM cache WHERE key = ? AND timestamp > ?",
-                    (key, cutoff)
-                ).fetchone()
-            else:
-                result = conn.execute(
-                    "SELECT value FROM cache WHERE key = ?",
-                    (key,)
-                ).fetchone()
-        
-        return json.loads(result[0]) if result else None
-    
-    def set(self, prefix: str, data: Any, value: Any):
-        """Store value in cache."""
-        key = self._generate_key(prefix, data)
-        with sqlite3.connect(self.db_path) as conn:
-            conn.execute(
-                "INSERT OR REPLACE INTO cache (key, value) VALUES (?, ?)",
-                (key, json.dumps(value))
-            )
-
-# Global cache instance
-cache = Cache()
-
-@dataclass
-class ResearchResult:
-    """Data class for research results."""
-    title: str
-    subtitle: Optional[str] = None
-    content: str = ""
 
 class BaseAgent:
     """Base class for all agents."""
     
     def __init__(self, model: Any):
-        if not isinstance(model, genai.GenerativeModel):
-            raise ValueError("model must be an instance of GenerativeModel")
         self.model = model
+        self._last_thoughts = None
     
-    def _generate_content(self, prompt: str, config: GenerationConfig) -> Optional[str]:
-        """Generate content with error handling."""
+    @property
+    def last_thoughts(self) -> Optional[str]:
+        """Get the last model's thoughts for debugging or chaining."""
+        return self._last_thoughts
+    
+    def _extract_content(self, response: Any) -> Optional[str]:
+        """Extract content from response."""
         try:
-            generation_config = config.model_dump() if hasattr(config, 'model_dump') else config
-            response = self.model.generate_content(prompt, generation_config=generation_config)
+            if not response:
+                logger.error("Empty response from model")
+                return None
             
-            if not response.text:
-                if hasattr(response, 'prompt_feedback'):
-                    logger.error(f"Content blocked due to safety settings: {response.prompt_feedback}")
-                    raise ProcessingError("Content generation blocked by safety settings. Please try rephrasing your request.")
+            # Get the full response text
+            full_text = None
+            
+            # Try parts accessor first since it's recommended for complex responses
+            try:
+                if hasattr(response, 'parts'):
+                    full_text = "".join(part.text for part in response.parts)
+                elif hasattr(response, 'candidates'):
+                    full_text = response.candidates[0].content.parts[0].text
                 else:
-                    logger.error("Empty response from model with no feedback")
-                    raise ProcessingError("Empty response from model")
+                    full_text = response.text
+            except (AttributeError, IndexError) as e:
+                logger.error(f"Failed to extract text from response: {str(e)}")
+                return None
             
-            return response.text.strip()
+            if not full_text or not full_text.strip():
+                logger.error("Extracted empty text from response")
+                return None
+                
+            logger.info(f"Raw response text: {full_text}")
+            
+            # Just clean up whitespace and return the content
+            final_content = full_text.strip()
+            if not final_content:
+                logger.error("No content extracted")
+                return None
+                
+            logger.info(f"Extracted content: {final_content}")
+            return final_content
             
         except Exception as e:
-            logger.exception(f"Error generating content: {str(e)}")
-            if "safety" in str(e).lower():
-                raise ProcessingError("Content generation was blocked by safety settings. Please try rephrasing your request.")
-            raise ProcessingError(f"Failed to generate content: {str(e)}")
+            logger.error(f"Error extracting content: {str(e)}")
+            return None
+    
+    @rate_limit_decorator
+    def generate_content(self, prompt: str, config: Dict[str, Any]) -> Optional[str]:
+        """Generate content with rate limiting and error handling."""
+        try:
+            logger.info("Generating content with Gemini API...")
+            logger.info(f"Configuration: {config}")
+            
+            if not prompt or not prompt.strip():
+                logger.error("Empty prompt provided")
+                raise ValueError("Empty prompt provided")
+                
+            if not self.model:
+                logger.error("Model not initialized")
+                raise ValueError("Model not initialized")
+            
+            try:
+                response = self.model.generate_content(
+                    prompt,
+                    generation_config=GenerationConfig(**config)
+                )
+                logger.info("Successfully received response from Gemini API")
+                
+                if not response:
+                    logger.error("Received empty response from Gemini API")
+                    return None
+                
+                content = self._extract_content(response)
+                if content:
+                    logger.info("Successfully extracted content from response")
+                    return content
+                else:
+                    logger.error("Failed to extract content from response")
+                    return None
+                    
+            except Exception as e:
+                logger.error(f"Error calling Gemini API: {str(e)}")
+                raise
+                
+        except Exception as e:
+            logger.error(f"Content generation error: {str(e)}")
+            raise  # Re-raise to be handled by the calling function
 
 class PreAnalysisAgent(BaseAgent):
-    """Quick insights agent."""
+    """Agent responsible for generating quick insights before main analysis."""
     
-    @handle_error
     def generate_insights(self, topic: str) -> Optional[Dict[str, str]]:
         """Generate quick insights about the topic."""
-        cached = cache.get("insights", topic, max_age=timedelta(days=1))
-        if cached:
-            logger.info(f"Using cached insights for topic: {topic}")
-            return cached
-        
-        logger.info(f"Generating new insights for topic: {topic}")
-        
-        fact_prompt = (
-            f"Share one fascinating and unexpected fact about {topic}. "
-            "Focus on a surprising or counter-intuitive aspect that most people wouldn't know. "
-            "Format as a complete, well-structured sentence. "
-            "\nEmoji guidelines:\n"
-            "- Use 1-2 emojis that naturally relate to key concepts\n"
-            "- Place emojis next to the concepts they represent\n"
-            "- Don't cluster emojis together\n"
-            "- Ensure the text makes sense if emojis were removed"
-        )
-        fact = self._generate_content(fact_prompt, config.PROMPT_DESIGN_CONFIG)
-        
-        eli5_prompt = (
-            f"If '{topic}' is a question, answer it simply. "
-            "Otherwise, explain {topic} in a way that's easy to understand. "
-            "Use simple language and give a 2-3 sentence response. "
-            "\nEmoji guidelines:\n"
-            "- Use 2-4 emojis that naturally relate to key concepts\n"
-            "- Place emojis next to the concepts they represent\n"
-            "- Use emojis to highlight key points or transitions\n"
-            "- Don't cluster emojis together\n"
-            "- Ensure the text makes sense if emojis were removed"
-        )
-        eli5 = self._generate_content(eli5_prompt, config.PROMPT_DESIGN_CONFIG)
-        
-        insights = {
-            'did_you_know': fact,
-            'eli5': eli5
-        }
-        
-        cache.set("insights", topic, insights)
-        return insights
-
-class PromptDesigner(BaseAgent):
-    """Research framework designer."""
-    
-    @handle_error
-    def generate_focus_areas(self, topic: str) -> Optional[List[str]]:
-        """Generate focus areas for the topic."""
-        cached = cache.get("focus_areas", topic, max_age=timedelta(days=1))
-        if cached:
-            logger.info(f"Using cached focus areas for topic: {topic}")
-            return cached
-            
-        logger.info(f"Generating focus areas for topic: {topic}")
-        
-        prompt = (
-            f"Generate 8 key research areas for analyzing {topic}.\n\n"
-            "Requirements:\n"
-            "1. Each area should be a clear, specific aspect of the topic\n"
-            "2. Write each area on a new line\n"
-            "3. Use simple, clear phrases (3-7 words each)\n"
-            "4. No numbering, bullets, or special characters\n"
-            "5. No explanations or additional text\n\n"
-            "Example format:\n"
-            "Historical Development and Origins\n"
-            "Economic Impact and Market Trends\n"
-            "Social and Cultural Implications\n"
-            "..."
-        )
-        
         try:
-            response = self._generate_content(prompt, config.PROMPT_DESIGN_CONFIG)
-            areas = []
-            for line in response.split('\n'):
-                cleaned = line.strip()
-                cleaned = cleaned.strip('•-*[]()#').strip()
-                cleaned = cleaned.strip('1234567890.').strip()
-                cleaned = cleaned.strip('"\'').strip()
-                
-                if (cleaned and 
-                    len(cleaned.split()) >= 2 and
-                    len(cleaned.split()) <= 7 and
-                    not any(cleaned.startswith(x) for x in ['•', '-', '*', '#', '>', '•']) and
-                    not cleaned.lower().startswith(('example', 'note:', 'format'))):
-                    areas.append(cleaned)
+            logger.info(f"Generating insights for topic: {topic}")
             
-            valid_areas = areas[:8]
+            # Generate fun fact
+            fact_prompt = (
+                f"Generate a single interesting fact about {topic}. "
+                "Make it surprising and include 1-2 relevant emojis. "
+                "Keep it to one sentence."
+            )
             
-            if len(valid_areas) < 3:
-                logger.error(f"Not enough valid focus areas generated. Got {len(valid_areas)}: {valid_areas}")
-                raise ProcessingError("Failed to generate enough valid focus areas")
+            logger.info("Generating fun fact...")
+            fact_text = self.generate_content(fact_prompt, PREANALYSIS_CONFIG)
+            if not fact_text:
+                logger.error("Failed to generate fun fact")
+                return None
+            logger.info("Fun fact generated successfully")
             
-            logger.info(f"Successfully generated {len(valid_areas)} focus areas")
-            cache.set("focus_areas", topic, valid_areas)
-            return valid_areas
+            # Generate ELI5
+            eli5_prompt = (
+                f"Provide a clear, direct overview of {topic} in 1-3 sentences. "
+                "Include 1-3 relevant emojis naturally within the text. "
+                "Focus on key points and avoid phrases like 'The question is about'."
+            )
+            
+            logger.info("Generating ELI5 explanation...")
+            eli5_text = self.generate_content(eli5_prompt, PREANALYSIS_CONFIG)
+            if not eli5_text:
+                logger.error("Failed to generate ELI5 explanation")
+                return None
+            logger.info("ELI5 explanation generated successfully")
+            
+            insights = {
+                'did_you_know': fact_text,
+                'eli5': eli5_text
+            }
+            logger.info("Successfully generated both insights")
+            return insights
             
         except Exception as e:
-            logger.error(f"Error generating focus areas: {str(e)}")
-            logger.error(f"Raw response: {response}")
-            raise ProcessingError("Failed to generate valid focus areas") from e
+            logger.error(f"PreAnalysis generation failed: {str(e)}")
+            raise  # Re-raise the exception to be handled by the process_stage function
+
+class PromptDesigner(BaseAgent):
+    """Agent responsible for designing optimal prompts."""
     
-    @handle_error
-    def design_prompt(self, topic: str, focus_areas: Optional[List[str]] = None) -> Optional[str]:
-        """Design research prompt."""
-        cache_key = {"topic": topic, "areas": focus_areas}
-        cached = cache.get("prompt", cache_key, max_age=timedelta(days=1))
-        if cached:
-            return cached
+    def generate_focus_areas(self, topic: str) -> Optional[list]:
+        """Generate potential focus areas for the topic."""
+        try:
+            prompt = f"""Generate 10-12 diverse focus areas for analyzing {topic}.
             
-        if focus_areas:
-            prompt = (
-                f"Create a focused research framework for analyzing {topic}, "
-                f"specifically examining: {', '.join(focus_areas[:3])}.\n\n"
-                "Structure the response in these sections:\n"
-                "1. Research Questions (2-3 clear, focused questions)\n"
-                "2. Key Areas to Investigate (3-4 main topics)\n"
-                "3. Methodology (2-3 specific research methods)\n"
-                "4. Expected Outcomes (2-3 anticipated findings)\n\n"
-                "Keep each section concise but informative."
-            )
-        else:
-            prompt = (
-                f"Create a focused research framework for analyzing {topic}.\n\n"
-                "Structure the response in these sections:\n"
-                "1. Research Questions (2-3 clear, focused questions)\n"
-                "2. Key Areas to Investigate (3-4 main topics)\n"
-                "3. Methodology (2-3 specific research methods)\n"
-                "4. Expected Outcomes (2-3 anticipated findings)\n\n"
-                "Keep each section concise but informative."
-            )
-        
-        result = self._generate_content(prompt, config.PROMPT_DESIGN_CONFIG)
-        cache.set("prompt", cache_key, result)
-        return result
+            Include a balanced mix of perspectives:
+            - Academic/Theoretical (core concepts, frameworks, methodologies)
+            - Practical/Applied (real-world applications, case studies)
+            - Social/Cultural (societal impact, cultural significance)
+            - Historical/Evolutionary (development over time, key milestones)
+            - Current/Future (emerging trends, future implications)
+            - Critical/Analytical (challenges, debates, controversies)
+            - Human Interest (personal stories, everyday relevance)
+            - Technical/Specialized (specific processes, technical aspects)
+            
+            Guidelines:
+            - Keep primary topic "{topic}" central to each focus area
+            - Each focus area should be 2-5 words, specific and distinct
+            - Ensure variety in scope (micro to macro perspectives)
+            - Include both mainstream and unique angles
+            - Balance serious academic with engaging/accessible aspects
+            
+            Format as a Python list of strings.
+            Example: ["Historical Development Patterns", "Societal Impact Analysis", "Technical Implementation Methods"]"""
+            
+            response_text = self.generate_content(prompt, PROMPT_DESIGN_CONFIG)
+            if not response_text:
+                return None
+                
+            # Extract list from response and clean up
+            try:
+                # Remove any markdown code block syntax
+                text = response_text.replace("```python", "").replace("```", "").strip()
+                # Safely evaluate the string as a Python list
+                focus_areas = eval(text)
+                if not isinstance(focus_areas, list):
+                    return None
+                return focus_areas
+            except:
+                logger.error("Failed to parse focus areas response")
+                return None
+            
+        except Exception as e:
+            logger.error(f"Focus areas generation failed: {str(e)}")
+            return None
     
-    @handle_error
-    def create_optimized_prompt(
-        self,
-        topic: str,
-        focus_areas: Optional[List[str]] = None
-    ) -> Optional[str]:
-        """Create an optimized prompt for the Framework Engineer."""
-        cache_key = {"topic": topic, "areas": focus_areas}
-        cached = cache.get("optimized_prompt", cache_key, max_age=timedelta(days=1))
-        if cached:
-            return cached
-            
-        focus_text = ", ".join(focus_areas) if focus_areas else "all relevant aspects"
+    def design_prompt(self, topic: str, selected_focus_areas: Optional[list] = None) -> Optional[str]:
+        """Design an optimal prompt for the given topic."""
+        base_prompt = f"""Create a detailed research framework prompt for analyzing {topic}."""
         
-        prompt = (
-            f"As a Framework Engineer, develop a comprehensive research framework for analyzing {topic}.\n\n"
-            f"Focus Areas: {focus_text}\n\n"
-            "Your framework should:\n"
-            "1. Be specifically tailored to this topic and focus areas\n"
-            "2. Define clear research boundaries and scope\n"
-            "3. Identify key research objectives and questions\n"
-            "4. Specify methodological approaches\n"
-            "5. Outline data collection and analysis strategies\n"
-            "6. Consider potential challenges and limitations\n"
-            "7. Suggest evaluation criteria for findings\n\n"
-            "This framework will guide a Research Analyst in conducting a thorough, "
-            "systematic investigation of the topic. Ensure the framework provides clear "
-            "direction while allowing for discovery of unexpected insights.\n\n"
-            "The framework should enable progressive deepening of analysis across multiple "
-            "research iterations, with each iteration building upon previous findings."
-        )
+        if selected_focus_areas:
+            focus_areas_str = "\n".join(f"- {area}" for area in selected_focus_areas)
+            base_prompt += f"\nFocus on these areas:\n{focus_areas_str}"
         
-        result = self._generate_content(prompt, config.PROMPT_DESIGN_CONFIG)
-        cache.set("optimized_prompt", cache_key, result)
-        return result
+        base_prompt += "\nEnsure the framework covers essential aspects while maintaining academic rigor."
+        
+        return self.generate_content(base_prompt, PROMPT_DESIGN_CONFIG)
 
 class FrameworkEngineer(BaseAgent):
-    """Research framework engineer."""
+    """Agent responsible for creating analysis frameworks."""
     
-    @handle_error
-    def create_framework(
-        self,
-        topic: str,
-        optimized_prompt: str,
-        focus_areas: Optional[List[str]] = None
-    ) -> Optional[str]:
-        """Create a comprehensive research framework."""
-        cache_key = {
-            "topic": topic,
-            "prompt": optimized_prompt,
-            "areas": focus_areas
-        }
-        cached = cache.get("framework", cache_key, max_age=timedelta(days=1))
-        if cached:
-            return cached
+    def create_framework(self, initial_prompt: str, enhanced_prompt: Optional[str] = None) -> Optional[str]:
+        """Create a research framework based on the prompt design."""
+        # Combine prompts if enhanced prompt exists
+        prompt_context = initial_prompt
+        if enhanced_prompt:
+            prompt_context = f"""Initial Prompt:
+            {initial_prompt}
+            
+            Enhanced Prompt with Selected Focus Areas:
+            {enhanced_prompt}"""
         
-        prompt = (
-            f"Create a comprehensive research framework based on this prompt:\n\n"
-            f"{optimized_prompt}\n\n"
-            "Structure the framework with these sections:\n\n"
-            "1. Research Objectives\n"
-            "   - Primary objective\n"
-            "   - Secondary objectives\n"
-            "   - Specific goals\n\n"
-            "2. Methodology\n"
-            "   - Research approach\n"
-            "   - Data collection methods\n"
-            "   - Analysis techniques\n\n"
-            "3. Key Areas of Investigation\n"
-            "   - Primary focus areas\n"
-            "   - Secondary themes\n"
-            "   - Cross-cutting issues\n\n"
-            "4. Expected Outcomes\n"
-            "   - Anticipated findings\n"
-            "   - Potential insights\n"
-            "   - Success criteria\n\n"
-            "5. Research Parameters\n"
-            "   - Scope boundaries\n"
-            "   - Limitations\n"
-            "   - Assumptions\n\n"
-            "Format with clear headings and bullet points."
-        )
+        prompt = f"""{prompt_context}
+
+        As a distinguished research methodologist, create an innovative yet rigorous research framework that transcends conventional boundaries while maintaining academic integrity. Structure the framework as follows:
+
+        A. Research Objectives:
+           1. Primary Research Questions
+              - Core inquiries that challenge existing paradigms
+              - Questions that bridge multiple disciplines
+              - Investigations that reveal hidden connections
+           2. Secondary Research Questions
+              - Supporting inquiries that illuminate nuances
+              - Questions that explore unexpected relationships
+              - Probes into underlying mechanisms
+           3. Expected Outcomes
+              - Anticipated theoretical contributions
+              - Potential paradigm shifts
+              - Novel interpretative frameworks
+
+        B. Methodological Approach:
+           1. Research Methods
+              - Integration of complementary methodologies
+              - Innovative analytical approaches
+              - Cross-disciplinary techniques
+           2. Data Collection Strategies
+              - Multi-modal evidence gathering
+              - Triangulation approaches
+              - Novel data source identification
+           3. Analysis Techniques
+              - Advanced interpretative methods
+              - Pattern recognition strategies
+              - Synthesis of disparate findings
+
+        C. Investigation Areas:
+           1. Core Topics
+              - Central theoretical constructs
+              - Key phenomenological aspects
+              - Fundamental relationships
+           2. Subtopics
+              - Emergent themes and patterns
+              - Interconnected elements
+              - Hidden variables
+           3. Cross-cutting Themes
+              - Meta-level patterns
+              - Systemic relationships
+              - Unexpected correlations
+
+        D. Theoretical Integration:
+           1. Conceptual Frameworks
+              - Synthesis of competing theories
+              - Novel theoretical propositions
+              - Integration points
+           2. Interdisciplinary Connections
+              - Cross-domain implications
+              - Theoretical bridges
+              - Paradigm intersections
+           3. Knowledge Gaps
+              - Theoretical blind spots
+              - Unexplored territories
+              - Potential breakthroughs
+
+        E. Critical Perspectives:
+           1. Epistemological Considerations
+              - Underlying assumptions
+              - Knowledge construction
+              - Theoretical limitations
+           2. Methodological Tensions
+              - Competing approaches
+              - Validity challenges
+              - Integration difficulties
+           3. Alternative Viewpoints
+              - Contrasting frameworks
+              - Opposing perspectives
+              - Novel interpretations
+
+        F. Research Impact:
+           1. Theoretical Implications
+              - Paradigm advancement
+              - Knowledge expansion
+              - Conceptual innovation
+           2. Practical Applications
+              - Real-world relevance
+              - Implementation pathways
+              - Societal impact
+           3. Future Directions
+              - Emerging questions
+              - Research trajectories
+              - Potential developments
+
+        For each section and subsection:
+        - Develop sophisticated, multi-layered analyses
+        - Identify unexpected connections and relationships
+        - Challenge conventional wisdom while maintaining rigor
+        - Consider both obvious and subtle implications
+        - Integrate diverse theoretical perspectives
+        - Highlight potential paradigm shifts
+        - Emphasize novel interpretative frameworks
+
+        Use precise academic language while ensuring clarity and accessibility.
+        Focus on creating a framework that reveals hidden patterns and unexpected insights."""
         
-        framework = self._generate_content(prompt, config.FRAMEWORK_CONFIG)
-        cache.set("framework", cache_key, framework)
-        return framework
+        return self.generate_content(prompt, FRAMEWORK_CONFIG)
 
 class ResearchAnalyst(BaseAgent):
-    """Research analyst with Nobel laureate expertise."""
+    """Agent responsible for conducting research analysis."""
     
-    @handle_error
-    def analyze(
-        self,
-        topic: str,
-        framework: str,
-        optimized_prompt: str,
-        iteration: int,
-        total_iterations: int,
-        previous: Optional[str] = None
-    ) -> Optional[ResearchResult]:
-        """Analyze a specific aspect of the topic with Nobel-level expertise."""
-        # Adjust temperature based on iteration
-        base_temp = 0.6
-        temp_increment = 0.1
-        current_temp = min(base_temp + (iteration * temp_increment), 0.9)
+    def __init__(self, model: Any):
+        super().__init__(model)
+        self.iteration_count = 0
         
-        analysis_config = config.ANALYSIS_CONFIG.model_dump()
-        analysis_config['temperature'] = current_temp
-        
-        # Expert perspective prompt
-        expert_prompt = (
-            "You are an expert researcher and Nobel laureate with deep expertise in fields relevant to this topic. "
-            "Your research should be thorough and should reflect this level of understanding. "
-            "Focus exclusively on the topic and specified focus areas, providing unique insights "
-            "and uncovering meaningful connections within this scope.\n\n"
+    def _get_analysis_config(self) -> Dict[str, Any]:
+        """Get analysis configuration with dynamic temperature scaling."""
+        from config import (
+            ANALYSIS_CONFIG, 
+            ANALYSIS_BASE_TEMP, 
+            ANALYSIS_TEMP_INCREMENT,
+            ANALYSIS_MAX_TEMP
         )
         
-        if previous:
-            prompt = (
-                f"{expert_prompt}"
-                f"Iteration {iteration + 1} of {total_iterations} - Advanced Research Analysis\n\n"
-                f"Topic: {topic}\n"
-                f"Previous Analysis:\n{previous}\n\n"
-                f"Framework:\n{framework}\n\n"
-                f"Optimized Prompt:\n{optimized_prompt}\n\n"
-                "Building upon the previous analysis:\n"
-                "1. Identify a key aspect from the previous analysis that warrants deeper exploration\n"
-                "2. Uncover novel connections and insights within the topic scope\n"
-                "3. Apply your expertise to reveal hidden patterns and relationships\n\n"
-                "Format your response with:\n"
-                "1. A concise main title that captures the key insight or finding\n"
-                "2. A descriptive subtitle on the next line that provides context\n"
-                "3. Detailed analysis incorporating:\n"
-                "   - Key theoretical insights about the topic\n"
-                "   - Relevant empirical evidence and data\n"
-                "   - Novel perspectives and interpretations\n"
-                "   - Important connections within the topic scope\n"
-                "4. At least 3 significant findings or implications\n"
-                "5. Relevant academic citations and references\n\n"
-                "Title format example:\n"
-                "Environmental Impact Assessment\n"
-                "Analyzing Long-term Ecological Changes and Conservation Strategies\n\n"
-                "Stay focused on the topic and its direct implications.\n"
-                f"Note: This is iteration {iteration + 1} of {total_iterations}, "
-                f"with analysis temperature set to {current_temp} for increased insight generation."
-            )
-        else:
-            prompt = (
-                f"{expert_prompt}"
-                f"Iteration 1 of {total_iterations} - Initial Advanced Research Analysis\n\n"
-                f"Topic: {topic}\n"
-                f"Framework:\n{framework}\n\n"
-                f"Optimized Prompt:\n{optimized_prompt}\n\n"
-                "Establish the foundation for progressive analysis:\n"
-                "1. Identify the core concepts and principles of the topic\n"
-                "2. Map the current understanding and key debates\n"
-                "3. Highlight critical aspects needing deeper investigation\n\n"
-                "Format your response with:\n"
-                "1. A concise main title that captures the key insight or finding\n"
-                "2. A descriptive subtitle on the next line that provides context\n"
-                "3. Detailed analysis incorporating:\n"
-                "   - Key theoretical insights about the topic\n"
-                "   - Relevant empirical evidence and data\n"
-                "   - Novel perspectives and interpretations\n"
-                "   - Important connections within the topic scope\n"
-                "4. At least 3 significant findings or implications\n"
-                "5. Relevant academic citations and references\n\n"
-                "Title format example:\n"
-                "Environmental Impact Assessment\n"
-                "Analyzing Long-term Ecological Changes and Conservation Strategies\n\n"
-                "Stay focused on the topic and its direct implications.\n"
-                f"Note: This is iteration 1 of {total_iterations}, establishing the foundation "
-                f"with analysis temperature set to {current_temp}."
-            )
-        
-        response = self._generate_content(prompt, GenerationConfig(**analysis_config))
-        
-        # Split response into title, subtitle, and content
-        lines = response.split('\n', 2)
-        if len(lines) >= 2:
-            title = lines[0].strip()
-            subtitle = lines[1].strip()
-            content = lines[2].strip() if len(lines) > 2 else ""
+        config = ANALYSIS_CONFIG.copy()
+        # Increase temperature with each iteration, but cap at max
+        temp = min(
+            ANALYSIS_BASE_TEMP + (self.iteration_count * ANALYSIS_TEMP_INCREMENT),
+            ANALYSIS_MAX_TEMP
+        )
+        config["temperature"] = temp
+        return config
+    
+    def analyze(self, topic: str, framework: str, previous_analysis: Optional[str] = None) -> Optional[Dict[str, str]]:
+        """Conduct research analysis."""
+        if previous_analysis is None:
+            self.iteration_count = 0  # Reset counter for new analysis
+            prompt = f"""As a Nobel laureate-level expert in the field, conduct a groundbreaking initial research analysis of '{topic}'. 
+            Leverage the provided framework to reveal profound insights and unexpected connections while maintaining rigorous academic standards.
             
-            # If title contains a colon, split into main title and subtitle
-            if ':' in title:
-                main_title, subtitle_part = title.split(':', 1)
-                title = main_title.strip()
-                subtitle = subtitle_part.strip()
+            Framework context:
+            {framework}
+            
+            Structure your analysis using this format:
+
+            Start with:
+            Title: [Compelling title that captures the essence of your discoveries]
+            Subtitle: [Intriguing aspect that challenges conventional understanding]
+
+            Then provide a comprehensive analysis following this structure:
+
+            1. Introduction
+               - Contextual groundwork that challenges existing paradigms
+               - Novel framing of the research scope
+               - Ambitious yet achievable objectives that push boundaries
+               - Unexpected angles or perspectives that merit exploration
+
+            2. Theoretical Foundation
+               - Synthesis of competing theoretical frameworks
+               - Identification of hidden assumptions and biases
+               - Novel theoretical connections across disciplines
+               - Emerging paradigms and their implications
+
+            3. Methodological Innovation
+               - Advanced analytical approaches
+               - Integration of complementary methods
+               - Novel data triangulation strategies
+               - Innovative analytical frameworks
+
+            4. Key Discoveries
+               - Groundbreaking findings with robust evidence (with citations)
+               - Unexpected patterns and relationships
+               - Counter-intuitive insights
+               - Paradigm-shifting implications
+
+            5. Critical Analysis
+               - Deep examination of complex relationships (with citations)
+               - Multi-level interpretation of findings
+               - Integration of competing perspectives
+               - Identification of emergent patterns
+               - Exploration of paradoxes and tensions
+
+            6. Theoretical Implications
+               - Contributions to existing theories
+               - Novel theoretical propositions
+               - Cross-disciplinary implications
+               - Potential paradigm shifts
+               - Future theoretical directions
+
+            7. Practical Significance
+               - Real-world applications and impact
+               - Implementation challenges and opportunities
+               - Societal implications
+               - Future possibilities
+
+            8. Research Frontiers
+               - Emerging questions and paradoxes
+               - Unexplored territories
+               - Methodological innovations needed
+               - Future research trajectories
+
+            9. References
+               - Comprehensive bibliography in APA format
+               - Include DOIs where available
+               - Balance seminal works with cutting-edge research
+               - Include cross-disciplinary sources
+
+            Critical Requirements:
+            - Challenge conventional wisdom while maintaining academic rigor
+            - Identify unexpected connections across disciplines
+            - Support all claims with robust evidence and citations
+            - Include 3-4 citations per major section
+            - Balance theoretical depth with practical implications
+            - Emphasize novel interpretations and insights
+            - Consider counter-intuitive findings
+            - Explore paradoxes and tensions in the field
+            - Integrate competing theoretical perspectives
+            - Highlight potential paradigm shifts
+
+            Your analysis should not merely summarize existing knowledge but should push the boundaries of understanding while maintaining scholarly excellence."""
         else:
-            title = lines[0].strip()
-            subtitle = None
-            content = ""
+            self.iteration_count += 1  # Increment counter for subsequent iterations
+            prompt = f"""As a Nobel laureate building upon previous research, conduct a deeper analysis that reveals new layers of understanding and unexpected connections.
+            
+            Previous analysis:
+            {previous_analysis}
+            
+            For iteration #{self.iteration_count + 1}, transcend conventional boundaries by:
+            1. Identifying subtle patterns and hidden relationships
+            2. Exploring paradoxes and apparent contradictions
+            3. Challenging assumptions and established paradigms
+            4. Synthesizing disparate findings into novel frameworks
+            5. Revealing unexpected implications and applications
+            
+            Structure your analysis using this format:
+
+            Start with:
+            Title: [Compelling title that captures your novel insights]
+            Subtitle: [Intriguing aspect that challenges current understanding]
+
+            Then provide:
+
+            1. Meta-Analysis
+               - Critical evaluation of previous findings
+               - Identification of hidden patterns
+               - Emerging questions and paradoxes
+               - Novel interpretative frameworks
+
+            2. Theoretical Advancement
+               - Integration of competing perspectives
+               - Novel theoretical propositions
+               - Cross-disciplinary implications
+               - Paradigm-shifting insights
+
+            3. Methodological Innovation
+               - Advanced analytical approaches
+               - Novel data interpretation strategies
+               - Integration of diverse methods
+               - Innovative frameworks
+
+            4. Unexpected Connections
+               - Cross-domain relationships
+               - Counter-intuitive findings
+               - Emergent patterns
+               - Novel synthesis of ideas
+
+            5. Critical Implications
+               - Theoretical breakthroughs
+               - Practical applications
+               - Societal impact
+               - Future directions
+
+            6. References
+               - Comprehensive bibliography in APA format
+               - Include DOIs where available
+               - Emphasize cutting-edge research
+               - Include cross-disciplinary sources
+
+            Critical Requirements:
+            - Push beyond conventional analysis while maintaining rigor
+            - Identify subtle patterns and relationships
+            - Support novel insights with robust evidence
+            - Include 3-4 citations per major section
+            - Emphasize unexpected connections
+            - Challenge existing paradigms
+            - Explore paradoxes and tensions
+            - Propose innovative frameworks
+            - Consider counter-intuitive implications
+
+            Note: As iteration {self.iteration_count + 1}, strive to reveal deeper layers of understanding and unexpected connections that challenge and expand current knowledge."""
         
-        result = ResearchResult(
-            title=title,
-            subtitle=subtitle,
-            content=content
-        )
-        
-        return result
+        result = self.generate_content(prompt, self._get_analysis_config())
+        if result:
+            return parse_title_content(result)
+        return None
 
 class SynthesisExpert(BaseAgent):
-    """Academic research synthesizer."""
+    """Agent responsible for synthesizing research findings."""
     
-    @handle_error
-    def synthesize(self, topic: str, research_results: List[ResearchResult]) -> Optional[str]:
-        """Create final synthesis report with academic rigor."""
-        summary_points = []
-        for result in research_results:
-            summary = [
-                f"Title: {result.title}",
-                f"Focus: {result.subtitle or 'N/A'}",
-                "Key Points:",
-                result.content
-            ]
-            summary_points.append('\n'.join(summary))
+    def _format_report(self, text: str) -> str:
+        """Format the report with proper markdown and section organization."""
+        if not text:
+            return ""
+            
+        sections = text.split('\n')
+        formatted_sections = []
+        current_section = []
+        in_references = False
         
-        prompt = (
-            "As an academic synthesis expert, create a comprehensive final report that addresses "
-            f"the core question or topic: '{topic}'. Focus exclusively on synthesizing the findings "
-            "from the research analyst's research and their direct implications. Maintain scholarly precision while ensuring "
-            "the content is engaging and accessible.\n\n"
-            "Research Findings:\n"
-            + "\n\n---\n\n".join(summary_points)
-            + "\n\nCreate a detailed academic report with this structure:\n\n"
-            "1. Format the title as:\n"
-            "   - Main title (concise, without 'Title:' prefix)\n"
-            "   - Descriptive subtitle on next line (without 'Subtitle:' prefix)\n\n"
-            "2. Begin with Executive Summary (One focused paragraph unless volume requires two)\n"
-            "   - Open with the central research question\n"
-            "   - State the primary research objective\n"
-            "   - Summarize key methodological approach\n"
-            "   - Present 2-3 most significant discoveries\n"
-            "   - Highlight critical implications\n"
-            "   - End with the research's broader impact\n\n"
-            "3. Key Findings\n"
-            "   - Present 4-6 major discoveries\n"
-            "   - Support each with specific evidence\n"
-            "   - Connect findings to each other\n"
-            "   - Identify emerging patterns\n\n"
-            "4. Detailed Analysis\n"
-            "   - Begin each paragraph with a clear topic sentence\n"
-            "   - Support claims with specific examples\n"
-            "   - Connect related findings\n"
-            "   - Build logical progression of ideas\n"
-            "   - Address important gaps in understanding\n\n"
-            "5. Practical Implications\n"
-            "   - Present concrete applications\n"
-            "   - Specify actionable insights\n"
-            "   - Identify areas needing attention\n"
-            "   - Describe potential impact\n\n"
-            "6. Limitations and Considerations\n"
-            "   - Address key uncertainties\n"
-            "   - Discuss knowledge gaps\n"
-            "   - Identify areas for future investigation\n"
-            "   - Suggest next steps\n\n"
-            "7. Conclusion (One focused paragraph unless volume requires two)\n"
-            "   - Begin with research significance\n"
-            "   - Synthesize 2-3 most impactful discoveries\n"
-            "   - Connect findings to broader context\n"
-            "   - Address practical implications\n"
-            "   - Present forward-looking perspective\n"
-            "   - End with compelling final insight\n\n"
-            "8. Essential References\n"
-            "   - List key sources cited\n"
-            "   - Include relevant works\n"
-            "   - Focus on topic-specific resources\n\n"
-            "9. Bibliography\n"
-            "   - Follow APA 7th edition format\n"
-            "   - Prioritize peer-reviewed sources\n"
-            "   - Include DOIs when available\n"
-            "   - List primary sources first\n"
-            "   - Each entry on new line with bullet (*)\n\n"
-            "Writing Guidelines:\n"
-            "- Begin each section with a strong topic sentence\n"
-            "- Use specific examples from the research\n"
-            "- Avoid vague references ('this shows', 'it appears')\n"
-            "- Replace weak transitions ('in conclusion', 'this report')\n"
-            "- Write with precision and clarity\n"
-            "- Define technical terms when introduced\n"
-            "- Maintain active voice\n"
-            "- Use concrete, specific language\n"
-            "- Create logical flow through specific connections\n"
-            "- Keep focus on the topic and its implications"
-        )
+        for line in sections:
+            line = line.strip()
+            if not line:
+                continue
+                
+            # Handle main section headers
+            if any(line.startswith(f"{i}.") for i in range(1, 8)):
+                if current_section:
+                    formatted_sections.append('\n'.join(current_section))
+                    current_section = []
+                # Convert numbered sections to markdown headers
+                section_title = line.split('.', 1)[1].strip()
+                current_section.append(f"## {section_title}")
+                continue
+            
+            # Special handling for references section
+            if "Works Cited" in line or "References" in line:
+                in_references = True
+                if current_section:
+                    formatted_sections.append('\n'.join(current_section))
+                current_section = [f"## {line}"]
+                continue
+            
+            # Format bullet points
+            if line.startswith('-'):
+                line = line.replace('-', '•', 1)
+            
+            # Format citations in references section
+            if in_references and line.strip() and not line.startswith('##'):
+                # Ensure proper spacing and formatting for references
+                if not line.endswith('.'):
+                    line += '.'
+                line = '- ' + line
+            
+            current_section.append(line)
         
-        return self._generate_content(prompt, config.SYNTHESIS_CONFIG) 
+        if current_section:
+            formatted_sections.append('\n'.join(current_section))
+        
+        return '\n\n'.join(formatted_sections)
+    
+    def synthesize(self, topic: str, analyses: list) -> Optional[str]:
+        """Synthesize all research analyses into a final report."""
+        prompt = f"""Synthesize all research from agent 2 on '{topic}' into a Final Report with:
+        
+        1. Executive Summary (2-3 paragraphs)
+           - Include key citations for major findings
+           - Highlight most significant discoveries
+        
+        2. Key Insights (bullet points)
+           - Support each insight with relevant citations
+           - Include methodology used to derive insights
+        
+        3. Analysis
+           - Comprehensive synthesis of findings with citations
+           - Integration of multiple perspectives
+           - Critical evaluation of evidence
+        
+        4. Conclusion
+           - Summary of main findings
+           - Implications for theory and practice
+           - Future research directions
+        
+        5. Further Considerations & Counter-Arguments
+           - Alternative viewpoints with citations
+           - Limitations of current research
+           - Areas of uncertainty or debate
+        
+        6. Recommended Readings and Resources
+           - Key papers and their main contributions
+           - Seminal works in the field
+           - Recent significant publications
+        
+        7. Works Cited
+           - Comprehensive bibliography in APA format
+           - Include all sources cited in the report
+           - Organize by primary sources, secondary sources, and additional resources
+           - Include DOIs where available
+        
+        Important:
+        - Use in-text citations in APA format (Author, Year)
+        - Ensure all citations have corresponding entries in Works Cited
+        - Include both seminal works and recent research
+        - Maintain academic rigor while being accessible
+        - Cross-reference findings from different analyses
+        
+        Analysis to synthesize: {' '.join(analyses)}"""
+        
+        result = self.generate_content(prompt, SYNTHESIS_CONFIG)
+        if result:
+            return self._format_report(result)
+        return None 
