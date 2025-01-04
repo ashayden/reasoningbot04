@@ -254,14 +254,15 @@ Format your response EXACTLY as a Python dictionary with three keys:
     "title": "A clear, concise title for this analysis phase",
     "subtitle": "A brief subtitle highlighting key focus",
     "content": "Your detailed analysis in markdown format"
-}"""
+}
 
 Important:
 - Use only straight quotes (")
 - Each key-value pair should be on its own line
 - Ensure proper dictionary formatting
 - Avoid nested quotes or special characters in keys
-- Content can use markdown formatting"""
+- Content can use markdown formatting
+"""
         
         try:
             # Adjust temperature based on iteration
