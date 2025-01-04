@@ -120,7 +120,7 @@ Important:
 2. Include both obvious and non-obvious angles
 3. Span theoretical and practical implications
 
-Format your response as a Python list of strings, one per line:
+Format your response as a Python list of strings:
 [
     "First focus area",
     "Second focus area",
@@ -131,7 +131,8 @@ Important:
 - Use only straight quotes (")
 - Each focus area should be concise (3-7 words)
 - Make each area distinct and specific
-- Ensure areas are relevant to the topic"""
+- Ensure areas are relevant to the topic
+- Return ONLY the list, no additional text"""
         
         try:
             result = self.generate_content(prompt, PREANALYSIS_CONFIG)
@@ -140,16 +141,54 @@ Important:
                 
             # Clean and parse the response
             result = result.strip()
-            result = result.replace('"', '"').replace('"', '"')
-            result = result.replace("'", "'").replace("'", "'")
             
-            focus_areas = eval(result)
+            # Remove any text before the first [ and after the last ]
+            start_idx = result.find('[')
+            end_idx = result.rfind(']')
+            if start_idx == -1 or end_idx == -1:
+                logger.error("Could not find list brackets in response")
+                return None
             
-            if not isinstance(focus_areas, list) or not (8 <= len(focus_areas) <= 10):
-                logger.error("Invalid response format")
+            result = result[start_idx:end_idx + 1]
+            
+            # Clean up the string
+            result = result.replace('"', '"').replace('"', '"')  # Replace curly quotes
+            result = result.replace("'", "'").replace("'", "'")  # Replace curly single quotes
+            result = result.replace('\n', ' ').replace('\r', ' ')  # Remove newlines
+            
+            # Try multiple parsing approaches
+            try:
+                # First try ast.literal_eval for safety
+                import ast
+                focus_areas = ast.literal_eval(result)
+            except:
+                try:
+                    # Try json.loads as fallback
+                    import json
+                    focus_areas = json.loads(result)
+                except:
+                    # Last resort: basic string manipulation
+                    # Remove brackets and split by commas
+                    items = result.strip('[]').split('",')
+                    focus_areas = [item.strip().strip('"').strip() for item in items if item.strip()]
+            
+            # Validate the result
+            if not isinstance(focus_areas, list):
+                logger.error("Response is not a list")
                 return None
                 
-            return [area.strip().strip('"\'').strip() for area in focus_areas if area.strip()]
+            # Clean up and validate each focus area
+            cleaned_areas = []
+            for area in focus_areas:
+                if isinstance(area, str) and area.strip():
+                    cleaned_areas.append(area.strip().strip('"\'').strip())
+            
+            # Ensure we have enough valid focus areas
+            if not (8 <= len(cleaned_areas) <= 10):
+                logger.error(f"Invalid number of focus areas: {len(cleaned_areas)}")
+                return None
+                
+            return cleaned_areas
             
         except Exception as e:
             logger.error(f"Error parsing focus areas response: {str(e)}")
