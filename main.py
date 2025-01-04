@@ -206,7 +206,7 @@ def display_synthesis(synthesis_data: Dict[str, str]) -> None:
         st.markdown(synthesis_data["content"])
 
 def process_stage():
-    """Process the current stage of research."""
+    """Process the current stage of the analysis."""
     try:
         model = genai.GenerativeModel(GEMINI_MODEL)
         
@@ -294,13 +294,17 @@ def process_stage():
         elif st.session_state.stage == 'synthesis':
             if not st.session_state.synthesis:
                 synthesis_expert = SynthesisExpert(model)
-                analysis_texts = [a['content'] for a in st.session_state.analysis_results]
-                synthesis = synthesis_expert.synthesize(st.session_state.topic, analysis_texts)
+                synthesis = synthesis_expert.synthesize(
+                    topic=st.session_state.topic,
+                    focus_areas=st.session_state.selected_focus_areas,
+                    analyses=st.session_state.analysis_results
+                )
                 if synthesis:
-                    st.session_state.synthesis = synthesis
-                    st.rerun()
-            
-            display_synthesis(st.session_state.synthesis)
+                    display_synthesis(synthesis)
+                    st.session_state.stage = "complete"
+                else:
+                    logger.error("Failed to generate synthesis")
+                    st.error("Failed to generate synthesis. Please try again.")
             
             if st.button("Start New Research", type="primary"):
                 reset_state()

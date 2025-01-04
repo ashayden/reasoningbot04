@@ -147,28 +147,72 @@ class ResearchAnalyst(BaseAgent):
 {context}
 You are an expert academic researcher conducting an in-depth analysis. Your goal is to provide specific, evidence-based insights that build upon each other.
 
-Format your analysis using the following structure:
+FORMATTING REQUIREMENTS:
 
-1. Main Sections (use clear headings)
-- Each section should focus on a key theme or finding
-- Use descriptive headings that indicate the content
-- Maintain consistent heading style
+1. Title Structure
+   - Create a unique, specific title that captures the main theme
+   - Add an engaging subtitle that previews key insights
+   - Example: "Cultural Evolution: Mapping Urban Identity in Transition"
 
-2. Evidence and Examples
-- Each point should be supported by specific evidence
-- Use bullet points for clarity
-- Start each bullet with a clear topic statement in bold
-- Follow with supporting evidence and explanation
+2. Section Organization
+   Each analysis must have these sections in order:
+   a) Key Findings and Evidence
+   b) Detailed Analysis
+   c) Connections and Significance
+   d) Implications
 
-3. Connections and Significance
-- After each section, explain connections to other findings
-- Evaluate the significance of observations
-- Draw clear conclusions
+3. Bullet Point Format
+   Each bullet point must follow this exact structure:
+   • **Key Statement:** Your main point here. Follow with 2-3 sentences of supporting evidence or explanation.
 
-4. Final Section: Implications
-- Conclude with clear implications
-- Provide actionable recommendations
-- Consider future impacts"""
+4. Section Content Requirements:
+
+   a) Key Findings and Evidence
+   - Start with 3-4 bullet points
+   - Each bullet presents one clear finding
+   - Include specific evidence or examples
+   - Use concrete numbers or statistics when available
+
+   b) Detailed Analysis
+   - Examine relationships between findings
+   - Provide deeper context
+   - Use specific examples
+   - Connect to broader themes
+
+   c) Connections and Significance
+   - Draw explicit connections between findings
+   - Evaluate importance of patterns
+   - Consider broader implications
+   - Identify emerging trends
+
+   d) Implications
+   - Present 2-3 clear implications
+   - Offer specific recommendations
+   - Consider different stakeholders
+   - Address potential challenges
+
+5. Markdown Formatting
+   - Use ** for bold text
+   - Use * for italics
+   - Use ### for section headings
+   - Leave one blank line between sections
+   - Use • for bullet points
+   - Maintain consistent indentation
+
+6. Writing Style
+   - Use clear topic sentences
+   - Provide specific evidence
+   - Create logical flow
+   - Maintain professional tone
+   - Use active voice
+   - Keep paragraphs focused
+
+Format your response as a dictionary with these exact keys:
+{
+    "title": "Your creative, specific title here",
+    "subtitle": "Your engaging, preview subtitle here",
+    "content": "Your analysis following the format above"
+}"""
 
         if not previous_analysis:
             # First research loop - Initial comprehensive analysis
@@ -193,36 +237,6 @@ Focus your deeper analysis on:
 6. Proposes new interpretative frameworks
 7. Synthesizes insights into novel perspectives"""
 
-        prompt += """
-
-Format your response EXACTLY as shown below:
-{
-    "title": "Research Analysis",
-    "subtitle": "Key Findings and Evidence",
-    "content": "Your detailed analysis here"
-}
-
-Important Formatting Rules:
-1. Use clear section headings with proper spacing
-2. Format bullet points consistently:
-   • Start with a bold statement: **Key Point:** followed by evidence
-   • Use proper bullet points (•)
-   • Maintain consistent indentation
-3. Use markdown formatting:
-   - Bold for emphasis (**text**)
-   - Italics for subtitles (*text*)
-   - Clear section breaks (use blank lines)
-4. Maintain consistent structure:
-   - Main sections with headings
-   - Bulleted evidence points
-   - Connection/significance paragraphs
-   - Clear implications section
-5. Ensure readability:
-   - Use clear topic sentences
-   - Provide specific evidence
-   - Create logical flow
-   - Maintain professional tone"""
-        
         try:
             # Adjust temperature based on iteration
             temp = min(ANALYSIS_BASE_TEMP + (len(context) > 0) * ANALYSIS_TEMP_INCREMENT, ANALYSIS_MAX_TEMP)
@@ -264,6 +278,21 @@ Important Formatting Rules:
                     if isinstance(value, (dict, list)):
                         value = str(value)
                     cleaned_analysis[key] = str(value).strip().strip('"\'').strip()
+            
+            # Restore newlines in content
+            if 'content' in cleaned_analysis:
+                content = cleaned_analysis['content']
+                # Add newlines after section headings
+                content = content.replace('###', '\n###')
+                # Add newlines between bullet points
+                content = content.replace('•', '\n•')
+                # Add newlines between sections
+                content = content.replace('Detailed Analysis', '\n\nDetailed Analysis')
+                content = content.replace('Connections and Significance', '\n\nConnections and Significance')
+                content = content.replace('Implications', '\n\nImplications')
+                # Clean up any multiple newlines
+                content = '\n'.join(line.strip() for line in content.split('\n') if line.strip())
+                cleaned_analysis['content'] = content
             
             return cleaned_analysis
             
