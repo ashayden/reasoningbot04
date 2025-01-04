@@ -101,10 +101,11 @@ def initialize_session_state():
         st.session_state.synthesis = None
     if 'iterations' not in st.session_state:
         st.session_state.iterations = 2
+    if 'last_topic' not in st.session_state:
+        st.session_state.last_topic = ''
 
-def reset_state():
-    """Reset all session state variables."""
-    st.session_state.topic = ''
+def soft_reset_state():
+    """Reset state while preserving the last topic."""
     st.session_state.stage = 'input'
     st.session_state.insights = None
     st.session_state.focus_areas = None
@@ -263,18 +264,18 @@ def display_synthesis(synthesis_data: Dict[str, str]) -> None:
                 )
 
 def process_stage():
-    """Process the current stage of the analysis."""
+    """Process the current stage of research."""
     try:
         model = genai.GenerativeModel(GEMINI_MODEL)
         
         # Always show logo
         st.image("assets/mara-logo.png", use_container_width=True)
         
-        # Always show input form, but disable during processing
+        # Always show input form, but modify based on state
         with st.form("topic_form", clear_on_submit=False):
             topic = st.text_area(
                 "What would you like to explore?",
-                value=st.session_state.get('topic', ''),
+                value=st.session_state.get('last_topic', ''),
                 help="Enter your research topic or question.",
                 placeholder="e.g., 'Examine the impact of artificial intelligence on healthcare...'"
             )
@@ -288,18 +289,28 @@ def process_stage():
                 help="Choose 1-5 iterations. More iterations = deeper insights = longer wait."
             )
             
-            submitted = st.form_submit_button(
-                "🚀 Start Analysis",
-                use_container_width=True,
-                type="primary",
-                disabled=st.session_state.stage != 'input'
-            )
-            
-            if submitted and topic and st.session_state.stage == 'input':
-                if validate_topic(topic):
-                    st.session_state.topic = sanitize_topic(topic)
-                    st.session_state.iterations = iterations
-                    st.session_state.stage = 'insights'
+            # Show different buttons based on state
+            if st.session_state.stage == 'input':
+                submitted = st.form_submit_button(
+                    "🚀 Start Analysis",
+                    use_container_width=True,
+                    type="primary"
+                )
+                
+                if submitted and topic:
+                    if validate_topic(topic):
+                        st.session_state.last_topic = topic
+                        st.session_state.topic = sanitize_topic(topic)
+                        st.session_state.iterations = iterations
+                        st.session_state.stage = 'insights'
+                        st.rerun()
+            else:
+                if st.form_submit_button(
+                    "❌ Cancel",
+                    use_container_width=True,
+                    type="secondary"
+                ):
+                    soft_reset_state()
                     st.rerun()
         
         # Display insights if available
@@ -318,7 +329,7 @@ def process_stage():
                     st.session_state.stage = 'focus'
                     st.rerun()
         
-        # Always show focus areas if available, but respect expanded state
+        # Always show focus areas if available
         if st.session_state.focus_areas:
             display_focus_areas(st.session_state.focus_areas)
         
@@ -364,7 +375,7 @@ def process_stage():
                     st.error("Failed to generate synthesis. Please try again.")
             
             if st.button("Start New Research", type="primary"):
-                reset_state()
+                soft_reset_state()
                 st.rerun()
     
     except QuotaExceededError:
