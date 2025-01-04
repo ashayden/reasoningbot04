@@ -145,43 +145,59 @@ class ResearchAnalyst(BaseAgent):
         
         base_prompt = f"""Topic: {topic}{focus_context}
 {context}
-You are an expert academic researcher conducting an in-depth analysis."""
+You are an expert academic researcher conducting an in-depth analysis. Your goal is to provide specific, evidence-based insights that build upon each other."""
 
         if not previous_analysis:
             # First research loop - Initial comprehensive analysis
             prompt = base_prompt + """
 Conduct a thorough initial analysis that:
-1. Examines the core aspects of the topic
-2. Identifies key patterns and relationships
-3. Explores fundamental concepts
-4. Establishes a strong analytical foundation
-5. Considers multiple perspectives"""
+1. Makes specific, concrete observations about the topic
+2. Provides clear evidence to support each observation
+3. Identifies key patterns and relationships
+4. Establishes clear connections between different aspects
+5. Evaluates the significance of your findings
+
+Structure your analysis with:
+- Clear topic sentences for each point
+- Specific examples and evidence
+- Explicit connections between ideas
+- Evaluation of significance
+- Implications of findings"""
         else:
             # Subsequent research loops - Deeper analysis
             prompt = base_prompt + """
 Building upon previous findings, conduct a deeper analysis that:
-1. Uncovers hidden connections and patterns
-2. Explores nuanced relationships
-3. Challenges assumptions
-4. Proposes creative interpretations
-5. Synthesizes insights into novel perspectives
-6. Examines unconventional angles
-7. Identifies emerging implications"""
+1. Uncovers more nuanced connections
+2. Challenges or validates previous observations with new evidence
+3. Identifies emerging patterns and trends
+4. Explores complex relationships between factors
+5. Evaluates long-term implications
+6. Proposes new interpretative frameworks
+7. Synthesizes insights into novel perspectives
+
+Structure your analysis with:
+- Clear progression from previous findings
+- Specific new evidence and examples
+- Explicit evaluation of relationships
+- Critical analysis of implications
+- Synthesis of new insights"""
 
         prompt += """
 
 Format your response EXACTLY as shown below:
 {
     "title": "Research Analysis",
-    "subtitle": "Key Findings",
+    "subtitle": "Key Findings and Evidence",
     "content": "Your detailed analysis here"
 }
 
 Important:
-- Use only straight quotes (")
-- No line breaks in the content
-- Keep the exact keys shown above
-- Content should be a single string with markdown formatting
+- Use clear topic sentences and transitions
+- Support each point with specific evidence
+- Make explicit connections between ideas
+- Evaluate the significance of findings
+- Use markdown formatting for readability
+- Avoid generalizations - be specific and concrete
 - Do not use nested dictionaries or lists"""
         
         try:
@@ -240,40 +256,55 @@ class SynthesisExpert(BaseAgent):
         prompt = f"""Topic: {topic}
 Analysis Results: {analysis_results}
 
-Create a comprehensive thesis-driven synthesis that includes:
+Create a compelling, narrative-driven synthesis that weaves together the research findings into a cohesive argument. Your synthesis should be both academically rigorous and engaging to read.
 
-1. Thesis Statement
-- Clear, arguable main claim about the topic
-- Based on research findings
-- Specific and focused
+Structure your synthesis as follows:
 
-2. Executive Summary
-- Overview of key findings
-- Major patterns and themes
-- Significance of conclusions
+1. Executive Summary (2-3 paragraphs)
+- Open with an engaging hook that captures the significance of the topic
+- Present your main thesis clearly and compellingly
+- Preview the key themes and findings
+- Highlight the broader implications
 
-3. Evidence Analysis
-- Detailed examination of supporting evidence
-- Connections between findings
-- Strength of evidence
-- Counter-arguments addressed
+2. Key Findings and Analysis (Multiple sections with clear headings)
+- Present each major finding with supporting evidence
+- Use clear topic sentences and transitions
+- Build connections between different findings
+- Evaluate the significance of each point
+- Use specific examples and evidence
+- Create a clear narrative progression
 
-4. Argumentation
-- Logical flow of ideas
-- Clear reasoning
-- Evidence-based claims
-- Alternative viewpoints considered
+3. Synthesis of Insights
+- Weave together the major themes
+- Identify patterns and relationships
+- Draw meaningful connections
+- Present novel interpretations
+- Evaluate broader implications
 
-5. Implications
-- Theoretical significance
-- Practical applications
-- Future directions
-- Broader impact
+4. Implications and Future Directions
+- Discuss practical applications
+- Identify areas for further research
+- Consider long-term impacts
+- Address potential challenges
+- Propose next steps
 
-Format as a structured markdown document with clear sections and subsections.
-Ensure strong connections between evidence and thesis.
-Address potential counterarguments.
-Maintain academic rigor while being accessible.
+Format Guidelines:
+- Use clear section headings (H2 with ##)
+- Include subsections where appropriate (H3 with ###)
+- Use bullet points sparingly and purposefully
+- Create clear paragraph breaks
+- Use markdown formatting for emphasis
+- Maintain a narrative flow throughout
+- Write in an engaging, professional style
+- Balance academic rigor with readability
+
+Remember to:
+- Make explicit connections between ideas
+- Support claims with specific evidence
+- Evaluate significance of findings
+- Consider multiple perspectives
+- Address potential counterarguments
+- Maintain focus on the main thesis
 """
         
         return self.generate_content(prompt, SYNTHESIS_CONFIG) 
