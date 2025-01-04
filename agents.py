@@ -140,22 +140,47 @@ class PreAnalysisAgent(BaseAgent):
     def generate_insights(self, topic: str) -> Optional[Dict[str, str]]:
         """Generate initial insights about the topic."""
         try:
-            response = self.model.generate_content(
-                f"Provide a clear, direct overview of {topic} in 1-3 sentences. Include 1-3 relevant emojis naturally within the text. Focus on key points and avoid phrases like 'The question is about'.",
-                generation_config=GenerationConfig(**PREANALYSIS_CONFIG)
-            )
+            logger.info(f"Generating insights for topic: '{topic}'")
             
-            if not response:
-                logger.error("Failed to generate insights")
+            if not topic:
+                logger.error("Empty topic provided to generate_insights")
                 return None
+            
+            if not self.model:
+                logger.error("Model not initialized in PreAnalysisAgent")
+                return None
+            
+            prompt = f"Provide a clear, direct overview of {topic} in 1-3 sentences. Include 1-3 relevant emojis naturally within the text. Focus on key points and avoid phrases like 'The question is about'."
+            logger.info("Sending prompt to model")
+            
+            try:
+                response = self.model.generate_content(
+                    prompt,
+                    generation_config=GenerationConfig(**PREANALYSIS_CONFIG)
+                )
+                logger.info("Received response from model")
                 
-            return {
-                'did_you_know': response.text,
-                'eli5': response.text
-            }
+                if not response:
+                    logger.error("Empty response from model")
+                    return None
+                
+                if not hasattr(response, 'text'):
+                    logger.error("Response missing text attribute")
+                    return None
+                
+                insights = {
+                    'did_you_know': response.text,
+                    'eli5': response.text
+                }
+                logger.info("Successfully generated insights")
+                return insights
+                
+            except Exception as e:
+                logger.error(f"Error during model generation: {str(e)}", exc_info=True)
+                return None
             
         except Exception as e:
-            logger.error(f"Error generating insights: {str(e)}")
+            logger.error(f"Error generating insights: {str(e)}", exc_info=True)
             return None
 
 class PromptDesigner(BaseAgent):

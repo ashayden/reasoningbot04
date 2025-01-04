@@ -303,24 +303,37 @@ def process_stage(stage_name, container, stage_fn, next_stage=None, spinner_text
     
     if stage_name not in st.session_state.app_state:
         logger.info(f"Stage {stage_name} not in app_state, generating content")
-        with container, st.spinner(spinner_text):
-            result = stage_fn(**kwargs)
-            if result is not None:
-                logger.info(f"Stage {stage_name} generated content successfully")
-                st.session_state.app_state[stage_name] = result
-                if next_stage:
-                    # Only show framework after focus selection is complete
-                    if next_stage == 'framework' and not st.session_state.app_state.get('focus_selection_complete'):
-                        logger.info("Skipping framework stage until focus selection is complete")
-                        return
-                    logger.info(f"Setting show_{next_stage} to True")
-                    st.session_state.app_state[f'show_{next_stage}'] = True
-                st.rerun()
-            else:
-                logger.error(f"Stage {stage_name} failed to generate content")
+        try:
+            with container, st.spinner(spinner_text):
+                logger.info(f"Calling stage function for {stage_name}")
+                result = stage_fn(**kwargs)
+                logger.info(f"Stage function result: {result}")
+                
+                if result is not None:
+                    logger.info(f"Stage {stage_name} generated content successfully")
+                    st.session_state.app_state[stage_name] = result
+                    if next_stage:
+                        # Only show framework after focus selection is complete
+                        if next_stage == 'framework' and not st.session_state.app_state.get('focus_selection_complete'):
+                            logger.info("Skipping framework stage until focus selection is complete")
+                            return
+                        logger.info(f"Setting show_{next_stage} to True")
+                        st.session_state.app_state[f'show_{next_stage}'] = True
+                    st.rerun()
+                else:
+                    logger.error(f"Stage {stage_name} failed to generate content")
+                    st.error(f"Failed to generate content for {stage_name}. Please try again.")
+        except Exception as e:
+            logger.error(f"Error in stage {stage_name}: {str(e)}", exc_info=True)
+            st.error(f"An error occurred during {stage_name}: {str(e)}")
+            return
     elif display_fn and st.session_state.app_state.get(stage_name) is not None:
         logger.info(f"Displaying existing content for stage {stage_name}")
-        display_fn(st.session_state.app_state[stage_name])
+        try:
+            display_fn(st.session_state.app_state[stage_name])
+        except Exception as e:
+            logger.error(f"Error displaying content for stage {stage_name}: {str(e)}", exc_info=True)
+            st.error(f"Failed to display content for {stage_name}. Please try again.")
 
 def validate_and_sanitize_input(topic: str) -> tuple[bool, str, str]:
     """Validate and sanitize user input."""
@@ -450,19 +463,27 @@ def main():
         # Process each stage
         if st.session_state.app_state.get('show_insights'):
             logger.info("Processing insights stage")
-            process_stage('insights', containers['insights'],
-                         lambda **kwargs: PreAnalysisAgent(model).generate_insights(st.session_state.app_state['topic']),
-                         'focus', spinner_text="💡 Generating insights...",
-                         display_fn=display_insights)
-            
-            # Generate prompt silently in the background if not already generated
-            if not st.session_state.app_state.get('prompt'):
-                logger.info("Generating optimized prompt in background")
-                optimized_prompt = PromptDesigner(model).design_prompt(st.session_state.app_state['topic'])
-                if optimized_prompt:
-                    st.session_state.app_state['prompt'] = optimized_prompt
-                    logger.info("Optimized prompt generated successfully")
-        
+            try:
+                process_stage('insights', containers['insights'],
+                            lambda **kwargs: PreAnalysisAgent(model).generate_insights(st.session_state.app_state['topic']),
+                            'focus', spinner_text="💡 Generating insights...",
+                            display_fn=display_insights)
+                
+                # Generate prompt silently in the background if not already generated
+                if not st.session_state.app_state.get('prompt'):
+                    logger.info("Generating optimized prompt in background")
+                    try:
+                        optimized_prompt = PromptDesigner(model).design_prompt(st.session_state.app_state['topic'])
+                        if optimized_prompt:
+                            st.session_state.app_state['prompt'] = optimized_prompt
+                            logger.info("Optimized prompt generated successfully")
+                    except Exception as e:
+                        logger.error(f"Error generating optimized prompt: {str(e)}", exc_info=True)
+            except Exception as e:
+                logger.error(f"Error in insights stage: {str(e)}", exc_info=True)
+                st.error("Failed to generate insights. Please try again.")
+                return
+
         if st.session_state.app_state.get('show_focus'):
             logger.info("Processing focus areas stage")
             process_stage('focus', containers['focus'],
