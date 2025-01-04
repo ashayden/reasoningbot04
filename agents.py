@@ -218,16 +218,29 @@ class ResearchAnalyst(BaseAgent):
         prompt = f"""Topic: {topic}
 Framework: {framework}
 {context}
-Conduct a deep analysis that:
-1. Builds on previous findings (if any)
-2. Reveals new insights and patterns
-3. Challenges assumptions
-4. Integrates multiple perspectives
+Using the provided research framework as your guide, conduct a thorough analysis that:
 
-Format your response EXACTLY as a Python dictionary like this:
-{{"title": "Your title here", "subtitle": "Your subtitle here", "content": "Your detailed analysis here"}}
+1. Addresses the primary and secondary research questions outlined in the Research Objectives
+2. Follows the specified research methods and analysis techniques from the Methodology section
+3. Investigates all core topics, subtopics, and cross-cutting themes listed in Investigation Areas
+4. Applies the theoretical framework and examines key concept relationships
+5. Considers critical perspectives, including assumptions and limitations
 
-Important: Use only straight quotes (") not curly quotes, and ensure the response is a valid Python dictionary."""
+Your analysis should build upon any previous findings while generating new insights.
+
+Format your response EXACTLY as a Python dictionary with three keys:
+{{
+    "title": "A clear, concise title for this analysis phase",
+    "subtitle": "A brief subtitle highlighting key focus",
+    "content": "Your detailed analysis in markdown format"
+}}
+
+Important:
+- Use only straight quotes (")
+- Each key-value pair should be on its own line
+- Ensure proper dictionary formatting
+- Avoid nested quotes or special characters in keys
+- Content can use markdown formatting"""
         
         try:
             # Adjust temperature based on iteration
@@ -240,11 +253,55 @@ Important: Use only straight quotes (") not curly quotes, and ensure the respons
                 
             # Clean the response to ensure valid Python syntax
             result = result.strip()
-            result = result.replace('"', '"').replace('"', '"')  # Replace curly quotes
-            result = result.replace("'", "'").replace("'", "'")  # Replace curly single quotes
             
-            # Safely evaluate the string as a Python dictionary
-            analysis = eval(result)
+            # Try to extract dictionary using string manipulation first
+            try:
+                # Find the dictionary boundaries
+                start_idx = result.find('{')
+                end_idx = result.rfind('}') + 1
+                if start_idx == -1 or end_idx == 0:
+                    raise ValueError("Could not find dictionary boundaries")
+                
+                # Extract and clean the dictionary string
+                dict_str = result[start_idx:end_idx]
+                dict_str = dict_str.replace('"', '"').replace('"', '"')  # Replace curly quotes
+                dict_str = dict_str.replace("'", "'").replace("'", "'")  # Replace curly single quotes
+                dict_str = dict_str.replace('\n', ' ').replace('\r', ' ')  # Remove newlines
+                
+                # Safely evaluate the string as a Python dictionary
+                analysis = eval(dict_str)
+                
+            except:
+                # Fallback: try to parse line by line
+                logger.info("Falling back to line-by-line parsing")
+                lines = result.split('\n')
+                analysis = {}
+                current_key = None
+                current_value = []
+                
+                for line in lines:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    
+                    # Check for key-value pairs
+                    if '"title":' in line:
+                        current_key = 'title'
+                        value = line.split(':', 1)[1].strip().strip('",')
+                        analysis[current_key] = value
+                    elif '"subtitle":' in line:
+                        current_key = 'subtitle'
+                        value = line.split(':', 1)[1].strip().strip('",')
+                        analysis[current_key] = value
+                    elif '"content":' in line:
+                        current_key = 'content'
+                        value = line.split(':', 1)[1].strip().strip('"')
+                        current_value = [value]
+                    elif current_key == 'content':
+                        current_value.append(line)
+                
+                if current_value:
+                    analysis['content'] = ' '.join(current_value)
             
             # Validate the dictionary structure
             if not isinstance(analysis, dict):
@@ -256,11 +313,17 @@ Important: Use only straight quotes (") not curly quotes, and ensure the respons
                 logger.error("Response missing required keys")
                 return None
                 
-            # Ensure all values are strings
-            if not all(isinstance(analysis[key], str) for key in required_keys):
-                logger.error("Not all values are strings")
+            # Clean up values
+            for key in required_keys:
+                if key in analysis:
+                    # Remove any remaining quotes and clean up whitespace
+                    analysis[key] = analysis[key].strip().strip('"\'').strip()
+            
+            # Ensure all values are strings and not empty
+            if not all(isinstance(analysis[key], str) and analysis[key].strip() for key in required_keys):
+                logger.error("Invalid or empty values in response")
                 return None
-                
+            
             return analysis
             
         except Exception as e:
