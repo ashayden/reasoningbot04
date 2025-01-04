@@ -243,16 +243,16 @@ Important Formatting Rules:
 5. Use complete sentences with proper punctuation
 6. Maintain consistent indentation throughout
 
-Format your response EXACTLY as a Python dictionary with this structure (using straight quotes only):
-{"title": "Your title here", "subtitle": "Your subtitle here", "content": "Your content here"}
+Format your response as a Python dictionary with this structure:
+{{"title": "Your title here", "subtitle": "Your subtitle here", "content": "Your content here"}}
 
 Important formatting rules:
 1. Use only straight quotes (")
-2. No line breaks in the dictionary structure
+2. No line breaks in the dictionary
 3. Keep the exact keys: title, subtitle, content
 4. Ensure proper dictionary formatting
-5. Avoid nested quotes or special characters in keys
-6. Content must follow the exact formatting structure specified above
+5. Avoid nested quotes or special characters
+6. Content must follow the formatting structure specified above
 """
 
         if not previous_analysis:
@@ -395,17 +395,53 @@ class SynthesisExpert(BaseAgent):
         prompt = f"""Topic: {topic}
 Analysis Results: {analysis_results}
 
-Create a comprehensive research report that:
-1. Synthesizes all findings
-2. Highlights key insights
-3. Draws meaningful conclusions
-4. Suggests future directions
+Create a comprehensive research synthesis that addresses ALL of the following components:
 
-Format as a structured markdown document with:
-- Executive Summary
-- Key Findings
-- Analysis
-- Conclusions
-- References"""
+1. Executive Summary
+- High-level overview of key findings
+- Most significant discoveries and insights
+- Major patterns and themes identified
+
+2. Research Questions Addressed
+Primary Question:
+- Detailed answer with supporting evidence
+- Key findings and implications
+- Degree of confidence in conclusions
+
+Secondary Questions:
+- Systematic response to each question
+- Evidence from multiple analysis phases
+- Areas of certainty vs. uncertainty
+
+3. Analysis Integration
+- Synthesis of all research phases
+- Emerging patterns across analyses
+- Evolution of understanding
+- Interconnections between findings
+
+4. Key Conclusions
+- Primary conclusions with evidence
+- Secondary findings and insights
+- Unexpected discoveries
+- Knowledge gaps identified
+
+5. Implications and Impact
+- Theoretical implications
+- Practical applications
+- Future research directions
+- Broader significance
+- Potential impacts on field
+
+6. Critical Discussion
+- Strengths and limitations
+- Alternative interpretations
+- Competing perspectives
+- Methodological considerations
+
+Format as a structured markdown document with clear sections, subsections, and bullet points.
+Ensure comprehensive coverage while maintaining clarity and readability.
+Support all conclusions with evidence from the analysis phases.
+Address any contradictions or inconsistencies in the findings.
+"""
         
         return self.generate_content(prompt, SYNTHESIS_CONFIG) 
