@@ -145,7 +145,7 @@ class ResearchAnalyst(BaseAgent):
         
         base_prompt = f"""Topic: {topic}{focus_context}
 {context}
-You are an expert academic researcher and a leading expert in field of {topic} conducting an in-depth analysis."""
+You are an expert academic researcher conducting an in-depth analysis."""
 
         if not previous_analysis:
             # First research loop - Initial comprehensive analysis
@@ -170,16 +170,15 @@ Building upon previous findings, conduct a deeper analysis that:
 
         prompt += """
 
-Format your response as a Python dictionary with this structure:
-{{"title": "Your title here", "subtitle": "Your subtitle here", "content": "Your content here"}}
+Format your response EXACTLY as a Python dictionary with these keys:
+{{"title": "Research Analysis", "subtitle": "Key Findings", "content": "Your analysis here"}}
 
-Important formatting rules:
-1. Use only straight quotes (")
-2. No line breaks in the dictionary
-3. Keep the exact keys: title, subtitle, content
-4. Ensure proper dictionary formatting
-5. Avoid nested quotes or special characters
-6. Content should be detailed and well-structured"""
+Important:
+- Use only straight quotes (")
+- No line breaks in the dictionary
+- Keep the exact keys: title, subtitle, content
+- Ensure proper dictionary formatting
+- Avoid nested quotes or special characters"""
         
         try:
             # Adjust temperature based on iteration
@@ -192,15 +191,28 @@ Important formatting rules:
                 
             # Clean and parse the response
             result = result.strip()
-            result = result.replace('"', '"').replace('"', '"')
-            result = result.replace("'", "'").replace("'", "'")
+            result = result.replace('"', '"').replace('"', '"')  # Replace curly quotes
+            result = result.replace("'", "'").replace("'", "'")  # Replace curly single quotes
+            result = result.replace('\n', ' ').replace('\r', ' ')  # Remove newlines
             
+            # Safely evaluate the string as a Python dictionary
             analysis = eval(result)
             
-            if not isinstance(analysis, dict) or not all(key in analysis for key in ['title', 'subtitle', 'content']):
-                logger.error("Invalid response format")
+            # Validate the dictionary structure
+            if not isinstance(analysis, dict):
+                logger.error("Response is not a dictionary")
                 return None
                 
+            required_keys = {'title', 'subtitle', 'content'}
+            if not all(key in analysis for key in required_keys):
+                logger.error("Response missing required keys")
+                return None
+                
+            # Clean up values
+            for key in required_keys:
+                if key in analysis:
+                    analysis[key] = analysis[key].strip().strip('"\'').strip()
+            
             return analysis
             
         except Exception as e:
