@@ -3,33 +3,38 @@
 import streamlit as st
 from typing import Dict, List, Callable
 
+from state import AppState
+
 def display_logo() -> None:
     """Display the application logo."""
-    st.image("assets/mara-logo.png", width=120)
+    st.image("assets/mara-logo.png", use_container_width=True)
 
-def input_form(state, handle_submit: Callable) -> None:
-    """Display the topic input form."""
-    with st.form("topic_form"):
+def input_form(state: AppState, on_submit: Callable) -> None:
+    """Display the main input form."""
+    with st.form("topic_form", clear_on_submit=False):
         topic = st.text_area(
-            "Enter a topic to begin the research process",
-            value=state.last_topic if state.last_topic else "",
-            key="topic_input"
+            "What would you like to explore?",
+            value=state.last_topic,
+            help="Enter your research topic or question.",
+            placeholder="e.g., 'Examine the impact of artificial intelligence on healthcare...'"
         )
         
-        col1, col2 = st.columns([4, 1])
-        with col1:
-            submit = st.form_submit_button("Start Analysis", type="primary")
-        with col2:
-            iterations = st.number_input(
-                "Iterations",
-                min_value=1,
-                max_value=5,
-                value=2,
-                key="iterations_input"
-            )
-            
-        if submit and topic:
-            handle_submit(topic, iterations)
+        iterations = st.number_input(
+            "Number of Analysis Iterations",
+            min_value=1,
+            max_value=5,
+            value=state.iterations,
+            step=1,
+            help="Choose 1-5 iterations. More iterations = deeper insights = longer wait."
+        )
+        
+        if state.stage == 'input':
+            if st.form_submit_button("🚀 Start Analysis", use_container_width=True, type="primary"):
+                on_submit(topic, iterations)
+        else:
+            if st.form_submit_button("❌ Cancel", use_container_width=True, type="secondary"):
+                state.soft_reset()
+                st.rerun()
 
 def display_insights(insights: Dict[str, str]) -> None:
     """Display the initial insights."""
