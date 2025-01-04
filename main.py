@@ -252,50 +252,57 @@ def display_insights(insights: dict):
 
 def display_focus_areas(focus_areas):
     """Display focus areas for selection."""
-    logger.info("Displaying focus areas for selection")
+    logger.info(f"Displaying focus areas: {focus_areas}")
     
     if not focus_areas:
         logger.error("No focus areas provided to display")
         st.error("Failed to load focus areas. Please try again.")
         return
     
-    with st.expander("🎯 Focus Areas", expanded=True):
-        st.write("Choose 3-5 areas to focus your analysis on:")
+    st.markdown("### 🎯 Focus Areas")
+    st.write("Choose 3-5 areas to focus your analysis on:")
+    
+    # Initialize selected_areas in session state if not present
+    if 'selected_areas' not in st.session_state.app_state:
+        st.session_state.app_state['selected_areas'] = []
+        logger.info("Initialized selected_areas in app_state")
+    
+    # Create columns for focus area selection
+    cols = st.columns(2)
+    for i, area in enumerate(focus_areas):
+        col_idx = i % 2
+        with cols[col_idx]:
+            key = f"focus_area_{i}"
+            is_selected = area in st.session_state.app_state['selected_areas']
+            if st.checkbox(area, value=is_selected, key=key):
+                if area not in st.session_state.app_state['selected_areas']:
+                    logger.info(f"Selected focus area: {area}")
+                    st.session_state.app_state['selected_areas'].append(area)
+            elif area in st.session_state.app_state['selected_areas']:
+                logger.info(f"Deselected focus area: {area}")
+                st.session_state.app_state['selected_areas'].remove(area)
+    
+    # Show selection status
+    st.markdown("---")
+    num_selected = len(st.session_state.app_state['selected_areas'])
+    logger.info(f"Number of selected areas: {num_selected}")
+    
+    if num_selected < 3:
+        st.warning("⚠️ Please select at least 3 focus areas")
+    elif num_selected > 5:
+        st.warning("⚠️ Please select no more than 5 focus areas")
+    else:
+        st.success(f"✅ You have selected {num_selected} focus areas")
+        st.write("Selected areas:")
+        for area in st.session_state.app_state['selected_areas']:
+            st.write(f"- {area}")
         
-        # Initialize selected_areas in session state if not present
-        if 'selected_areas' not in st.session_state.app_state:
-            st.session_state.app_state['selected_areas'] = []
-        
-        # Create columns for focus area selection
-        cols = st.columns(2)
-        for i, area in enumerate(focus_areas):
-            col_idx = i % 2
-            with cols[col_idx]:
-                key = f"focus_area_{i}"
-                is_selected = area in st.session_state.app_state['selected_areas']
-                if st.checkbox(area, value=is_selected, key=key):
-                    if area not in st.session_state.app_state['selected_areas']:
-                        logger.info(f"Selected focus area: {area}")
-                        st.session_state.app_state['selected_areas'].append(area)
-                elif area in st.session_state.app_state['selected_areas']:
-                    logger.info(f"Deselected focus area: {area}")
-                    st.session_state.app_state['selected_areas'].remove(area)
-        
-        # Show warning if too few or too many areas selected
-        num_selected = len(st.session_state.app_state['selected_areas'])
-        if num_selected < 3:
-            st.warning("Please select at least 3 focus areas")
-        elif num_selected > 5:
-            st.warning("Please select no more than 5 focus areas")
-        else:
-            st.success(f"You have selected {num_selected} focus areas")
-            
-            # Add a confirm button when the selection is valid
-            if st.button("Confirm Selection", type="primary"):
-                logger.info(f"Focus areas confirmed: {st.session_state.app_state['selected_areas']}")
-                st.session_state.app_state['focus_selection_complete'] = True
-                st.session_state.app_state['show_framework'] = True
-                st.rerun()
+        # Add a confirm button when the selection is valid
+        if st.button("Continue with Selected Areas", type="primary"):
+            logger.info(f"Focus areas confirmed: {st.session_state.app_state['selected_areas']}")
+            st.session_state.app_state['focus_selection_complete'] = True
+            st.session_state.app_state['show_framework'] = True
+            st.rerun()
 
 def cleanup_partial_results(context: str):
     """Clean up any partial results when errors occur."""
@@ -519,20 +526,12 @@ def main():
     
     try:
         logger.info("Starting analysis process")
-        # Initialize containers for each stage
-        containers = {
-            'insights': st.empty(),
-            'focus': st.empty(),
-            'framework': st.empty(),
-            'analysis': st.empty(),
-            'summary': st.empty()
-        }
         
-        # Process each stage
+        # Process insights
         if st.session_state.app_state.get('show_insights'):
             logger.info("Processing insights stage")
             try:
-                process_stage('insights', containers['insights'],
+                process_stage('insights', st.container(),
                             lambda **kwargs: PreAnalysisAgent(model).generate_insights(st.session_state.app_state['topic']),
                             'focus', spinner_text="💡 Generating insights...",
                             display_fn=display_insights)
@@ -541,17 +540,25 @@ def main():
                 st.error("Failed to generate insights. Please try again.")
                 return
         
+        # Process focus areas
         if st.session_state.app_state.get('show_focus'):
             logger.info("Processing focus areas stage")
-            process_stage('focus', containers['focus'],
+            focus_container = st.container()
+            process_stage('focus', focus_container,
                          lambda **kwargs: PreAnalysisAgent(model).generate_focus_areas(st.session_state.app_state['topic']),
                          'framework', spinner_text="🎯 Generating focus areas...",
                          display_fn=display_focus_areas)
+            
+            # Display focus areas if they exist
+            if st.session_state.app_state.get('focus_areas'):
+                logger.info("Focus areas exist, displaying selection interface")
+                with focus_container:
+                    display_focus_areas(st.session_state.app_state['focus_areas'])
         
-        # Only show framework after focus selection is complete
+        # Process framework (only after focus selection is complete)
         if st.session_state.app_state.get('show_framework') and st.session_state.app_state.get('focus_selection_complete'):
             logger.info("Processing framework stage")
-            process_stage('framework', containers['framework'],
+            process_stage('framework', st.container(),
                          lambda **kwargs: FrameworkEngineer(model).create_framework(
                              st.session_state.app_state.get('prompt', ''),
                              st.session_state.app_state.get('enhanced_prompt')
@@ -562,7 +569,8 @@ def main():
         # Process analysis (special handling due to iterations)
         if st.session_state.app_state.get('show_analysis'):
             logger.info("Processing analysis stage")
-            with containers['analysis']:
+            analysis_container = st.container()
+            with analysis_container:
                 if len(st.session_state.app_state.get('analysis_results', [])) < st.session_state.app_state.get('iterations', 2):
                     with st.spinner("🔄 Performing analysis..."):
                         result = ResearchAnalyst(model).analyze(
@@ -583,9 +591,10 @@ def main():
                     with st.expander(f"🔄 Research Analysis #{i + 1}", expanded=False):
                         st.markdown(result)
         
+        # Process summary
         if st.session_state.app_state.get('show_summary'):
             logger.info("Processing summary stage")
-            process_stage('summary', containers['summary'],
+            process_stage('summary', st.container(),
                          lambda **kwargs: SynthesisExpert(model).synthesize(
                              st.session_state.app_state['topic'],
                              st.session_state.app_state.get('analysis_results', [])
