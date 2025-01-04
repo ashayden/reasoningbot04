@@ -256,7 +256,7 @@ def display_insights(insights: dict):
         with st.expander("⚡ ELI5", expanded=True):
             st.markdown(insights['eli5'])
 
-def display_focus_selection(focus_areas: list, selected_areas: list) -> tuple[bool, list]:
+def display_focus_areas(focus_areas: list):
     """Display focus area selection with proper state handling."""
     # Track if the section should be expanded in session state
     if 'focus_area_expanded' not in st.session_state:
@@ -264,7 +264,7 @@ def display_focus_selection(focus_areas: list, selected_areas: list) -> tuple[bo
         
     # Track selected areas in session state to persist between reruns
     if 'current_focus_areas' not in st.session_state:
-        st.session_state.current_focus_areas = selected_areas
+        st.session_state.current_focus_areas = []
     
     # Create container for focus area selection
     focus_container = st.container()
