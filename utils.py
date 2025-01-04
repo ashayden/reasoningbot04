@@ -26,13 +26,10 @@ class ValidationError(MARAError):
     pass
 
 def rate_limit_decorator(func: Callable) -> Callable:
-    """Rate limiting decorator following Gemini API recommendations."""
+    """Simple decorator to handle API errors."""
     @wraps(func)
     def wrapper(*args, **kwargs) -> Any:
         try:
-            # Use 1 second delay for public endpoints (most conservative approach)
-            # This ensures we stay well under both public (120/min) and private (600/min) limits
-            time.sleep(1.0)
             return func(*args, **kwargs)
         except Exception as e:
             if "429" in str(e):
