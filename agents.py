@@ -207,11 +207,11 @@ FORMATTING REQUIREMENTS:
    - Use active voice
    - Keep paragraphs focused
 
-Format your response as a dictionary with these exact keys:
+IMPORTANT: Format your response as a Python dictionary. Example format:
 {
-    "title": "Your creative, specific title here",
-    "subtitle": "Your engaging, preview subtitle here",
-    "content": "Your analysis following the format above"
+    "title": "Cultural Evolution: Mapping Urban Identity",
+    "subtitle": "Analyzing Patterns of Change and Adaptation",
+    "content": "### Key Findings and Evidence\\n\\n• **Population Growth:** City experienced 15% increase...\\n\\n### Detailed Analysis\\n\\n• **Economic Factors:** Analysis shows..."
 }"""
 
         if not previous_analysis:
