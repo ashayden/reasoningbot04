@@ -170,16 +170,19 @@ Building upon previous findings, conduct a deeper analysis that:
 
         prompt += """
 
-Format your response EXACTLY as a Python dictionary with these keys:
-{{"title": "Research Analysis", "subtitle": "Key Findings", "content": "Your analysis here"}}
+Format your response EXACTLY as shown below:
+{
+    "title": "Research Analysis",
+    "subtitle": "Key Findings",
+    "content": "Your detailed analysis here"
+}
 
 Important:
 - Use only straight quotes (")
-- No line breaks in the dictionary
-- Keep the exact keys: title, subtitle, content
-- Ensure proper dictionary formatting
-- Avoid nested quotes or special characters
-- Content should be a single string with proper markdown formatting"""
+- No line breaks in the content
+- Keep the exact keys shown above
+- Content should be a single string with markdown formatting
+- Do not use nested dictionaries or lists"""
         
         try:
             # Adjust temperature based on iteration
@@ -197,7 +200,12 @@ Important:
             result = result.replace('\n', ' ').replace('\r', ' ')  # Remove newlines
             
             # Safely evaluate the string as a Python dictionary
-            analysis = eval(result)
+            try:
+                analysis = eval(result)
+            except:
+                # Try parsing with modified string if eval fails
+                result = result.replace('"{', '{').replace('}"', '}')  # Remove extra quotes around dict
+                analysis = eval(result)
             
             # Validate the dictionary structure
             if not isinstance(analysis, dict):
