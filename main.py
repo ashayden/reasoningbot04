@@ -306,8 +306,14 @@ def process_stage(stage_name, container, stage_fn, next_stage=None, spinner_text
         try:
             with container, st.spinner(spinner_text):
                 logger.info(f"Calling stage function for {stage_name}")
-                result = stage_fn(**kwargs)
-                logger.info(f"Stage function result: {result}")
+                try:
+                    result = stage_fn(**kwargs)
+                    logger.info(f"Stage function result type: {type(result)}")
+                    logger.info(f"Stage function result: {result}")
+                except Exception as e:
+                    logger.error(f"Error calling stage function: {str(e)}", exc_info=True)
+                    st.error(f"Failed to generate content: {str(e)}")
+                    return
                 
                 if result is not None:
                     logger.info(f"Stage {stage_name} generated content successfully")
@@ -323,9 +329,14 @@ def process_stage(stage_name, container, stage_fn, next_stage=None, spinner_text
                 else:
                     logger.error(f"Stage {stage_name} failed to generate content")
                     st.error(f"Failed to generate content for {stage_name}. Please try again.")
+                    # Reset the show flag for this stage
+                    st.session_state.app_state[f'show_{stage_name}'] = False
+                    return
         except Exception as e:
             logger.error(f"Error in stage {stage_name}: {str(e)}", exc_info=True)
             st.error(f"An error occurred during {stage_name}: {str(e)}")
+            # Reset the show flag for this stage
+            st.session_state.app_state[f'show_{stage_name}'] = False
             return
     elif display_fn and st.session_state.app_state.get(stage_name) is not None:
         logger.info(f"Displaying existing content for stage {stage_name}")
@@ -346,6 +357,8 @@ def process_stage(stage_name, container, stage_fn, next_stage=None, spinner_text
         except Exception as e:
             logger.error(f"Error displaying content for stage {stage_name}: {str(e)}", exc_info=True)
             st.error(f"Failed to display content for {stage_name}. Please try again.")
+            # Reset the show flag for this stage
+            st.session_state.app_state[f'show_{stage_name}'] = False
 
 def validate_and_sanitize_input(topic: str) -> tuple[bool, str, str]:
     """Validate and sanitize user input."""

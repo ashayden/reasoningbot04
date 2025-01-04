@@ -151,12 +151,16 @@ class PreAnalysisAgent(BaseAgent):
                 return None
             
             prompt = f"Provide a clear, direct overview of {topic} in 1-3 sentences. Include 1-3 relevant emojis naturally within the text. Focus on key points and avoid phrases like 'The question is about'."
-            logger.info("Sending prompt to model")
+            logger.info(f"Sending prompt to model: {prompt}")
             
             try:
+                logger.info("Attempting to generate content with model")
+                generation_config = GenerationConfig(**PREANALYSIS_CONFIG)
+                logger.info(f"Using generation config: {generation_config}")
+                
                 response = self.model.generate_content(
                     prompt,
-                    generation_config=GenerationConfig(**PREANALYSIS_CONFIG)
+                    generation_config=generation_config
                 )
                 logger.info("Received response from model")
                 
@@ -165,9 +169,11 @@ class PreAnalysisAgent(BaseAgent):
                     return None
                 
                 if not hasattr(response, 'text'):
-                    logger.error("Response missing text attribute")
+                    logger.error(f"Response missing text attribute. Response type: {type(response)}")
+                    logger.error(f"Response attributes: {dir(response)}")
                     return None
                 
+                logger.info(f"Response text: {response.text}")
                 insights = {
                     'did_you_know': response.text,
                     'eli5': response.text
