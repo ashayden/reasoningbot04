@@ -232,6 +232,10 @@ def process_stage():
                     st.session_state.stage = 'insights'
                     st.rerun()
         
+        # Display insights if available
+        if st.session_state.insights:
+            display_insights(st.session_state.insights)
+        
         # Process stages
         if st.session_state.stage == 'insights':
             pre_analysis = PreAnalysisAgent(model)
@@ -245,12 +249,15 @@ def process_stage():
                     st.rerun()
         
         elif st.session_state.stage == 'focus':
-            display_insights(st.session_state.insights)
             display_focus_areas(st.session_state.focus_areas)
         
-        elif st.session_state.stage == 'analysis':
-            display_insights(st.session_state.insights)
-            
+        # Display analysis results if available
+        if st.session_state.analysis_results:
+            for analysis in st.session_state.analysis_results:
+                display_analysis(analysis)
+        
+        # Process analysis stage
+        if st.session_state.stage == 'analysis':
             analyst = ResearchAnalyst(model)
             iterations_remaining = st.session_state.iterations - len(st.session_state.analysis_results)
             
@@ -268,15 +275,9 @@ def process_stage():
             else:
                 st.session_state.stage = 'synthesis'
                 st.rerun()
-            
-            for analysis in st.session_state.analysis_results:
-                display_analysis(analysis)
         
+        # Process synthesis stage
         elif st.session_state.stage == 'synthesis':
-            display_insights(st.session_state.insights)
-            for analysis in st.session_state.analysis_results:
-                display_analysis(analysis)
-            
             if not st.session_state.synthesis:
                 synthesis_expert = SynthesisExpert(model)
                 analysis_texts = [a['content'] for a in st.session_state.analysis_results]
