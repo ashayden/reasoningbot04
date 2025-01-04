@@ -182,14 +182,14 @@ def display_focus_areas(focus_areas):
 def display_analysis(analysis):
     """Display research analysis."""
     if analysis:
-        with st.expander(f"🔄 {analysis['title']}", expanded=True):
+        with st.expander(f"🔄 {analysis['title']}", expanded=False):
             st.markdown(f"*{analysis['subtitle']}*")
             st.markdown(analysis['content'])
 
 def display_synthesis(synthesis):
     """Display research synthesis."""
     if synthesis:
-        with st.expander("📊 Final Research Synthesis", expanded=True):
+        with st.expander("📊 Final Research Synthesis", expanded=False):
             st.markdown(synthesis)
 
 def process_stage():
@@ -248,7 +248,8 @@ def process_stage():
                     st.session_state.stage = 'focus'
                     st.rerun()
         
-        elif st.session_state.stage == 'focus':
+        # Always show focus areas if available, but respect expanded state
+        if st.session_state.focus_areas:
             display_focus_areas(st.session_state.focus_areas)
         
         # Display analysis results if available
