@@ -50,11 +50,39 @@ class PreAnalysisAgent(BaseAgent):
 1. Did You Know: Share one fascinating, lesser-known fact about the topic. Keep it to a single clear sentence.
 2. Overview: Provide a clear, accessible 2-3 sentence explanation for a general audience. Focus on key points and avoid technical jargon.
 
-Format your response as a Python dictionary with 'did_you_know' and 'eli5' as keys. Example:
-{{'did_you_know': 'The fact...', 'eli5': 'The overview...'}}"""
+Format your response EXACTLY as a Python dictionary like this:
+{{"did_you_know": "Your fact here", "eli5": "Your overview here"}}
+
+Important: Use only straight quotes (") not curly quotes, and ensure the response is a valid Python dictionary."""
         
-        result = self.generate_content(prompt, PREANALYSIS_CONFIG)
-        return eval(result) if result else None
+        try:
+            result = self.generate_content(prompt, PREANALYSIS_CONFIG)
+            if not result:
+                return None
+                
+            # Clean the response to ensure valid Python syntax
+            result = result.strip()
+            result = result.replace('"', '"').replace('"', '"')  # Replace curly quotes
+            result = result.replace("'", "'").replace("'", "'")  # Replace curly single quotes
+            
+            # Safely evaluate the string as a Python dictionary
+            insights = eval(result)
+            
+            # Validate the dictionary structure
+            if not isinstance(insights, dict):
+                logger.error("Response is not a dictionary")
+                return None
+                
+            required_keys = {'did_you_know', 'eli5'}
+            if not all(key in insights for key in required_keys):
+                logger.error("Response missing required keys")
+                return None
+                
+            return insights
+            
+        except Exception as e:
+            logger.error(f"Error parsing insights response: {str(e)}")
+            return None
     
     def generate_focus_areas(self, topic: str) -> Optional[List[str]]:
         """Generate potential focus areas for research."""
@@ -63,10 +91,43 @@ Format your response as a Python dictionary with 'did_you_know' and 'eli5' as ke
 2. Include both obvious and non-obvious angles
 3. Span theoretical and practical implications
 
-Return as a Python list of strings."""
+Format your response EXACTLY as a Python list like this:
+["First focus area", "Second focus area", "Third focus area"]
+
+Important: Use only straight quotes (") and ensure the response is a valid Python list."""
         
-        result = self.generate_content(prompt, PREANALYSIS_CONFIG)
-        return eval(result) if result else None
+        try:
+            result = self.generate_content(prompt, PREANALYSIS_CONFIG)
+            if not result:
+                return None
+                
+            # Clean the response to ensure valid Python syntax
+            result = result.strip()
+            result = result.replace('"', '"').replace('"', '"')  # Replace curly quotes
+            result = result.replace("'", "'").replace("'", "'")  # Replace curly single quotes
+            
+            # Safely evaluate the string as a Python list
+            focus_areas = eval(result)
+            
+            # Validate the list structure
+            if not isinstance(focus_areas, list):
+                logger.error("Response is not a list")
+                return None
+                
+            if not (8 <= len(focus_areas) <= 10):
+                logger.error(f"Invalid number of focus areas: {len(focus_areas)}")
+                return None
+                
+            # Ensure all items are strings
+            if not all(isinstance(item, str) for item in focus_areas):
+                logger.error("Not all focus areas are strings")
+                return None
+                
+            return focus_areas
+            
+        except Exception as e:
+            logger.error(f"Error parsing focus areas response: {str(e)}")
+            return None
 
 class PromptDesigner(BaseAgent):
     """Agent responsible for optimizing research prompts."""
@@ -139,14 +200,48 @@ Conduct a deep analysis that:
 3. Challenges assumptions
 4. Integrates multiple perspectives
 
-Format as a dictionary with 'title', 'subtitle', and 'content' keys."""
+Format your response EXACTLY as a Python dictionary like this:
+{{"title": "Your title here", "subtitle": "Your subtitle here", "content": "Your detailed analysis here"}}
+
+Important: Use only straight quotes (") not curly quotes, and ensure the response is a valid Python dictionary."""
         
-        # Adjust temperature based on iteration
-        temp = min(ANALYSIS_BASE_TEMP + (len(context) > 0) * ANALYSIS_TEMP_INCREMENT, ANALYSIS_MAX_TEMP)
-        config = {**ANALYSIS_CONFIG, 'temperature': temp}
-        
-        result = self.generate_content(prompt, config)
-        return eval(result) if result else None
+        try:
+            # Adjust temperature based on iteration
+            temp = min(ANALYSIS_BASE_TEMP + (len(context) > 0) * ANALYSIS_TEMP_INCREMENT, ANALYSIS_MAX_TEMP)
+            config = {**ANALYSIS_CONFIG, 'temperature': temp}
+            
+            result = self.generate_content(prompt, config)
+            if not result:
+                return None
+                
+            # Clean the response to ensure valid Python syntax
+            result = result.strip()
+            result = result.replace('"', '"').replace('"', '"')  # Replace curly quotes
+            result = result.replace("'", "'").replace("'", "'")  # Replace curly single quotes
+            
+            # Safely evaluate the string as a Python dictionary
+            analysis = eval(result)
+            
+            # Validate the dictionary structure
+            if not isinstance(analysis, dict):
+                logger.error("Response is not a dictionary")
+                return None
+                
+            required_keys = {'title', 'subtitle', 'content'}
+            if not all(key in analysis for key in required_keys):
+                logger.error("Response missing required keys")
+                return None
+                
+            # Ensure all values are strings
+            if not all(isinstance(analysis[key], str) for key in required_keys):
+                logger.error("Not all values are strings")
+                return None
+                
+            return analysis
+            
+        except Exception as e:
+            logger.error(f"Error parsing analysis response: {str(e)}")
+            return None
 
 class SynthesisExpert(BaseAgent):
     """Agent responsible for synthesizing findings."""
