@@ -3,7 +3,7 @@
 import logging
 from typing import Any, Callable, Tuple
 from functools import wraps
-from config import config
+from config import MIN_TOPIC_LENGTH, MAX_TOPIC_LENGTH
 
 # Configure logging with more detailed format
 logging.basicConfig(
@@ -38,18 +38,18 @@ def validate_topic(topic: str) -> Tuple[bool, str]:
     """
     logger.debug(f"Validating topic: {topic}")
     
-    if not topic or not topic.strip():
+    if not topic or len(topic.strip()) == 0:
         msg = "Topic cannot be empty."
         logger.warning(msg)
         return False, msg
     
-    if len(topic) < config.MIN_TOPIC_LENGTH:
-        msg = f"Topic must be at least {config.MIN_TOPIC_LENGTH} characters long."
+    if len(topic) < MIN_TOPIC_LENGTH:
+        msg = f"Topic must be at least {MIN_TOPIC_LENGTH} characters long."
         logger.warning(msg)
         return False, msg
     
-    if len(topic) > config.MAX_TOPIC_LENGTH:
-        msg = f"Topic must be no more than {config.MAX_TOPIC_LENGTH} characters long."
+    if len(topic) > MAX_TOPIC_LENGTH:
+        msg = f"Topic must be no more than {MAX_TOPIC_LENGTH} characters long."
         logger.warning(msg)
         return False, msg
     
