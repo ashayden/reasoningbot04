@@ -118,122 +118,24 @@ div[data-testid="stNumberInput"] button:hover {
 st.image("assets/mara-logo.png", use_container_width=True)
 
 def initialize_state():
-    """Initialize application state with default values."""
+    """Initialize the application state."""
     return {
         'topic': None,
-        'iterations': None,
-        'insights': None,
-        'prompt': None,
-        'focus_areas': None,
-        'framework': None,
-        'analysis_results': [],
-        'summary': None,
+        'iterations': 2,
         'show_insights': False,
         'show_focus': False,
         'show_framework': False,
         'show_analysis': False,
         'show_summary': False,
-        'error': None,
+        'insights': None,
+        'focus_areas': None,
+        'framework': None,
+        'analysis_results': [],
         'focus_selection_complete': False
     }
 
-# Initialize state
-if 'app_state' not in st.session_state:
-    st.session_state.app_state = initialize_state()
-
-# Initialize Gemini
-@st.cache_resource
-def initialize_gemini():
-    """Initialize the Gemini model with caching."""
-    try:
-        # Check if API key exists in secrets
-        if "GOOGLE_API_KEY" not in st.secrets:
-            st.error("Google API key not found in Streamlit secrets.")
-            logger.error("Google API key not found in secrets")
-            return None
-            
-        api_key = st.secrets["GOOGLE_API_KEY"]
-        if not api_key:
-            st.error("Google API key is empty. Please check your Streamlit secrets.")
-            logger.error("Google API key is empty")
-            return None
-            
-        # Configure the API
-        genai.configure(api_key=api_key)
-        
-        try:
-            # Initialize the model without testing
-            model = genai.GenerativeModel(GEMINI_MODEL)
-            logger.info("Successfully initialized Gemini model")
-            return model
-                
-        except Exception as e:
-            if "429" in str(e):
-                st.error("API quota exceeded. Please wait a few minutes and try again.")
-                logger.error("API quota exceeded during initialization")
-            else:
-                st.error(f"Failed to initialize Gemini model: {str(e)}")
-                logger.error(f"Failed to initialize or test Gemini model: {str(e)}")
-            return None
-            
-    except Exception as e:
-        st.error(f"Failed to initialize Gemini API: {str(e)}")
-        logger.error(f"Failed to initialize Gemini API: {str(e)}")
-        return None
-
-# Initialize model early
-model = initialize_gemini()
-if not model:
-    st.error("Failed to initialize the AI model. Please check your API key in Streamlit secrets and try again.")
-    st.stop()
-
-def validate_and_sanitize_input(topic: str) -> tuple[bool, str, str]:
-    """Validate and sanitize user input."""
-    if not topic or len(topic.strip()) == 0:
-        return False, "Please enter a topic to analyze.", ""
-    
-    if len(topic) > 1000:
-        return False, "Topic is too long. Please keep it under 1000 characters.", ""
-    
-    sanitized = sanitize_topic(topic)
-    if not sanitized:
-        return False, "Invalid topic format. Please try again.", ""
-    
-    return True, "", sanitized
-
-def handle_error(e: Exception, context: str):
-    """Handle errors consistently."""
-    error_msg = f"Error during {context}: {str(e)}"
-    logger.error(error_msg)
-    
-    # Handle quota exceeded errors with clear user feedback
-    if isinstance(e, QuotaExceededError):
-        st.error("⚠️ API quota limit reached. Please wait 5 minutes before trying again.")
-        st.info("💡 This helps ensure fair usage of the API for all users.")
-        # Disable the form temporarily
-        st.session_state.form_disabled = True
-        # Schedule re-enable after 5 minutes
-        st.session_state.quota_reset_time = time.time() + 300  # 5 minutes
-        return
-    
-    # Provide user-friendly error message for other errors
-    user_msg = {
-        'insights': "Failed to generate initial insights. Please try again.",
-        'prompt': "Failed to optimize the prompt. Please try again.",
-        'focus': "Failed to generate focus areas. Please try again.",
-        'framework': "Failed to build analysis framework. Please try again.",
-        'analysis': "Failed during analysis. Please try again.",
-        'summary': "Failed to generate final report. Please try again."
-    }.get(context, "An unexpected error occurred. Please try again.")
-    
-    st.error(user_msg)
-    
-    # Reset state for the current stage
-    if context in st.session_state.app_state:
-        st.session_state.app_state[context] = None
-
-def reset_state(topic: str, iterations: int):
-    """Reset application state."""
+def reset_state(topic, iterations):
+    """Reset the application state."""
     st.session_state.app_state = initialize_state()
     st.session_state.app_state.update({
         'topic': topic,
@@ -341,7 +243,7 @@ def process_stage(stage_name, container, stage_fn, next_stage=None, spinner_text
     if stage_name not in st.session_state.app_state:
         with container, st.spinner(spinner_text):
             result = stage_fn(**kwargs)
-            if result:
+            if result is not None:
                 st.session_state.app_state[stage_name] = result
                 if next_stage:
                     # Only show framework after focus selection is complete
@@ -349,11 +251,15 @@ def process_stage(stage_name, container, stage_fn, next_stage=None, spinner_text
                         return
                     st.session_state.app_state[f'show_{next_stage}'] = True
                 st.rerun()
-    elif display_fn:
+    elif display_fn and st.session_state.app_state.get(stage_name) is not None:
         display_fn(st.session_state.app_state[stage_name])
 
 def main():
     """Main application flow."""
+    # Initialize app_state if not exists
+    if 'app_state' not in st.session_state:
+        st.session_state.app_state = initialize_state()
+    
     # Check if quota timer has expired
     if hasattr(st.session_state, 'quota_reset_time'):
         if time.time() >= st.session_state.quota_reset_time:
@@ -409,7 +315,7 @@ def main():
         }
         
         # Process each stage
-        if st.session_state.app_state['show_insights']:
+        if st.session_state.app_state.get('show_insights'):
             process_stage('insights', containers['insights'],
                          lambda **kwargs: PreAnalysisAgent(model).generate_insights(st.session_state.app_state['topic']),
                          'focus', spinner_text="💡 Generating insights...",
@@ -418,9 +324,10 @@ def main():
             # Generate prompt silently in the background if not already generated
             if not st.session_state.app_state.get('prompt'):
                 optimized_prompt = PromptDesigner(model).design_prompt(st.session_state.app_state['topic'])
-                st.session_state.app_state['prompt'] = optimized_prompt
+                if optimized_prompt:
+                    st.session_state.app_state['prompt'] = optimized_prompt
         
-        if st.session_state.app_state['show_focus']:
+        if st.session_state.app_state.get('show_focus'):
             process_stage('focus', containers['focus'],
                          lambda **kwargs: PromptDesigner(model).generate_focus_areas(st.session_state.app_state['topic']),
                          'framework', spinner_text="🎯 Generating focus areas...",
@@ -430,21 +337,21 @@ def main():
         if st.session_state.app_state.get('show_framework') and st.session_state.app_state.get('focus_selection_complete'):
             process_stage('framework', containers['framework'],
                          lambda **kwargs: FrameworkEngineer(model).create_framework(
-                             st.session_state.app_state['prompt'],
+                             st.session_state.app_state.get('prompt', ''),
                              st.session_state.app_state.get('enhanced_prompt')
                          ),
                          'analysis', spinner_text="🔨 Building analysis framework...",
                          display_fn=lambda x: st.expander("🎯 Research Framework", expanded=False).markdown(x))
         
         # Process analysis (special handling due to iterations)
-        if st.session_state.app_state['show_analysis']:
+        if st.session_state.app_state.get('show_analysis'):
             with containers['analysis']:
-                if len(st.session_state.app_state.get('analysis_results', [])) < st.session_state.app_state['iterations']:
+                if len(st.session_state.app_state.get('analysis_results', [])) < st.session_state.app_state.get('iterations', 2):
                     with st.spinner("🔄 Performing analysis..."):
                         result = ResearchAnalyst(model).analyze(
                             st.session_state.app_state['topic'],
-                            st.session_state.app_state['framework'],
-                            st.session_state.app_state['analysis_results'][-1] if st.session_state.app_state.get('analysis_results') else None
+                            st.session_state.app_state.get('framework', ''),
+                            st.session_state.app_state.get('analysis_results', [])[-1] if st.session_state.app_state.get('analysis_results') else None
                         )
                         if result:
                             content = format_analysis_result(result)
@@ -459,11 +366,11 @@ def main():
                     with st.expander(f"🔄 Research Analysis #{i + 1}", expanded=False):
                         st.markdown(result)
         
-        if st.session_state.app_state['show_summary']:
+        if st.session_state.app_state.get('show_summary'):
             process_stage('summary', containers['summary'],
                          lambda **kwargs: SynthesisExpert(model).synthesize(
                              st.session_state.app_state['topic'],
-                             st.session_state.app_state['analysis_results']
+                             st.session_state.app_state.get('analysis_results', [])
                          ),
                          spinner_text="📊 Generating final report...",
                          display_fn=lambda x: st.expander("📊 Final Report", expanded=False).markdown(x))
