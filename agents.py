@@ -204,53 +204,77 @@ class PreAnalysisAgent(BaseAgent):
             logger.error(f"Error generating insights: {str(e)}", exc_info=True)
             return None
 
-class PromptDesigner(BaseAgent):
-    """Agent responsible for designing optimal prompts."""
-    
-    def generate_focus_areas(self, topic: str) -> Optional[list]:
-        """Generate potential focus areas for the topic."""
+    @rate_limit_decorator
+    def generate_focus_areas(self, topic: str) -> Optional[List[str]]:
+        """Generate focus areas for analysis."""
         try:
-            prompt = f"""Generate 10-12 diverse focus areas for analyzing {topic}.
+            logger.info(f"Generating focus areas for topic: '{topic}'")
             
-            Include a balanced mix of perspectives:
-            - Academic/Theoretical (core concepts, frameworks, methodologies)
-            - Practical/Applied (real-world applications, case studies)
-            - Social/Cultural (societal impact, cultural significance)
-            - Historical/Evolutionary (development over time, key milestones)
-            - Current/Future (emerging trends, future implications)
-            - Critical/Analytical (challenges, debates, controversies)
-            - Human Interest (personal stories, everyday relevance)
-            - Technical/Specialized (specific processes, technical aspects)
-            
-            Guidelines:
-            - Keep primary topic "{topic}" central to each focus area
-            - Each focus area should be 2-5 words, specific and distinct
-            - Ensure variety in scope (micro to macro perspectives)
-            - Include both mainstream and unique angles
-            - Balance serious academic with engaging/accessible aspects
-            
-            Format as a Python list of strings.
-            Example: ["Historical Development Patterns", "Societal Impact Analysis", "Technical Implementation Methods"]"""
-            
-            response_text = self.generate_content(prompt, PROMPT_DESIGN_CONFIG)
-            if not response_text:
+            if not topic:
+                logger.error("Empty topic provided to generate_focus_areas")
                 return None
                 
-            # Extract list from response and clean up
+            if not self.model:
+                logger.error("Model not initialized in PreAnalysisAgent")
+                return None
+            
+            # Generate focus areas
+            prompt = (
+                f"Generate 8-12 specific focus areas for analyzing {topic}. "
+                "Each focus area should be a concise phrase (3-5 words) that captures a key aspect to analyze. "
+                "Format the response as a simple bullet point list with one focus area per line, starting with '- '. "
+                "Do not include any other text, numbering, or explanations."
+            )
+            logger.info(f"Sending focus areas prompt to model: {prompt}")
+            
             try:
-                # Remove any markdown code block syntax
-                text = response_text.replace("```python", "").replace("```", "").strip()
-                # Safely evaluate the string as a Python list
-                focus_areas = eval(text)
-                if not isinstance(focus_areas, list):
+                logger.info("Attempting to generate focus areas")
+                generation_config = GenerationConfig(**PREANALYSIS_CONFIG)
+                logger.info(f"Using generation config: {generation_config}")
+                
+                response = self.model.generate_content(
+                    prompt,
+                    generation_config=generation_config
+                )
+                logger.info("Received focus areas response from model")
+                
+                if not response or not hasattr(response, 'text'):
+                    logger.error("Invalid focus areas response from model")
                     return None
+                
+                # Parse the response
+                text = response.text.strip()
+                logger.info(f"Focus areas text: {text}")
+                
+                # Split into lines and clean up
+                focus_areas = [
+                    line.strip('- ').strip()
+                    for line in text.split('\n')
+                    if line.strip() and line.strip().startswith('-')
+                ]
+                
+                # Validate the results
+                if not focus_areas:
+                    logger.error("No valid focus areas found in response")
+                    return None
+                    
+                if len(focus_areas) < 8:
+                    logger.error(f"Too few focus areas generated: {len(focus_areas)}")
+                    return None
+                    
+                if len(focus_areas) > 12:
+                    logger.info(f"Trimming focus areas from {len(focus_areas)} to 12")
+                    focus_areas = focus_areas[:12]
+                
+                logger.info(f"Successfully generated {len(focus_areas)} focus areas: {focus_areas}")
                 return focus_areas
-            except:
-                logger.error("Failed to parse focus areas response")
+                
+            except Exception as e:
+                logger.error(f"Error during model generation: {str(e)}", exc_info=True)
                 return None
             
         except Exception as e:
-            logger.error(f"Focus areas generation failed: {str(e)}")
+            logger.error(f"Error generating focus areas: {str(e)}", exc_info=True)
             return None
         
     def design_prompt(self, topic: str, selected_focus_areas: Optional[list] = None) -> Optional[str]:

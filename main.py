@@ -254,6 +254,11 @@ def display_focus_areas(focus_areas):
     """Display focus areas for selection."""
     logger.info("Displaying focus areas for selection")
     
+    if not focus_areas:
+        logger.error("No focus areas provided to display")
+        st.error("Failed to load focus areas. Please try again.")
+        return
+    
     st.write("### Select Focus Areas")
     st.write("Choose 3-5 areas to focus your analysis on:")
     
@@ -270,8 +275,10 @@ def display_focus_areas(focus_areas):
             is_selected = area in st.session_state.app_state['selected_areas']
             if st.checkbox(area, value=is_selected, key=key):
                 if area not in st.session_state.app_state['selected_areas']:
+                    logger.info(f"Selected focus area: {area}")
                     st.session_state.app_state['selected_areas'].append(area)
             elif area in st.session_state.app_state['selected_areas']:
+                logger.info(f"Deselected focus area: {area}")
                 st.session_state.app_state['selected_areas'].remove(area)
     
     # Show warning if too few or too many areas selected
@@ -284,7 +291,7 @@ def display_focus_areas(focus_areas):
         st.success(f"You have selected {num_selected} focus areas")
         
         # Add a confirm button when the selection is valid
-        if st.button("Confirm Selection"):
+        if st.button("Confirm Selection", type="primary"):
             logger.info(f"Focus areas confirmed: {st.session_state.app_state['selected_areas']}")
             st.session_state.app_state['focus_selection_complete'] = True
             st.session_state.app_state['show_framework'] = True
