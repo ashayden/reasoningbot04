@@ -169,6 +169,38 @@ if not model:
     st.error("Failed to initialize the AI model. Please check your API key in Streamlit secrets and try again.")
     st.stop()
 
+def initialize_app_state():
+    """Initialize the application state if it doesn't exist."""
+    logger.info("Initializing new app_state")
+    
+    if 'app_state' not in st.session_state:
+        st.session_state.app_state = {
+            'topic': None,
+            'iterations': 2,
+            'show_insights': False,
+            'show_focus': False,
+            'show_framework': False,
+            'show_analysis': False,
+            'show_summary': False,
+            'insights': None,
+            'focus_areas': None,
+            'framework': None,
+            'analysis_results': [],
+            'focus_selection_complete': False,
+            'selected_areas': [],
+            'prompt': None
+        }
+        logger.info("Created new app_state")
+    else:
+        logger.info("Using existing app_state")
+        
+    logger.info(f"Current app_state: {st.session_state.app_state}")
+    
+    # Return early if no topic is set
+    if not st.session_state.app_state.get('topic'):
+        logger.info("No topic in app_state, returning")
+        return
+
 def initialize_state():
     """Initialize the application state."""
     return {
@@ -218,68 +250,45 @@ def display_insights(insights: dict):
         with st.expander("⚡ ELI5", expanded=True):
             st.markdown(insights['eli5'])
 
-def display_focus_areas(focus_areas: list):
-    """Display focus area selection with proper state handling."""
-    # Track if the section should be expanded in session state
-    if 'focus_area_expanded' not in st.session_state:
-        st.session_state.focus_area_expanded = True
+def display_focus_areas(focus_areas):
+    """Display focus areas for selection."""
+    logger.info("Displaying focus areas for selection")
+    
+    st.write("### Select Focus Areas")
+    st.write("Choose 3-5 areas to focus your analysis on:")
+    
+    # Initialize selected_areas in session state if not present
+    if 'selected_areas' not in st.session_state.app_state:
+        st.session_state.app_state['selected_areas'] = []
+    
+    # Create columns for focus area selection
+    cols = st.columns(2)
+    for i, area in enumerate(focus_areas):
+        col_idx = i % 2
+        with cols[col_idx]:
+            key = f"focus_area_{i}"
+            is_selected = area in st.session_state.app_state['selected_areas']
+            if st.checkbox(area, value=is_selected, key=key):
+                if area not in st.session_state.app_state['selected_areas']:
+                    st.session_state.app_state['selected_areas'].append(area)
+            elif area in st.session_state.app_state['selected_areas']:
+                st.session_state.app_state['selected_areas'].remove(area)
+    
+    # Show warning if too few or too many areas selected
+    num_selected = len(st.session_state.app_state['selected_areas'])
+    if num_selected < 3:
+        st.warning("Please select at least 3 focus areas")
+    elif num_selected > 5:
+        st.warning("Please select no more than 5 focus areas")
+    else:
+        st.success(f"You have selected {num_selected} focus areas")
         
-    # Track selected areas in session state to persist between reruns
-    if 'current_focus_areas' not in st.session_state:
-        st.session_state.current_focus_areas = []
-    
-    focus_container = st.container()
-    
-    with focus_container:
-        with st.expander("🎯 Focus Areas", expanded=st.session_state.focus_area_expanded):
-            st.markdown("Choose specific aspects you'd like the analysis to emphasize (optional):")
-            
-            # Use multiselect with max_selections parameter to allow multiple selections
-            selected = st.multiselect(
-                "Focus Areas",
-                options=focus_areas,
-                default=st.session_state.current_focus_areas,
-                key="focus_multiselect",
-                label_visibility="collapsed",
-                max_selections=None  # Allow unlimited selections
-            )
-            
-            # Update session state with current selections
-            st.session_state.current_focus_areas = selected
-            st.session_state.app_state['selected_areas'] = selected
-            
-            st.markdown("---")
-            
-            # Only show buttons if selection is not complete
-            if not st.session_state.app_state.get('focus_selection_complete'):
-                col1, col2 = st.columns(2)
-                
-                # Handle Skip button
-                if col1.button(
-                    "Skip",
-                    key="skip_focus",
-                    use_container_width=True
-                ):
-                    st.session_state.app_state['focus_selection_complete'] = True
-                    st.session_state.app_state['show_framework'] = True
-                    st.session_state.focus_area_expanded = False
-                    st.rerun()
-                
-                # Handle Continue button
-                continue_disabled = len(selected) == 0
-                if col2.button(
-                    "Continue",
-                    key="continue_focus",
-                    disabled=continue_disabled,
-                    type="primary",
-                    use_container_width=True
-                ):
-                    st.session_state.app_state['focus_selection_complete'] = True
-                    st.session_state.app_state['show_framework'] = True
-                    st.session_state.focus_area_expanded = False
-                    st.rerun()
-            
-            return False, selected
+        # Add a confirm button when the selection is valid
+        if st.button("Confirm Selection"):
+            logger.info(f"Focus areas confirmed: {st.session_state.app_state['selected_areas']}")
+            st.session_state.app_state['focus_selection_complete'] = True
+            st.session_state.app_state['show_framework'] = True
+            st.rerun()
 
 def cleanup_partial_results(context: str):
     """Clean up any partial results when errors occur."""
