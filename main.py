@@ -302,7 +302,7 @@ def display_focus_areas(focus_areas: list):
                     st.session_state.app_state['focus_selection_complete'] = True
                     st.session_state.app_state['show_framework'] = True
                     st.session_state.focus_area_expanded = False
-                    return True, selected
+                    st.rerun()
                 
                 # Handle Continue button
                 continue_disabled = len(selected) == 0
@@ -317,7 +317,7 @@ def display_focus_areas(focus_areas: list):
                     st.session_state.app_state['focus_selection_complete'] = True
                     st.session_state.app_state['show_framework'] = True
                     st.session_state.focus_area_expanded = False
-                    return True, selected
+                    st.rerun()
             
             return False, selected
 
@@ -336,59 +336,21 @@ def cleanup_partial_results(context: str):
         st.session_state.app_state['selected_areas'] = []
         st.session_state.app_state['show_framework'] = False
 
-def process_stage(stage_name: str, container, process_fn, next_stage: str = None, **kwargs):
-    """Process a single stage of the analysis pipeline."""
-    if not st.session_state.app_state[f'show_{stage_name}']:
-        return
-        
-    with container:
-        try:
-            state_key = stage_name if stage_name != 'focus' else 'focus_areas'
-            
-            # Check if we need to process this stage
-            if not st.session_state.app_state[state_key]:
-                with st.spinner(f"{kwargs.get('spinner_text', 'Processing...')}"):
-                    logger.info(f"Starting {stage_name} stage processing...")
-                    try:
-                        # Process the stage
-                        result = process_fn(**kwargs)
-                        logger.info(f"Process function for {stage_name} completed. Result exists: {result is not None}")
-                        
-                        if result:
-                            # Store the result and update state
-                            st.session_state.app_state[state_key] = result
-                            if next_stage:
-                                st.session_state.app_state[f'show_{next_stage}'] = True
-                                logger.info(f"Moving to next stage: {next_stage}")
-                                st.rerun()  # Use experimental_rerun for more reliable state updates
-                        else:
-                            # Handle failed processing
-                            logger.error(f"Process function for {stage_name} returned None")
-                            handle_error(Exception(f"Failed to generate {stage_name}"), stage_name)
-                            return
-                            
-                    except Exception as e:
-                        # Handle processing errors
-                        logger.error(f"Error in process function for {stage_name}: {str(e)}")
-                        handle_error(e, stage_name)
+def process_stage(stage_name, container, stage_fn, next_stage=None, spinner_text=None, display_fn=None, **kwargs):
+    """Process a single stage of the analysis."""
+    if stage_name not in st.session_state.app_state:
+        with container, st.spinner(spinner_text):
+            result = stage_fn(**kwargs)
+            if result:
+                st.session_state.app_state[stage_name] = result
+                if next_stage:
+                    # Only show framework after focus selection is complete
+                    if next_stage == 'framework' and not st.session_state.app_state.get('focus_selection_complete'):
                         return
-            
-            # Display the result if we have it
-            if st.session_state.app_state[state_key]:
-                display_fn = kwargs.get('display_fn')
-                if display_fn:
-                    try:
-                        display_fn(st.session_state.app_state[state_key])
-                    except Exception as e:
-                        logger.error(f"Error displaying {stage_name} result: {str(e)}")
-                        handle_error(e, stage_name)
-                        return
-                    
-        except Exception as e:
-            # Handle any other errors
-            logger.error(f"Outer error in {stage_name} stage: {str(e)}")
-            handle_error(e, stage_name)
-            return
+                    st.session_state.app_state[f'show_{next_stage}'] = True
+                st.rerun()
+    elif display_fn:
+        display_fn(st.session_state.app_state[stage_name])
 
 def main():
     """Main application flow."""
@@ -448,7 +410,6 @@ def main():
         
         # Process each stage
         if st.session_state.app_state['show_insights']:
-            # Generate insights
             process_stage('insights', containers['insights'],
                          lambda **kwargs: PreAnalysisAgent(model).generate_insights(st.session_state.app_state['topic']),
                          'focus', spinner_text="💡 Generating insights...",
@@ -465,7 +426,8 @@ def main():
                          'framework', spinner_text="🎯 Generating focus areas...",
                          display_fn=display_focus_areas)
         
-        if st.session_state.app_state['show_framework']:
+        # Only show framework after focus selection is complete
+        if st.session_state.app_state.get('show_framework') and st.session_state.app_state.get('focus_selection_complete'):
             process_stage('framework', containers['framework'],
                          lambda **kwargs: FrameworkEngineer(model).create_framework(
                              st.session_state.app_state['prompt'],
