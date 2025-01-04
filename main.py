@@ -150,8 +150,8 @@ def process_stage():
         
         # Display analysis results if available
         if state.analysis_results:
-            for analysis in state.analysis_results:
-                display_research_analysis(analysis)
+            for index, analysis in enumerate(state.analysis_results):
+                display_research_analysis(analysis, index)
         
         # Process analysis stage
         if state.stage == 'analysis':
@@ -215,12 +215,13 @@ def display_synthesis(synthesis: Dict[str, str]) -> None:
     st.markdown("## 📊 Final Synthesis Report")
     
     with st.expander("View Synthesis Report", expanded=False):
+        # Display title and subtitle
         st.markdown(f"# {synthesis.get('title', '')}")
         st.markdown(f"*{synthesis.get('subtitle', '')}*")
         st.markdown("---")
         st.markdown(synthesis.get('content', ''))
         
-        # Add download button for Markdown
+        # Create download content
         synthesis_text = f"""# {synthesis.get('title', '')}
         
 *{synthesis.get('subtitle', '')}*
@@ -229,12 +230,44 @@ def display_synthesis(synthesis: Dict[str, str]) -> None:
 
 {synthesis.get('content', '')}
 """
+        # Use a unique key for the download button to prevent rerun
         st.download_button(
             label="Download Report",
             data=synthesis_text,
             file_name="synthesis_report.md",
-            mime="text/markdown"
+            mime="text/markdown",
+            key="synthesis_download"
         )
+
+def display_research_analysis(analysis: Dict[str, str], index: int) -> None:
+    """Display a research analysis result."""
+    if not analysis:
+        return
+        
+    # Create a brief summary from the title for the progress indicator
+    brief_title = analysis.get('title', '').split(':')[-1].strip() if ':' in analysis.get('title', '') else analysis.get('title', '')
+    
+    st.markdown(f"### 📚 Research Analysis #{index + 1}: {brief_title}")
+    
+    with st.expander("View Analysis", expanded=False):
+        st.markdown(f"# {analysis.get('title', '')}")
+        st.markdown(f"*{analysis.get('subtitle', '')}*")
+        st.markdown("---")
+        
+        # Get the content and remove any duplicate title/subtitle that might appear at the start
+        content = analysis.get('content', '')
+        lines = content.split('\n')
+        
+        # Skip any lines that might be duplicating the title/subtitle
+        start_idx = 0
+        for i, line in enumerate(lines):
+            if line.strip().startswith('###') or line.strip().startswith('Introduction'):
+                start_idx = i
+                break
+        
+        # Join the remaining lines and display
+        filtered_content = '\n'.join(lines[start_idx:])
+        st.markdown(filtered_content)
 
 def main():
     """Main application entry point."""
