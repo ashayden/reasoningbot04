@@ -189,28 +189,27 @@ class StageProcessor:
     def process_stage(self, stage_name: str, container, stage_fn, next_stage=None, 
                      spinner_text=None, display_fn=None, **kwargs):
         """Process a single stage of the analysis with simplified error handling."""
-        if not self._should_generate_content(stage_name):
-            if display_fn:
-                self._display_content(stage_name, container, display_fn)
-            return
-            
-        with container, st.spinner(spinner_text or f"Processing {stage_name}..."):
-            try:
-                result = stage_fn(**kwargs)
-                if not result:
-                    raise ValueError(f"Failed to generate content for {stage_name}")
+        try:
+            # Check if we need to generate content
+            if self._should_generate_content(stage_name):
+                with container, st.spinner(spinner_text or f"Processing {stage_name}..."):
+                    result = stage_fn(**kwargs)
+                    if not result:
+                        raise ValueError(f"Failed to generate content for {stage_name}")
                     
-                self.state.set(stage_name, result)
+                    self.state.set(stage_name, result)
+                    st.rerun()
+            
+            # Display existing content if available
+            if display_fn and self.state.get(stage_name) is not None:
+                self._display_content(stage_name, container, display_fn)
                 
-                if next_stage:
-                    if next_stage == 'framework' and not self.state.can_proceed_to_framework():
-                        return
-                    self.state.show_stage(next_stage)
-                
-                st.rerun()
-                
-            except Exception as e:
-                self._handle_error(stage_name, str(e))
+                # Special handling for insights stage
+                if stage_name == 'insights' and not self.state.get('prompt'):
+                    self._generate_optimized_prompt()
+            
+        except Exception as e:
+            self._handle_error(stage_name, str(e))
     
     def _should_generate_content(self, stage_name: str) -> bool:
         """Check if content needs to be generated for a stage."""
@@ -221,11 +220,6 @@ class StageProcessor:
         try:
             with container:
                 display_fn(self.state.get(stage_name))
-                
-                # Special handling for insights stage
-                if stage_name == 'insights' and not self.state.get('prompt'):
-                    self._generate_optimized_prompt()
-                    
         except Exception as e:
             self._handle_error(stage_name, f"Failed to display content: {str(e)}")
     
@@ -487,6 +481,11 @@ def display_insights(insights: dict):
         
         with st.expander("⚡ Overview", expanded=True):
             st.markdown(insights['eli5'])
+        
+        # Add a continue button to explicitly control state transition
+        if st.button("Continue to Focus Areas", type="primary"):
+            st.session_state.app_state['show_focus'] = True
+            st.rerun()
 
 def display_focus_areas(focus_areas):
     """Display focus areas for selection."""
