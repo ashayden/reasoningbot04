@@ -3,7 +3,7 @@
 import logging
 import streamlit as st
 import google.generativeai as genai
-from typing import List
+from typing import List, Dict
 
 from config import GEMINI_MODEL
 from utils import validate_topic, sanitize_topic, QuotaExceededError
@@ -206,6 +206,35 @@ def process_stage():
     except Exception as e:
         logger.error(f"Error during analysis: {str(e)}")
         st.error(f"An error occurred: {str(e)}")
+
+def display_synthesis(synthesis: Dict[str, str]) -> None:
+    """Display the final synthesis report."""
+    if not synthesis:
+        return
+        
+    st.markdown("## 📊 Final Synthesis Report")
+    
+    with st.expander("View Synthesis Report", expanded=False):
+        st.markdown(f"# {synthesis.get('title', '')}")
+        st.markdown(f"*{synthesis.get('subtitle', '')}*")
+        st.markdown("---")
+        st.markdown(synthesis.get('content', ''))
+        
+        # Add download button for Markdown
+        synthesis_text = f"""# {synthesis.get('title', '')}
+        
+*{synthesis.get('subtitle', '')}*
+
+---
+
+{synthesis.get('content', '')}
+"""
+        st.download_button(
+            label="Download Report",
+            data=synthesis_text,
+            file_name="synthesis_report.md",
+            mime="text/markdown"
+        )
 
 def main():
     """Main application entry point."""
