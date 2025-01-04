@@ -458,14 +458,13 @@ def main():
         return
 
     try:
-        # Create containers
+        # Initialize containers for each stage
         containers = {
-            'insights': st.container(),
-            'prompt': st.container(),
-            'focus': st.container(),
-            'framework': st.container(),
-            'analysis': st.container(),
-            'summary': st.container()
+            'insights': st.empty(),
+            'focus': st.empty(),
+            'framework': st.empty(),
+            'analysis': st.empty(),
+            'summary': st.empty()
         }
         
         # Process each stage
@@ -475,33 +474,17 @@ def main():
                          'prompt', spinner_text="💡 Generating insights...",
                          display_fn=display_insights)
         
+        # Process prompt silently in background
         if st.session_state.app_state['show_prompt']:
-            process_stage('prompt', containers['prompt'],
-                         lambda **kwargs: PromptDesigner(model).design_prompt(st.session_state.app_state['topic']),
-                         'focus', spinner_text="✍️ Optimizing prompt...",
-                         display_fn=lambda x: st.expander("✍️ Optimized Prompt", expanded=False).markdown(x))
+            optimized_prompt = PromptDesigner(model).design_prompt(st.session_state.app_state['topic'])
+            st.session_state.app_state['prompt'] = optimized_prompt
+            st.session_state.app_state['show_focus'] = True
         
         if st.session_state.app_state['show_focus']:
-            with containers['focus']:
-                if not st.session_state.app_state['focus_areas']:
-                    with st.spinner("🎯 Generating focus areas..."):
-                        focus_areas = PromptDesigner(model).generate_focus_areas(st.session_state.app_state['topic'])
-                        if focus_areas:
-                            st.session_state.app_state['focus_areas'] = focus_areas
-                            st.rerun()  # Ensure UI updates with new focus areas
-                
-                if st.session_state.app_state['focus_areas']:
-                    proceed, selected = display_focus_selection(
-                        st.session_state.app_state['focus_areas'],
-                        st.session_state.app_state['selected_areas']
-                    )
-                    st.session_state.app_state['selected_areas'] = selected
-                    
-                    if proceed:
-                        with st.spinner("Enhancing prompt with focus areas..."):
-                            enhanced_prompt = PromptDesigner(model).design_prompt(st.session_state.app_state['topic'], selected)
-                            st.session_state.app_state['enhanced_prompt'] = enhanced_prompt
-                            st.rerun()
+            process_stage('focus', containers['focus'],
+                         lambda **kwargs: PromptDesigner(model).generate_focus_areas(st.session_state.app_state['topic']),
+                         'framework', spinner_text="🎯 Generating focus areas...",
+                         display_fn=display_focus_areas)
         
         if st.session_state.app_state['show_framework']:
             process_stage('framework', containers['framework'],
