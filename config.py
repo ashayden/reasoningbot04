@@ -1,45 +1,38 @@
 """Configuration settings for the MARA application."""
 
-# Model configuration
-GEMINI_MODEL = "gemini-pro"
+# Model Configuration
+GEMINI_MODEL = "learnlm-1.5-pro-experimental"
 
-# Generation configurations
+# Topic Validation
+MIN_TOPIC_LENGTH = 10
+MAX_TOPIC_LENGTH = 500
+
+# Agent Configurations
 PREANALYSIS_CONFIG = {
-    "temperature": 0.7,
-    "top_p": 0.8,
-    "top_k": 40,
-    "max_output_tokens": 1024,
-}
-
-PROMPT_DESIGN_CONFIG = {
-    "temperature": 0.1,
-    "candidate_count": 1,
-    "max_output_tokens": 1024
-}
-
-FRAMEWORK_CONFIG = {
-    "temperature": 0.1,
-    "candidate_count": 1,
-    "max_output_tokens": 4096
+    'temperature': 0.7,
+    'top_p': 0.8,
+    'top_k': 40,
+    'max_output_tokens': 1024,
 }
 
 ANALYSIS_CONFIG = {
-    "temperature": 0.7,
-    "candidate_count": 1,
-    "max_output_tokens": 8192
+    'temperature': 0.7,
+    'top_p': 0.9,
+    'top_k': 40,
+    'max_output_tokens': 2048,
 }
 
 SYNTHESIS_CONFIG = {
-    "temperature": 0.5,
-    "candidate_count": 1,
-    "max_output_tokens": 8192
+    'temperature': 0.7,
+    'top_p': 0.9,
+    'top_k': 40,
+    'max_output_tokens': 4096,
 }
 
-# Analysis temperature settings
+# Analysis Temperature Settings
 ANALYSIS_BASE_TEMP = 0.7
 ANALYSIS_TEMP_INCREMENT = 0.1
 ANALYSIS_MAX_TEMP = 0.9
 
-# Input validation
-MIN_TOPIC_LENGTH = 3
-MAX_TOPIC_LENGTH = 200 
+# Cache Settings
+CACHE_TTL = 3600  # 1 hour in seconds 
