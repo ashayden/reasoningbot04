@@ -1,7 +1,6 @@
 """Utility functions for the MARA application."""
 
 import logging
-import time
 from typing import Any, Callable, Tuple
 from functools import wraps
 from config import MIN_TOPIC_LENGTH, MAX_TOPIC_LENGTH
@@ -19,10 +18,6 @@ class MARAError(Exception):
 
 class QuotaExceededError(MARAError):
     """Raised when API quota is exhausted."""
-    pass
-
-class ValidationError(MARAError):
-    """Raised when input validation fails."""
     pass
 
 def rate_limit_decorator(func: Callable) -> Callable:

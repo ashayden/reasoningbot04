@@ -125,12 +125,10 @@ def initialize_state():
         'insights': None,
         'prompt': None,
         'focus_areas': None,
-        'selected_areas': [],
         'framework': None,
         'analysis_results': [],
         'summary': None,
         'show_insights': False,
-        'show_prompt': False,
         'show_focus': False,
         'show_framework': False,
         'show_analysis': False,
@@ -235,26 +233,19 @@ def handle_error(e: Exception, context: str):
         st.session_state.app_state[context] = None
 
 def reset_state(topic: str, iterations: int):
-    """Reset application state with memory cleanup."""
-    # Clear previous results and perform cleanup
-    if hasattr(st.session_state, 'app_state'):
-        if st.session_state.app_state.get('analysis_results'):
-            st.session_state.app_state['analysis_results'].clear()
-    
-    # Reset focus area states
-    st.session_state.focus_area_expanded = True
-    if hasattr(st.session_state, 'current_focus_areas'):
-        st.session_state.current_focus_areas = []
-    
-    # Initialize new state with provided values
-    new_state = initialize_state()
-    new_state.update({
+    """Reset application state."""
+    st.session_state.app_state = initialize_state()
+    st.session_state.app_state.update({
         'topic': topic,
         'iterations': iterations,
-        'show_insights': True  # Start with insights
+        'show_insights': True
     })
     
-    st.session_state.app_state = new_state
+    # Clear focus area states
+    if 'focus_area_expanded' in st.session_state:
+        del st.session_state.focus_area_expanded
+    if 'current_focus_areas' in st.session_state:
+        del st.session_state.current_focus_areas
 
 def display_insights(insights: dict):
     """Display insights in proper containers."""
@@ -438,19 +429,7 @@ def main():
             return
         
         # Reset state and start analysis
-        st.session_state.app_state = initialize_state()  # Ensure complete state reset
-        st.session_state.app_state.update({
-            'topic': sanitized_topic,
-            'iterations': iterations,
-            'show_insights': True  # Start with insights
-        })
-        
-        # Clear any previous focus area state
-        if 'focus_area_expanded' in st.session_state:
-            del st.session_state.focus_area_expanded
-        if 'current_focus_areas' in st.session_state:
-            del st.session_state.current_focus_areas
-            
+        reset_state(sanitized_topic, iterations)
         st.rerun()
 
     # Only proceed with analysis if we have a topic

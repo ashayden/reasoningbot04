@@ -19,47 +19,23 @@ from utils import rate_limit_decorator
 logger = logging.getLogger(__name__)
 
 def parse_title_content(text: str) -> Dict[str, str]:
-    """Parse title and content from analysis text.
-    
-    Args:
-        text: Raw text containing title and content.
-        
-    Returns:
-        Dictionary with 'title', 'subtitle', and 'content' keys.
-    """
+    """Parse title and content from analysis text."""
     lines = text.split('\n')
-    result = {
-        'title': '',
-        'subtitle': '',
-        'content': ''
-    }
-    
-    content_lines = []
-    found_title = False
-    found_subtitle = False
+    result = {'title': '', 'subtitle': '', 'content': []}
     
     for line in lines:
         line = line.strip()
         if not line:
             continue
             
-        # Look for title
-        if not found_title and line.lower().startswith('title:'):
+        if not result['title'] and line.lower().startswith('title:'):
             result['title'] = line.split(':', 1)[1].strip()
-            found_title = True
-            continue
-            
-        # Look for subtitle
-        if found_title and not found_subtitle and line.lower().startswith('subtitle:'):
+        elif result['title'] and not result['subtitle'] and line.lower().startswith('subtitle:'):
             result['subtitle'] = line.split(':', 1)[1].strip()
-            found_subtitle = True
-            continue
-            
-        # Everything else is content
-        if found_title:  # Only start collecting content after title
-            content_lines.append(line)
+        elif result['title']:  # Only collect content after finding title
+            result['content'].append(line)
     
-    result['content'] = '\n'.join(content_lines).strip()
+    result['content'] = '\n'.join(result['content']).strip()
     return result
 
 class BaseAgent:
@@ -157,58 +133,28 @@ class BaseAgent:
 class PreAnalysisAgent(BaseAgent):
     """Agent responsible for generating quick insights before main analysis."""
     
+    @rate_limit_decorator
     def generate_insights(self, topic: str) -> Optional[Dict[str, str]]:
-        """Generate quick insights about the topic."""
+        """Generate initial insights about the topic."""
         try:
-            logger.info(f"Generating insights for topic: {topic}")
-            
-            # Combined prompt for both fact and ELI5
-            combined_prompt = f"""Provide two distinct insights about {topic}:
-
-            1. Interesting Fact:
-            Generate a single surprising fact about {topic}. Include 1-2 relevant emojis. Keep it to one sentence.
-
-            2. Overview:
-            Provide a clear, direct overview of {topic} in 1-3 sentences. Include 1-3 relevant emojis naturally within the text. Focus on key points and avoid phrases like 'The question is about'.
-
-            Format the response exactly as:
-            FACT: [your fact here]
-            OVERVIEW: [your overview here]"""
-            
-            logger.info("Generating combined insights...")
-            response = self.generate_content(combined_prompt, PREANALYSIS_CONFIG)
+            response = self.model.generate_content(
+                f"Provide a clear, direct overview of {topic} in 1-3 sentences. Include 1-3 relevant emojis naturally within the text. Focus on key points and avoid phrases like 'The question is about'.",
+                generation_config=GenerationConfig(**PREANALYSIS_CONFIG)
+            )
             
             if not response:
                 logger.error("Failed to generate insights")
-            return None
-        
-            # Parse the response
-            lines = response.split('\n')
-            fact_text = ""
-            eli5_text = ""
+                return None
+                
+            return {
+                'did_you_know': response.text,
+                'eli5': response.text
+            }
             
-            for line in lines:
-                line = line.strip()
-                if line.startswith('FACT:'):
-                    fact_text = line.replace('FACT:', '').strip()
-                elif line.startswith('OVERVIEW:'):
-                    eli5_text = line.replace('OVERVIEW:', '').strip()
-            
-            if not fact_text or not eli5_text:
-                logger.error("Failed to parse insights from response")
-            return None
-        
-        insights = {
-                'did_you_know': fact_text,
-                'eli5': eli5_text
-        }
-            logger.info("Successfully generated both insights")
-        return insights
-
         except Exception as e:
-            logger.error(f"PreAnalysis generation failed: {str(e)}")
-            raise
-    
+            logger.error(f"Error generating insights: {str(e)}")
+            return None
+
 class PromptDesigner(BaseAgent):
     """Agent responsible for designing optimal prompts."""
     
