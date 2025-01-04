@@ -301,23 +301,38 @@ def process_stage(stage_name, container, stage_fn, next_stage=None, spinner_text
     logger.info(f"Processing stage: {stage_name}")
     logger.info(f"Current app_state: {st.session_state.app_state}")
     
-    if stage_name not in st.session_state.app_state:
-        logger.info(f"Stage {stage_name} not in app_state, generating content")
-        try:
+    try:
+        # Check if we need to generate content
+        if stage_name not in st.session_state.app_state or st.session_state.app_state[stage_name] is None:
+            logger.info(f"Stage {stage_name} not in app_state or is None, generating content")
+            
             with container, st.spinner(spinner_text):
-                logger.info(f"Calling stage function for {stage_name}")
                 try:
+                    # Call the stage function with error handling
+                    logger.info(f"Calling stage function for {stage_name}")
                     result = stage_fn(**kwargs)
+                    
+                    # Log the result details
                     logger.info(f"Stage function result type: {type(result)}")
-                    logger.info(f"Stage function result: {result}")
+                    if result is not None:
+                        logger.info(f"Stage function result: {result}")
+                    else:
+                        logger.error(f"Stage function returned None for {stage_name}")
+                        raise ValueError(f"Failed to generate content for {stage_name}")
+                        
                 except Exception as e:
-                    logger.error(f"Error calling stage function: {str(e)}", exc_info=True)
+                    logger.error(f"Error in stage function: {str(e)}", exc_info=True)
                     st.error(f"Failed to generate content: {str(e)}")
+                    # Reset the show flag for this stage
+                    st.session_state.app_state[f'show_{stage_name}'] = False
                     return
                 
                 if result is not None:
                     logger.info(f"Stage {stage_name} generated content successfully")
+                    # Store the result in app state
                     st.session_state.app_state[stage_name] = result
+                    
+                    # Handle next stage transition
                     if next_stage:
                         # Only show framework after focus selection is complete
                         if next_stage == 'framework' and not st.session_state.app_state.get('focus_selection_complete'):
@@ -325,6 +340,8 @@ def process_stage(stage_name, container, stage_fn, next_stage=None, spinner_text
                             return
                         logger.info(f"Setting show_{next_stage} to True")
                         st.session_state.app_state[f'show_{next_stage}'] = True
+                    
+                    # Trigger rerun to update UI
                     st.rerun()
                 else:
                     logger.error(f"Stage {stage_name} failed to generate content")
@@ -332,33 +349,35 @@ def process_stage(stage_name, container, stage_fn, next_stage=None, spinner_text
                     # Reset the show flag for this stage
                     st.session_state.app_state[f'show_{stage_name}'] = False
                     return
-        except Exception as e:
-            logger.error(f"Error in stage {stage_name}: {str(e)}", exc_info=True)
-            st.error(f"An error occurred during {stage_name}: {str(e)}")
-            # Reset the show flag for this stage
-            st.session_state.app_state[f'show_{stage_name}'] = False
-            return
-    elif display_fn and st.session_state.app_state.get(stage_name) is not None:
-        logger.info(f"Displaying existing content for stage {stage_name}")
-        try:
-            display_fn(st.session_state.app_state[stage_name])
-            
-            # Generate optimized prompt after insights are displayed
-            if stage_name == 'insights' and not st.session_state.app_state.get('prompt'):
-                logger.info("Generating optimized prompt after insights display")
-                try:
-                    optimized_prompt = PromptDesigner(model).design_prompt(st.session_state.app_state['topic'])
-                    if optimized_prompt:
-                        st.session_state.app_state['prompt'] = optimized_prompt
-                        logger.info("Optimized prompt generated successfully")
-                except Exception as e:
-                    logger.error(f"Error generating optimized prompt: {str(e)}", exc_info=True)
                     
-        except Exception as e:
-            logger.error(f"Error displaying content for stage {stage_name}: {str(e)}", exc_info=True)
-            st.error(f"Failed to display content for {stage_name}. Please try again.")
-            # Reset the show flag for this stage
-            st.session_state.app_state[f'show_{stage_name}'] = False
+        # Display existing content if available
+        elif display_fn and st.session_state.app_state.get(stage_name) is not None:
+            logger.info(f"Displaying existing content for stage {stage_name}")
+            try:
+                display_fn(st.session_state.app_state[stage_name])
+                
+                # Generate optimized prompt after insights are displayed
+                if stage_name == 'insights' and not st.session_state.app_state.get('prompt'):
+                    logger.info("Generating optimized prompt after insights display")
+                    try:
+                        optimized_prompt = PromptDesigner(model).design_prompt(st.session_state.app_state['topic'])
+                        if optimized_prompt:
+                            st.session_state.app_state['prompt'] = optimized_prompt
+                            logger.info("Optimized prompt generated successfully")
+                    except Exception as e:
+                        logger.error(f"Error generating optimized prompt: {str(e)}", exc_info=True)
+                        
+            except Exception as e:
+                logger.error(f"Error displaying content for stage {stage_name}: {str(e)}", exc_info=True)
+                st.error(f"Failed to display content for {stage_name}. Please try again.")
+                # Reset the show flag for this stage
+                st.session_state.app_state[f'show_{stage_name}'] = False
+                
+    except Exception as e:
+        logger.error(f"Unexpected error in stage {stage_name}: {str(e)}", exc_info=True)
+        st.error(f"An unexpected error occurred during {stage_name}. Please try again.")
+        # Reset the show flag for this stage
+        st.session_state.app_state[f'show_{stage_name}'] = False
 
 def validate_and_sanitize_input(topic: str) -> tuple[bool, str, str]:
     """Validate and sanitize user input."""

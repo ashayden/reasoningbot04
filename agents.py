@@ -150,33 +150,48 @@ class PreAnalysisAgent(BaseAgent):
                 logger.error("Model not initialized in PreAnalysisAgent")
                 return None
             
-            prompt = f"Provide a clear, direct overview of {topic} in 1-3 sentences. Include 1-3 relevant emojis naturally within the text. Focus on key points and avoid phrases like 'The question is about'."
-            logger.info(f"Sending prompt to model: {prompt}")
+            # Generate the "Did You Know" insight
+            dyk_prompt = f"Provide a clear, direct overview of {topic} in 1-3 sentences. Include 1-3 relevant emojis naturally within the text. Focus on key points and avoid phrases like 'The question is about'."
+            logger.info(f"Sending DYK prompt to model: {dyk_prompt}")
             
             try:
-                logger.info("Attempting to generate content with model")
+                logger.info("Attempting to generate DYK content")
                 generation_config = GenerationConfig(**PREANALYSIS_CONFIG)
                 logger.info(f"Using generation config: {generation_config}")
                 
-                response = self.model.generate_content(
-                    prompt,
+                dyk_response = self.model.generate_content(
+                    dyk_prompt,
                     generation_config=generation_config
                 )
-                logger.info("Received response from model")
+                logger.info("Received DYK response from model")
                 
-                if not response:
-                    logger.error("Empty response from model")
+                if not dyk_response or not hasattr(dyk_response, 'text'):
+                    logger.error("Invalid DYK response from model")
                     return None
                 
-                if not hasattr(response, 'text'):
-                    logger.error(f"Response missing text attribute. Response type: {type(response)}")
-                    logger.error(f"Response attributes: {dir(response)}")
+                dyk_text = dyk_response.text.strip()
+                logger.info(f"DYK text: {dyk_text}")
+                
+                # Generate the ELI5 insight
+                eli5_prompt = f"Explain {topic} in simple terms that a 5-year-old would understand. Keep it to 1-3 sentences and include 1-2 relevant emojis."
+                logger.info(f"Sending ELI5 prompt to model: {eli5_prompt}")
+                
+                eli5_response = self.model.generate_content(
+                    eli5_prompt,
+                    generation_config=generation_config
+                )
+                logger.info("Received ELI5 response from model")
+                
+                if not eli5_response or not hasattr(eli5_response, 'text'):
+                    logger.error("Invalid ELI5 response from model")
                     return None
                 
-                logger.info(f"Response text: {response.text}")
+                eli5_text = eli5_response.text.strip()
+                logger.info(f"ELI5 text: {eli5_text}")
+                
                 insights = {
-                    'did_you_know': response.text,
-                    'eli5': response.text
+                    'did_you_know': dyk_text,
+                    'eli5': eli5_text
                 }
                 logger.info("Successfully generated insights")
                 return insights
