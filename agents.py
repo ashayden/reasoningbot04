@@ -2,6 +2,7 @@
 
 import logging
 from typing import Dict, Any, Optional, List
+import time
 
 import google.generativeai as genai
 import streamlit as st
@@ -25,15 +26,34 @@ class BaseAgent:
     def __init__(self, model):
         self.model = model
     
-    @rate_limit_decorator
-    def generate_content(self, prompt: str, config: Dict[str, Any]) -> Optional[str]:
-        """Generate content with error handling and rate limiting."""
+    def _generate_with_backoff(self, prompt: str, max_retries: int = 3) -> Optional[str]:
+        """Generate content with exponential backoff for retries."""
+        retry_count = 0
+        while retry_count < max_retries:
+            try:
+                response = self.model.generate_content(prompt)
+                if response and response.text:
+                    return response.text.strip()
+                retry_count += 1
+            except Exception as e:
+                logger.error(f"Generation error (attempt {retry_count + 1}): {str(e)}")
+                retry_count += 1
+                time.sleep(2 ** retry_count)  # Exponential backoff
+        return None
+
+    def generate_content(self, prompt: str, config: Optional[Dict] = None) -> Optional[str]:
+        """Generate content with the specified configuration."""
         try:
-            response = self.model.generate_content(
-                prompt,
-                generation_config=GenerationConfig(**config)
-            )
-            return response.text if response else None
+            if config:
+                self.model.generation_config = genai.types.GenerationConfig(**config)
+            response = self._generate_with_backoff(prompt)
+            if response:
+                # Clean up the response
+                response = response.replace('\\"', '"')  # Fix escaped quotes
+                response = response.replace('\\n', '\n')  # Fix escaped newlines
+                response = response.strip()
+                return response
+            return None
         except Exception as e:
             logger.error(f"Error generating content: {str(e)}")
             return None
@@ -138,175 +158,72 @@ Important:
 class ResearchAnalyst(BaseAgent):
     """Agent responsible for conducting iterative research analysis."""
     
-    def analyze(self, topic: str, focus_areas: Optional[List[str]], previous_analysis: Optional[str] = None) -> Optional[Dict[str, str]]:
-        """Conduct analysis based on topic, focus areas, and previous findings."""
-        context = f"Previous Analysis:\n{previous_analysis}\n\n" if previous_analysis else ""
-        focus_context = f"\nSelected Focus Areas:\n{', '.join(focus_areas) if focus_areas else []}"
-        
-        base_prompt = f"""Topic: {topic}{focus_context}
-{context}
-You are an expert academic researcher conducting an in-depth analysis. Your goal is to provide specific, evidence-based insights that build upon each other.
-
-FORMATTING REQUIREMENTS:
-
-1. Title Structure
-   - Create a unique, specific title that captures the main theme
-   - Add an engaging subtitle that previews key insights
-   - Example: "Cultural Evolution: Mapping Urban Identity in Transition"
-
-2. Section Organization
-   Each analysis must have these sections in order:
-   a) Key Findings and Evidence
-   b) Detailed Analysis
-   c) Connections and Significance
-   d) Implications
-
-3. Bullet Point Format
-   Each bullet point must follow this exact structure:
-   • **Key Statement:** Your main point here. Follow with 2-3 sentences of supporting evidence or explanation.
-
-4. Section Content Requirements:
-
-   a) Key Findings and Evidence
-   - Start with 3-4 bullet points
-   - Each bullet presents one clear finding
-   - Include specific evidence or examples
-   - Use concrete numbers or statistics when available
-
-   b) Detailed Analysis
-   - Examine relationships between findings
-   - Provide deeper context
-   - Use specific examples
-   - Connect to broader themes
-
-   c) Connections and Significance
-   - Draw explicit connections between findings
-   - Evaluate importance of patterns
-   - Consider broader implications
-   - Identify emerging trends
-
-   d) Implications
-   - Present 2-3 clear implications
-   - Offer specific recommendations
-   - Consider different stakeholders
-   - Address potential challenges
-
-5. Markdown Formatting
-   - Use ** for bold text
-   - Use * for italics
-   - Use ### for section headings
-   - Leave one blank line between sections
-   - Use • for bullet points
-   - Maintain consistent indentation
-
-6. Writing Style
-   - Use clear topic sentences
-   - Provide specific evidence
-   - Create logical flow
-   - Maintain professional tone
-   - Use active voice
-   - Keep paragraphs focused
-
-RESPONSE FORMAT:
-Return your response as a Python dictionary with three fields:
-1. title: A unique, descriptive title for your analysis
-2. subtitle: An engaging subtitle that previews key insights
-3. content: Your analysis with proper markdown formatting
-
-Example structure (DO NOT COPY THE EXAMPLE TEXT):
-{
-    "title": "Urban Transformation: A City in Motion",
-    "subtitle": "Examining the Forces of Change and Adaptation",
-    "content": "### Key Findings and Evidence\\n\\n• **Economic Growth:** The city's GDP grew by 12% in 2024...\\n\\n### Detailed Analysis\\n\\n• **Market Forces:** Analysis of economic indicators shows..."
-}"""
-
-        if not previous_analysis:
-            # First research loop - Initial comprehensive analysis
-            prompt = base_prompt + """
-
-Focus your analysis on:
-1. Makes specific, concrete observations about the topic
-2. Provides clear evidence to support each observation
-3. Identifies key patterns and relationships
-4. Establishes clear connections between different aspects
-5. Evaluates the significance of your findings"""
-        else:
-            # Subsequent research loops - Deeper analysis
-            prompt = base_prompt + """
-
-Focus your deeper analysis on:
-1. Uncovers more nuanced connections
-2. Challenges or validates previous observations with new evidence
-3. Identifies emerging patterns and trends
-4. Explores complex relationships between factors
-5. Evaluates long-term implications
-6. Proposes new interpretative frameworks
-7. Synthesizes insights into novel perspectives"""
-
+    def analyze(self, topic: str, focus_areas: List[str], previous_analysis: Optional[str] = None) -> Dict[str, str]:
+        """Generate research analysis for the given topic and focus areas."""
         try:
-            # Adjust temperature based on iteration
-            temp = min(ANALYSIS_BASE_TEMP + (len(context) > 0) * ANALYSIS_TEMP_INCREMENT, ANALYSIS_MAX_TEMP)
-            config = {**ANALYSIS_CONFIG, 'temperature': temp}
+            prompt = f'''Analyze the topic "{topic}" focusing on recent developments and key insights.
             
-            result = self.generate_content(prompt, config)
-            if not result:
-                return None
-                
+Previous analysis (if any): {previous_analysis if previous_analysis else "None"}
+Focus areas: {", ".join(focus_areas) if focus_areas else "General analysis"}
+
+Important notes:
+1. Create a unique, specific title that captures the essence of your analysis
+2. Write a subtitle that previews your key findings
+3. Structure your analysis with clear sections and bullet points
+4. Use markdown formatting for headings and emphasis
+5. Return your response in this exact format:
+{{
+    "title": "Your Unique Title Here",
+    "subtitle": "Your Subtitle Here",
+    "content": "Your Analysis Content Here"
+}}
+
+Remember:
+- Make titles specific and informative
+- Use bullet points for key findings
+- Include evidence and examples
+- Build on previous analysis if provided
+- Focus on selected areas if specified'''
+
+            response = self._generate_with_backoff(prompt)
+            
             # Clean and parse the response
-            result = result.strip()
-            
-            # Extract the dictionary part using regex
-            import re
-            dict_match = re.search(r'\{[\s\S]*\}', result)
-            if not dict_match:
-                logger.error("Could not find dictionary structure in response")
-                return None
+            cleaned_response = response.strip()
+            if not cleaned_response.startswith('{'):
+                cleaned_response = '{' + cleaned_response
+            if not cleaned_response.endswith('}'):
+                cleaned_response = cleaned_response + '}'
                 
-            dict_str = dict_match.group(0)
-            
-            # Clean up the dictionary string
-            dict_str = dict_str.replace('\n', ' ')  # Remove newlines temporarily
-            dict_str = dict_str.replace('\\n', '__NEWLINE__')  # Preserve intended newlines
-            dict_str = dict_str.replace('\\', '\\\\')  # Escape backslashes
-            dict_str = re.sub(r'(?<!\\)"', '\\"', dict_str)  # Escape unescaped quotes
-            dict_str = dict_str.replace("'", '"')  # Replace single quotes with double quotes
-            
-            # Parse the dictionary
+            # Safely evaluate the string as a dictionary
+            import ast
             try:
-                import ast
-                analysis = ast.literal_eval(dict_str)
+                result = ast.literal_eval(cleaned_response)
             except:
-                logger.error("Failed to parse response as dictionary")
-                return None
+                # Fallback parsing if ast.literal_eval fails
+                import json
+                try:
+                    result = json.loads(cleaned_response)
+                except:
+                    # Last resort: basic string manipulation
+                    parts = cleaned_response.split('",')
+                    title = parts[0].split('"title": "')[1]
+                    subtitle = parts[1].split('"subtitle": "')[1]
+                    content = parts[2].split('"content": "')[1].rstrip('"}')
+                    result = {
+                        "title": title,
+                        "subtitle": subtitle,
+                        "content": content
+                    }
             
-            # Validate the dictionary structure
-            if not isinstance(analysis, dict):
-                logger.error("Response is not a dictionary")
-                return None
+            # Validate the result
+            required_keys = ['title', 'subtitle', 'content']
+            if not all(key in result for key in required_keys):
+                raise ValueError("Missing required keys in analysis response")
                 
-            required_keys = {'title', 'subtitle', 'content'}
-            if not all(key in analysis for key in required_keys):
-                logger.error("Response missing required keys")
-                return None
-                
-            # Clean up values and restore newlines
-            cleaned_analysis = {}
-            for key in required_keys:
-                if key in analysis:
-                    value = str(analysis[key])
-                    if key == 'content':
-                        # Restore newlines and format content
-                        value = value.replace('__NEWLINE__', '\n')
-                        # Ensure proper section spacing
-                        value = re.sub(r'###\s*', '\n\n### ', value)
-                        value = re.sub(r'•\s*', '\n• ', value)
-                        value = re.sub(r'\n{3,}', '\n\n', value)
-                    cleaned_analysis[key] = value.strip()
-            
-            return cleaned_analysis
-            
+            return result
+
         except Exception as e:
-            logger.error(f"Error parsing analysis response: {str(e)}")
+            logger.error(f"Error generating analysis: {str(e)}")
             return None
 
 class SynthesisExpert(BaseAgent):
