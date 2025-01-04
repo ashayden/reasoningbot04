@@ -204,23 +204,13 @@ def validate_and_sanitize_input(topic: str) -> tuple[bool, str, str]:
     return True, "", sanitized
 
 def handle_error(e: Exception, context: str):
-    """Handle errors consistently with proper cleanup and user feedback."""
+    """Handle errors consistently."""
     error_msg = f"Error during {context}: {str(e)}"
     logger.error(error_msg)
     
-    # Handle quota exceeded errors specially
+    # Handle quota exceeded errors
     if isinstance(e, QuotaExceededError):
-        retry_after = e.get_retry_after()
-        st.error(f"API quota exceeded. Please wait {retry_after} seconds before trying again.")
-        
-        # Add a countdown timer
-        progress_text = "You can try again in"
-        progress_container = st.empty()
-        for remaining in range(retry_after, 0, -1):
-            progress_container.info(f"⏳ {progress_text} {remaining} seconds...")
-            time.sleep(1)
-        progress_container.empty()
-        st.success("✅ You can now try again!")
+        st.error("API quota exceeded. Please wait 5 minutes before trying again.")
         return
     
     # Provide user-friendly error message for other errors
@@ -235,17 +225,9 @@ def handle_error(e: Exception, context: str):
     
     st.error(user_msg)
     
-    # Reset relevant state and stop showing subsequent stages
+    # Reset state for the current stage
     if context in st.session_state.app_state:
         st.session_state.app_state[context] = None
-    
-    stages = ['show_insights', 'show_prompt', 'show_focus', 'show_framework', 'show_analysis', 'show_summary']
-    current_stage_idx = stages.index(f'show_{context}')
-    for stage in stages[current_stage_idx:]:
-        st.session_state.app_state[stage] = False
-    
-    # Clean up any partial results
-    cleanup_partial_results(context)
 
 def reset_state(topic: str, iterations: int):
     """Reset application state with memory cleanup."""

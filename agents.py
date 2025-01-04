@@ -119,43 +119,40 @@ class BaseAgent:
     def generate_content(self, prompt: str, config: Dict[str, Any]) -> Optional[str]:
         """Generate content with rate limiting and error handling."""
         try:
-            logger.info("Generating content with Gemini API...")
-            logger.info(f"Configuration: {config}")
-            
             if not prompt or not prompt.strip():
                 logger.error("Empty prompt provided")
-                raise ValueError("Empty prompt provided")
+                return None
                 
             if not self.model:
                 logger.error("Model not initialized")
-                raise ValueError("Model not initialized")
+                return None
             
+            response = self.model.generate_content(
+                prompt,
+                generation_config=GenerationConfig(**config)
+            )
+            
+            if not response:
+                return None
+            
+            # Extract text from response
             try:
-                response = self.model.generate_content(
-                    prompt,
-                    generation_config=GenerationConfig(**config)
-                )
-                logger.info("Successfully received response from Gemini API")
-                
-                if not response:
-                    logger.error("Received empty response from Gemini API")
-                    return None
-                
-                content = self._extract_content(response)
-                if content:
-                    logger.info("Successfully extracted content from response")
-                    return content
+                if hasattr(response, 'parts'):
+                    text = "".join(part.text for part in response.parts)
+                elif hasattr(response, 'candidates'):
+                    text = response.candidates[0].content.parts[0].text
                 else:
-                    logger.error("Failed to extract content from response")
-                    return None
+                    text = response.text
                     
+                return text.strip() if text else None
+                
             except Exception as e:
-                logger.error(f"Error calling Gemini API: {str(e)}")
-                raise
+                logger.error(f"Failed to extract text: {str(e)}")
+                return None
                 
         except Exception as e:
             logger.error(f"Content generation error: {str(e)}")
-            raise  # Re-raise to be handled by the calling function
+            raise
 
 class PreAnalysisAgent(BaseAgent):
     """Agent responsible for generating quick insights before main analysis."""
@@ -210,8 +207,8 @@ class PreAnalysisAgent(BaseAgent):
             
         except Exception as e:
             logger.error(f"PreAnalysis generation failed: {str(e)}")
-            raise  # Re-raise the exception to be handled by the process_stage function
-
+            raise
+    
 class PromptDesigner(BaseAgent):
     """Agent responsible for designing optimal prompts."""
     
