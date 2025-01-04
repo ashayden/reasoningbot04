@@ -35,9 +35,6 @@ def rate_limit_decorator(func: Callable) -> Callable:
             return func(*args, **kwargs)
         except Exception as e:
             if "429" in str(e):
-                # Set a flag in session state to prevent rapid retries
-                if hasattr(st, 'session_state'):
-                    st.session_state.form_disabled = True
                 raise QuotaExceededError("API quota exceeded. Please wait 5 minutes before trying again.")
             raise
     return wrapper

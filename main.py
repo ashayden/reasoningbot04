@@ -213,8 +213,9 @@ def handle_error(e: Exception, context: str):
         st.error("⚠️ API quota limit reached. Please wait 5 minutes before trying again.")
         st.info("💡 This helps ensure fair usage of the API for all users.")
         # Disable the form temporarily
-        if 'form_disabled' not in st.session_state:
-            st.session_state.form_disabled = True
+        st.session_state.form_disabled = True
+        # Schedule re-enable after 5 minutes
+        st.session_state.quota_reset_time = time.time() + 300  # 5 minutes
         return
     
     # Provide user-friendly error message for other errors
@@ -400,6 +401,12 @@ def process_stage(stage_name: str, container, process_fn, next_stage: str = None
 
 def main():
     """Main application flow."""
+    # Check if quota timer has expired
+    if hasattr(st.session_state, 'quota_reset_time'):
+        if time.time() >= st.session_state.quota_reset_time:
+            st.session_state.form_disabled = False
+            del st.session_state.quota_reset_time
+    
     # Input form
     with st.form("analysis_form"):
         topic = st.text_area(
