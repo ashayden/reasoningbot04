@@ -124,6 +124,7 @@ def rate_limit_decorator(func: Callable) -> Callable:
     @wraps(func)
     def wrapper(*args, **kwargs) -> Any:
         max_retries = 3
+        base_delay = 2.0
         
         for attempt in range(max_retries):
             try:
@@ -138,21 +139,19 @@ def rate_limit_decorator(func: Callable) -> Callable:
                 return result
                 
             except Exception as e:
-                # Handle the error and update quota tracking
-                rate_limiter.handle_error(e)
-                
-                if attempt < max_retries - 1:
-                    # Calculate backoff delay
-                    delay = (2 ** attempt * rate_limiter.base_delay) + (random.random() * 0.1)
-                    logger.warning(f"API error on attempt {attempt + 1}/{max_retries}. "
-                                 f"Retrying in {delay:.2f} seconds...")
-                    time.sleep(delay)
-                else:
-                    # If we've exhausted retries, raise the error
-                    if isinstance(e, QuotaExceededError):
-                        raise
-                    logger.error(f"Error in rate-limited function {func.__name__}: {str(e)}")
-                    raise
+                if "429" in str(e):
+                    if attempt < max_retries - 1:
+                        # Calculate backoff delay
+                        delay = (2 ** attempt * base_delay) + (random.random() * 0.1)
+                        logger.warning(f"API error on attempt {attempt + 1}/{max_retries}. Retrying in {delay:.2f} seconds...")
+                        time.sleep(delay)
+                        continue
+                    else:
+                        # If we've exhausted retries, implement cooldown
+                        cooldown = 300  # 5 minutes
+                        logger.warning(f"Quota error detected. Implementing {cooldown} second cooldown.")
+                        raise QuotaExceededError(retry_after=cooldown) from e
+                raise
         
         return None  # Should never reach here
     

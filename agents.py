@@ -184,34 +184,29 @@ class PreAnalysisAgent(BaseAgent):
             if not response:
                 logger.error("Failed to generate insights")
                 return None
-                
+            
             # Parse the response
-            try:
-                lines = response.split('\n')
-                fact_text = ""
-                eli5_text = ""
-                
-                for line in lines:
-                    line = line.strip()
-                    if line.startswith('FACT:'):
-                        fact_text = line.replace('FACT:', '').strip()
-                    elif line.startswith('OVERVIEW:'):
-                        eli5_text = line.replace('OVERVIEW:', '').strip()
-                
-                if not fact_text or not eli5_text:
-                    logger.error("Failed to parse insights from response")
-                    return None
-                
-                insights = {
-                    'did_you_know': fact_text,
-                    'eli5': eli5_text
-                }
-                logger.info("Successfully generated both insights")
-                return insights
-                
-            except Exception as e:
-                logger.error(f"Failed to parse insights: {str(e)}")
+            lines = response.split('\n')
+            fact_text = ""
+            eli5_text = ""
+            
+            for line in lines:
+                line = line.strip()
+                if line.startswith('FACT:'):
+                    fact_text = line.replace('FACT:', '').strip()
+                elif line.startswith('OVERVIEW:'):
+                    eli5_text = line.replace('OVERVIEW:', '').strip()
+            
+            if not fact_text or not eli5_text:
+                logger.error("Failed to parse insights from response")
                 return None
+            
+            insights = {
+                'did_you_know': fact_text,
+                'eli5': eli5_text
+            }
+            logger.info("Successfully generated both insights")
+            return insights
             
         except Exception as e:
             logger.error(f"PreAnalysis generation failed: {str(e)}")
@@ -265,7 +260,7 @@ class PromptDesigner(BaseAgent):
         except Exception as e:
             logger.error(f"Focus areas generation failed: {str(e)}")
             return None
-    
+        
     def design_prompt(self, topic: str, selected_focus_areas: Optional[list] = None) -> Optional[str]:
         """Design an optimal prompt for the given topic."""
         base_prompt = f"""Create a detailed research framework prompt for analyzing {topic}."""
