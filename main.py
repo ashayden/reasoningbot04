@@ -189,6 +189,9 @@ def initialize_state():
 
 def reset_state(topic, iterations):
     """Reset the application state."""
+    logger.info(f"Resetting state with topic: '{topic}' and iterations: {iterations}")
+    logger.info(f"Previous app_state: {st.session_state.app_state}")
+    
     st.session_state.app_state = initialize_state()
     st.session_state.app_state.update({
         'topic': topic,
@@ -198,9 +201,13 @@ def reset_state(topic, iterations):
     
     # Clear focus area states
     if 'focus_area_expanded' in st.session_state:
+        logger.info("Clearing focus_area_expanded from session state")
         del st.session_state.focus_area_expanded
     if 'current_focus_areas' in st.session_state:
+        logger.info("Clearing current_focus_areas from session state")
         del st.session_state.current_focus_areas
+    
+    logger.info(f"New app_state: {st.session_state.app_state}")
 
 def display_insights(insights: dict):
     """Display insights in proper containers."""
@@ -291,18 +298,28 @@ def cleanup_partial_results(context: str):
 
 def process_stage(stage_name, container, stage_fn, next_stage=None, spinner_text=None, display_fn=None, **kwargs):
     """Process a single stage of the analysis."""
+    logger.info(f"Processing stage: {stage_name}")
+    logger.info(f"Current app_state: {st.session_state.app_state}")
+    
     if stage_name not in st.session_state.app_state:
+        logger.info(f"Stage {stage_name} not in app_state, generating content")
         with container, st.spinner(spinner_text):
             result = stage_fn(**kwargs)
             if result is not None:
+                logger.info(f"Stage {stage_name} generated content successfully")
                 st.session_state.app_state[stage_name] = result
                 if next_stage:
                     # Only show framework after focus selection is complete
                     if next_stage == 'framework' and not st.session_state.app_state.get('focus_selection_complete'):
+                        logger.info("Skipping framework stage until focus selection is complete")
                         return
+                    logger.info(f"Setting show_{next_stage} to True")
                     st.session_state.app_state[f'show_{next_stage}'] = True
                 st.rerun()
+            else:
+                logger.error(f"Stage {stage_name} failed to generate content")
     elif display_fn and st.session_state.app_state.get(stage_name) is not None:
+        logger.info(f"Displaying existing content for stage {stage_name}")
         display_fn(st.session_state.app_state[stage_name])
 
 def validate_and_sanitize_input(topic: str) -> tuple[bool, str, str]:
@@ -364,7 +381,11 @@ def main():
     """Main application flow."""
     # Initialize app_state if not exists
     if 'app_state' not in st.session_state:
+        logger.info("Initializing new app_state")
         st.session_state.app_state = initialize_state()
+    else:
+        logger.info("Using existing app_state")
+        logger.info(f"Current app_state: {st.session_state.app_state}")
     
     # Check if quota timer has expired
     if hasattr(st.session_state, 'quota_reset_time'):
@@ -412,9 +433,11 @@ def main():
 
     # Only proceed with analysis if we have a topic
     if not st.session_state.app_state.get('topic'):
+        logger.info("No topic in app_state, returning")
         return
 
     try:
+        logger.info("Starting analysis process")
         # Initialize containers for each stage
         containers = {
             'insights': st.empty(),
@@ -426,6 +449,7 @@ def main():
         
         # Process each stage
         if st.session_state.app_state.get('show_insights'):
+            logger.info("Processing insights stage")
             process_stage('insights', containers['insights'],
                          lambda **kwargs: PreAnalysisAgent(model).generate_insights(st.session_state.app_state['topic']),
                          'focus', spinner_text="💡 Generating insights...",
@@ -433,11 +457,14 @@ def main():
             
             # Generate prompt silently in the background if not already generated
             if not st.session_state.app_state.get('prompt'):
+                logger.info("Generating optimized prompt in background")
                 optimized_prompt = PromptDesigner(model).design_prompt(st.session_state.app_state['topic'])
                 if optimized_prompt:
                     st.session_state.app_state['prompt'] = optimized_prompt
+                    logger.info("Optimized prompt generated successfully")
         
         if st.session_state.app_state.get('show_focus'):
+            logger.info("Processing focus areas stage")
             process_stage('focus', containers['focus'],
                          lambda **kwargs: PromptDesigner(model).generate_focus_areas(st.session_state.app_state['topic']),
                          'framework', spinner_text="🎯 Generating focus areas...",
@@ -445,6 +472,7 @@ def main():
         
         # Only show framework after focus selection is complete
         if st.session_state.app_state.get('show_framework') and st.session_state.app_state.get('focus_selection_complete'):
+            logger.info("Processing framework stage")
             process_stage('framework', containers['framework'],
                          lambda **kwargs: FrameworkEngineer(model).create_framework(
                              st.session_state.app_state.get('prompt', ''),
@@ -455,6 +483,7 @@ def main():
         
         # Process analysis (special handling due to iterations)
         if st.session_state.app_state.get('show_analysis'):
+            logger.info("Processing analysis stage")
             with containers['analysis']:
                 if len(st.session_state.app_state.get('analysis_results', [])) < st.session_state.app_state.get('iterations', 2):
                     with st.spinner("🔄 Performing analysis..."):
@@ -477,6 +506,7 @@ def main():
                         st.markdown(result)
         
         if st.session_state.app_state.get('show_summary'):
+            logger.info("Processing summary stage")
             process_stage('summary', containers['summary'],
                          lambda **kwargs: SynthesisExpert(model).synthesize(
                              st.session_state.app_state['topic'],
@@ -486,6 +516,7 @@ def main():
                          display_fn=lambda x: st.expander("📊 Final Report", expanded=False).markdown(x))
                      
     except Exception as e:
+        logger.error(f"Error in analysis process: {str(e)}", exc_info=True)
         handle_error(e, "analysis")
         return
 
