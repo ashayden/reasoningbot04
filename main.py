@@ -139,45 +139,48 @@ def display_focus_areas(focus_areas):
         
         # Create columns for focus area selection
         cols = st.columns(2)
+        selected = []  # Track current selections
         for i, area in enumerate(focus_areas):
             col_idx = i % 2
             with cols[col_idx]:
                 key = f"focus_area_{i}"
                 is_selected = area in st.session_state.selected_areas
-                if st.checkbox(area, value=is_selected, key=key):
-                    if area not in st.session_state.selected_areas:
-                        st.session_state.selected_areas.append(area)
-                elif area in st.session_state.selected_areas:
-                    st.session_state.selected_areas.remove(area)
+                
+                # Only allow selection if under limit or already selected
+                if len(selected) < 5 or is_selected:
+                    if st.checkbox(area, value=is_selected, key=key):
+                        selected.append(area)
+                else:
+                    # Show disabled checkbox if at limit
+                    st.checkbox(area, value=False, key=key, disabled=True)
+        
+        # Update session state with current selections
+        st.session_state.selected_areas = selected
         
         # Show selection status
         st.markdown("---")
-        num_selected = len(st.session_state.selected_areas)
+        num_selected = len(selected)
         
-        if num_selected > 5:
-            st.warning("⚠️ Please select no more than 5 focus areas")
-        else:
-            if num_selected > 0:
-                st.success(f"✅ You have selected {num_selected} focus area{'s' if num_selected > 1 else ''}")
-                st.write("Selected areas:")
-                for area in st.session_state.selected_areas:
-                    st.write(f"- {area}")
-            
-            # Add buttons side by side
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("Skip", type="secondary", key="skip_button"):
-                    st.session_state.focus_container_expanded = False
-                    st.session_state.selected_focus_areas = []
-                    st.session_state.stage = 'analysis'
-                    st.rerun()
-            with col2:
-                if num_selected <= 5:
-                    if st.button("Continue", type="primary", key="continue_button"):
-                        st.session_state.focus_container_expanded = False
-                        st.session_state.selected_focus_areas = st.session_state.selected_areas
-                        st.session_state.stage = 'analysis'
-                        st.rerun()
+        if num_selected > 0:
+            st.success(f"✅ Selected {num_selected} focus area{'s' if num_selected > 1 else ''}")
+            st.write("Selected areas:")
+            for area in selected:
+                st.write(f"- {area}")
+        
+        # Add buttons side by side
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Skip", type="secondary", key="skip_button"):
+                st.session_state.focus_container_expanded = False
+                st.session_state.selected_focus_areas = []
+                st.session_state.stage = 'analysis'
+                st.rerun()
+        with col2:
+            if st.button("Continue", type="primary", key="continue_button"):
+                st.session_state.focus_container_expanded = False
+                st.session_state.selected_focus_areas = selected
+                st.session_state.stage = 'analysis'
+                st.rerun()
 
 def display_analysis(analysis):
     """Display research analysis."""
