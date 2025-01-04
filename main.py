@@ -307,16 +307,26 @@ def process_stage(stage_name, container, stage_fn, next_stage=None, spinner_text
 
 def validate_and_sanitize_input(topic: str) -> tuple[bool, str, str]:
     """Validate and sanitize user input."""
-    if not topic or len(topic.strip()) == 0:
+    logger.info(f"Validating topic: '{topic}'")
+    
+    # First check if topic is None or empty
+    if topic is None:
+        logger.error("Topic is None")
         return False, "Please enter a topic to analyze.", ""
     
-    if len(topic) > 1000:
-        return False, "Topic is too long. Please keep it under 1000 characters.", ""
+    # Validate the topic
+    is_valid, error_msg = validate_topic(topic)
+    if not is_valid:
+        logger.error(f"Topic validation failed: {error_msg}")
+        return False, error_msg, ""
     
+    # Sanitize the topic
     sanitized = sanitize_topic(topic)
     if not sanitized:
-        return False, "Invalid topic format. Please try again.", ""
+        logger.error("Sanitized topic is empty")
+        return False, "Please enter a valid topic to analyze.", ""
     
+    logger.info(f"Topic validated and sanitized successfully: '{sanitized}'")
     return True, "", sanitized
 
 def handle_error(e: Exception, context: str):
@@ -387,13 +397,17 @@ def main():
     
     # Process submission
     if submit:
+        logger.info(f"Form submitted with topic: '{topic}' and iterations: {iterations}")
         is_valid, error_msg, sanitized_topic = validate_and_sanitize_input(topic)
         if not is_valid:
+            logger.error(f"Topic validation failed: {error_msg}")
             st.error(error_msg)
             return
         
+        logger.info(f"Topic validated successfully. Sanitized topic: '{sanitized_topic}'")
         # Reset state and start analysis
         reset_state(sanitized_topic, iterations)
+        logger.info("State reset, initiating rerun")
         st.rerun()
 
     # Only proceed with analysis if we have a topic

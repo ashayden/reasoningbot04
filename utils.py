@@ -34,17 +34,30 @@ def rate_limit_decorator(func: Callable) -> Callable:
 
 def validate_topic(topic: str) -> Tuple[bool, str]:
     """Validate the input topic string."""
-    if not topic or len(topic.strip()) == 0:
+    if not topic:
         return False, "Topic cannot be empty."
     
-    if len(topic) < MIN_TOPIC_LENGTH:
+    sanitized = topic.strip()
+    if not sanitized:
+        return False, "Topic cannot be empty or contain only whitespace."
+    
+    if len(sanitized) < MIN_TOPIC_LENGTH:
         return False, f"Topic must be at least {MIN_TOPIC_LENGTH} characters long."
     
-    if len(topic) > MAX_TOPIC_LENGTH:
+    if len(sanitized) > MAX_TOPIC_LENGTH:
         return False, f"Topic must be no more than {MAX_TOPIC_LENGTH} characters long."
     
     return True, ""
 
 def sanitize_topic(topic: str) -> str:
     """Clean and sanitize the input topic."""
-    return topic.strip() 
+    if not topic:
+        return ""
+    
+    # Remove leading/trailing whitespace
+    sanitized = topic.strip()
+    
+    # Log the sanitized topic for debugging
+    logger.info(f"Sanitized topic: {sanitized}")
+    
+    return sanitized 
