@@ -48,16 +48,15 @@ class PreAnalysisAgent(BaseAgent):
 1. Did You Know: Share one fascinating, lesser-known fact about the topic. Keep it to a single clear sentence.
 2. Overview: Provide a clear, accessible 2-3 sentence explanation for a general audience. Focus on key points and avoid technical jargon.
 
-Format your response as a Python dictionary with this structure:
-{{"title": "Initial Insights", "subtitle": "Key Discoveries", "content": "Your insights here"}}
+Format your response EXACTLY as a Python dictionary with these two keys:
+{{"did_you_know": "Your fact here", "eli5": "Your overview here"}}
 
-Important formatting rules:
-1. Use only straight quotes (")
-2. No line breaks in the dictionary
-3. Keep the exact keys: title, subtitle, content
-4. Ensure proper dictionary formatting
-5. Avoid nested quotes or special characters
-6. Content should be clear and engaging"""
+Important:
+- Use only straight quotes (")
+- No line breaks in the dictionary
+- Keep the exact keys: did_you_know, eli5
+- Ensure proper dictionary formatting
+- Avoid nested quotes or special characters"""
         
         try:
             result = self.generate_content(prompt, PREANALYSIS_CONFIG)
@@ -66,15 +65,28 @@ Important formatting rules:
                 
             # Clean and parse the response
             result = result.strip()
-            result = result.replace('"', '"').replace('"', '"')
-            result = result.replace("'", "'").replace("'", "'")
+            result = result.replace('"', '"').replace('"', '"')  # Replace curly quotes
+            result = result.replace("'", "'").replace("'", "'")  # Replace curly single quotes
+            result = result.replace('\n', ' ').replace('\r', ' ')  # Remove newlines
             
+            # Safely evaluate the string as a Python dictionary
             insights = eval(result)
             
-            if not isinstance(insights, dict) or not all(key in insights for key in ['title', 'subtitle', 'content']):
-                logger.error("Invalid response format")
+            # Validate the dictionary structure
+            if not isinstance(insights, dict):
+                logger.error("Response is not a dictionary")
                 return None
                 
+            required_keys = {'did_you_know', 'eli5'}
+            if not all(key in insights for key in required_keys):
+                logger.error("Response missing required keys")
+                return None
+                
+            # Clean up values
+            for key in required_keys:
+                if key in insights:
+                    insights[key] = insights[key].strip().strip('"\'').strip()
+            
             return insights
             
         except Exception as e:
@@ -133,7 +145,7 @@ class ResearchAnalyst(BaseAgent):
         
         base_prompt = f"""Topic: {topic}{focus_context}
 {context}
-You are an expert academic researcher conducting an in-depth analysis."""
+You are an expert academic researcher and a leading expert in field of {topic} conducting an in-depth analysis."""
 
         if not previous_analysis:
             # First research loop - Initial comprehensive analysis

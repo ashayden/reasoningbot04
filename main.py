@@ -97,7 +97,7 @@ def initialize_session_state():
     if 'synthesis' not in st.session_state:
         st.session_state.synthesis = None
     if 'iterations' not in st.session_state:
-        st.session_state.iterations = 3
+        st.session_state.iterations = 2
 
 def reset_state():
     """Reset all session state variables."""
@@ -108,7 +108,7 @@ def reset_state():
     st.session_state.selected_focus_areas = []
     st.session_state.analysis_results = []
     st.session_state.synthesis = None
-    st.session_state.iterations = 3
+    st.session_state.iterations = 2
 
 def display_insights(insights):
     """Display insights in proper containers."""
@@ -212,7 +212,7 @@ def process_stage():
                     "Number of Analysis Iterations",
                     min_value=1,
                     max_value=5,
-                    value=3,
+                    value=2,
                     step=1,
                     help="Choose 1-5 iterations. More iterations = deeper insights = longer wait."
                 )
