@@ -232,7 +232,9 @@ def display_synthesis(synthesis: Dict[str, str]) -> None:
         filtered_lines = []
         content_started = False
         for line in lines[start_idx:]:
-            # Skip any lines that contain the title or subtitle with highlighting
+            # Skip any lines that contain "Final Report" or are highlighted title/subtitle
+            if "Final Report" in line:
+                continue
             if not content_started:
                 if line.strip().startswith('Introduction:') or line.strip().startswith('Section 1:'):
                     content_started = True
@@ -244,7 +246,7 @@ def display_synthesis(synthesis: Dict[str, str]) -> None:
         filtered_content = '\n'.join(filtered_lines)
         st.markdown(filtered_content)
         
-        # Create download content
+        # Create download content without "Final Report"
         synthesis_text = f"""# {synthesis.get('title', '')}
 
 *{synthesis.get('subtitle', '')}*

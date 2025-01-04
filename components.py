@@ -43,7 +43,7 @@ def display_insights(insights: Dict[str, str]) -> None:
         
     # Display Did You Know section
     with st.expander("💡 Did You Know?", expanded=True):
-        st.info(insights.get('did_you_know', ''))
+        st.markdown(insights.get('did_you_know', ''))
     
     # Display TL;DR section
     with st.expander("📝 TL;DR", expanded=True):
