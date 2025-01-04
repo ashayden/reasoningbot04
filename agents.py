@@ -698,3 +698,59 @@ class SynthesisExpert(BaseAgent):
         if result:
             return self._format_report(result)
         return None 
+
+class PromptDesigner(BaseAgent):
+    """Agent responsible for designing optimal prompts."""
+    
+    def design_prompt(self, topic: str) -> Optional[str]:
+        """Design an optimized prompt for the given topic."""
+        try:
+            logger.info(f"Designing prompt for topic: '{topic}'")
+            
+            if not topic:
+                logger.error("Empty topic provided to design_prompt")
+                return None
+                
+            if not self.model:
+                logger.error("Model not initialized in PromptDesigner")
+                return None
+            
+            # Generate the prompt
+            prompt = (
+                f"Create a comprehensive research framework for analyzing {topic}. "
+                "Structure it as a markdown document with:\n"
+                "1. Major sections (using level 2 headers)\n"
+                "2. Subsections as bullet points\n"
+                "3. Include methodological considerations\n"
+                "4. Focus on academic rigor and practical relevance\n"
+                "Format as clean markdown without explanatory text."
+            )
+            logger.info(f"Sending prompt design request to model: {prompt}")
+            
+            try:
+                logger.info("Attempting to generate optimized prompt")
+                generation_config = GenerationConfig(**PREANALYSIS_CONFIG)
+                logger.info(f"Using generation config: {generation_config}")
+                
+                response = self.model.generate_content(
+                    prompt,
+                    generation_config=generation_config
+                )
+                logger.info("Received prompt design response from model")
+                
+                if not response or not hasattr(response, 'text'):
+                    logger.error("Invalid prompt design response from model")
+                    return None
+                
+                # Clean up the response
+                optimized_prompt = response.text.strip()
+                logger.info("Successfully generated optimized prompt")
+                return optimized_prompt
+                
+            except Exception as e:
+                logger.error(f"Error during model generation: {str(e)}", exc_info=True)
+                return None
+            
+        except Exception as e:
+            logger.error(f"Error designing prompt: {str(e)}", exc_info=True)
+            return None 
