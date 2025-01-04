@@ -207,11 +207,17 @@ FORMATTING REQUIREMENTS:
    - Use active voice
    - Keep paragraphs focused
 
-IMPORTANT: Return your response in this exact format (do not modify the structure):
+RESPONSE FORMAT:
+Create a JSON object with three fields:
+1. title: A unique, descriptive title for your analysis
+2. subtitle: An engaging subtitle that previews key insights
+3. content: Your analysis with proper markdown formatting
+
+Example structure (DO NOT COPY THE CONTENT, ONLY THE STRUCTURE):
 {
-    "title": "Main Title Here",
-    "subtitle": "Subtitle Here",
-    "content": "### Key Findings and Evidence\\n\\n• **Finding 1:** Details...\\n\\n### Detailed Analysis\\n\\n• **Analysis 1:** Details..."
+    "title": "Urban Transformation: A City in Motion",
+    "subtitle": "Examining the Forces of Change and Adaptation",
+    "content": "### Key Findings and Evidence\\n\\n• **Economic Growth:** The city's GDP grew by 12% in 2024...\\n\\n### Detailed Analysis\\n\\n• **Market Forces:** Analysis of economic indicators shows..."
 }"""
 
         if not previous_analysis:
@@ -249,9 +255,9 @@ Focus your deeper analysis on:
             # Clean and parse the response
             result = result.strip()
             
-            # First, try to find the dictionary structure
+            # Extract the dictionary part using regex
             import re
-            dict_match = re.search(r'\{[^}]+\}', result)
+            dict_match = re.search(r'\{[\s\S]*\}', result)
             if not dict_match:
                 logger.error("Could not find dictionary structure in response")
                 return None
@@ -259,15 +265,17 @@ Focus your deeper analysis on:
             dict_str = dict_match.group(0)
             
             # Clean up the dictionary string
-            dict_str = dict_str.replace('\n', '\\n')  # Escape newlines properly
-            dict_str = dict_str.replace('"', '\\"')   # Escape quotes
-            dict_str = dict_str.replace("'", '"')     # Replace single quotes with double quotes
+            dict_str = dict_str.replace('\n', ' ')  # Remove newlines temporarily
+            dict_str = dict_str.replace('\\n', '__NEWLINE__')  # Preserve intended newlines
+            dict_str = re.sub(r'(?<!\\)"', '\\"', dict_str)  # Escape unescaped quotes
+            dict_str = dict_str.replace("'", '"')  # Replace single quotes with double quotes
             
-            # Safely evaluate the string as a Python dictionary
+            # Parse the dictionary
             try:
-                analysis = eval(dict_str)
-            except:
-                logger.error("Failed to parse response as dictionary")
+                import json
+                analysis = json.loads(dict_str)
+            except json.JSONDecodeError:
+                logger.error("Failed to parse response as JSON")
                 return None
             
             # Validate the dictionary structure
@@ -280,24 +288,19 @@ Focus your deeper analysis on:
                 logger.error("Response missing required keys")
                 return None
                 
-            # Clean up values and ensure they're strings
+            # Clean up values and restore newlines
             cleaned_analysis = {}
             for key in required_keys:
                 if key in analysis:
                     value = str(analysis[key])
-                    # Unescape newlines for content
                     if key == 'content':
-                        value = value.replace('\\n', '\n')
+                        # Restore newlines and format content
+                        value = value.replace('__NEWLINE__', '\n')
+                        # Ensure proper section spacing
+                        value = re.sub(r'###\s*', '\n\n### ', value)
+                        value = re.sub(r'•\s*', '\n• ', value)
+                        value = re.sub(r'\n{3,}', '\n\n', value)
                     cleaned_analysis[key] = value.strip()
-            
-            # Format the content with proper spacing
-            if 'content' in cleaned_analysis:
-                content = cleaned_analysis['content']
-                # Ensure proper section spacing
-                content = re.sub(r'###\s*', '\n\n### ', content)  # Add space before headings
-                content = re.sub(r'•\s*', '\n• ', content)        # Add space before bullet points
-                content = re.sub(r'\n{3,}', '\n\n', content)      # Remove extra blank lines
-                cleaned_analysis['content'] = content.strip()
             
             return cleaned_analysis
             
