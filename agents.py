@@ -134,7 +134,7 @@ class BaseAgent:
             raise
 
 class PreAnalysisAgent(BaseAgent):
-    """Agent responsible for generating quick insights before main analysis."""
+    """Agent responsible for initial analysis and insights."""
     
     @rate_limit_decorator
     def generate_insights(self, topic: str) -> Optional[Dict[str, str]]:
@@ -145,7 +145,7 @@ class PreAnalysisAgent(BaseAgent):
             if not topic:
                 logger.error("Empty topic provided to generate_insights")
                 return None
-            
+                
             if not self.model:
                 logger.error("Model not initialized in PreAnalysisAgent")
                 return None
@@ -203,7 +203,7 @@ class PreAnalysisAgent(BaseAgent):
         except Exception as e:
             logger.error(f"Error generating insights: {str(e)}", exc_info=True)
             return None
-
+            
     @rate_limit_decorator
     def generate_focus_areas(self, topic: str) -> Optional[List[str]]:
         """Generate focus areas for analysis."""
