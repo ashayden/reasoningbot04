@@ -212,20 +212,46 @@ def display_synthesis(synthesis: Dict[str, str]) -> None:
         return
         
     with st.expander("📊 Final Synthesis Report", expanded=False):
-        st.markdown("## Final Report")
+        # Display title and subtitle
         st.markdown(f"# {synthesis.get('title', '')}")
         st.markdown(f"*{synthesis.get('subtitle', '')}*")
         st.markdown("---")
-        st.markdown(synthesis.get('content', ''))
+        
+        # Get the content and remove any duplicate title/subtitle that might appear at the start
+        content = synthesis.get('content', '')
+        lines = content.split('\n')
+        
+        # Find where the actual content begins (after title/subtitle/intro)
+        start_idx = 0
+        for i, line in enumerate(lines):
+            if line.strip().startswith('Introduction:') or line.strip().startswith('Section 1:'):
+                start_idx = i
+                break
+        
+        # Filter out any highlighted title/subtitle from the content
+        filtered_lines = []
+        content_started = False
+        for line in lines[start_idx:]:
+            # Skip any lines that contain the title or subtitle with highlighting
+            if not content_started:
+                if line.strip().startswith('Introduction:') or line.strip().startswith('Section 1:'):
+                    content_started = True
+                    filtered_lines.append(line)
+            else:
+                filtered_lines.append(line)
+        
+        # Join the filtered lines and display
+        filtered_content = '\n'.join(filtered_lines)
+        st.markdown(filtered_content)
         
         # Create download content
         synthesis_text = f"""# {synthesis.get('title', '')}
-        
+
 *{synthesis.get('subtitle', '')}*
 
 ---
 
-{synthesis.get('content', '')}
+{filtered_content}
 """
         # Use a unique key for the download button to prevent rerun
         st.download_button(
@@ -245,6 +271,11 @@ def display_research_analysis(analysis: Dict[str, str], index: int) -> None:
     brief_title = analysis.get('title', '').split(':')[-1].strip() if ':' in analysis.get('title', '') else analysis.get('title', '')
     
     with st.expander(f"📚 Research Analysis #{index + 1}: {brief_title}", expanded=False):
+        # Display title and subtitle
+        st.markdown(f"# {analysis.get('title', '')}")
+        st.markdown(f"*{analysis.get('subtitle', '')}*")
+        st.markdown("---")
+        
         # Get the content and remove any duplicate title/subtitle that might appear at the start
         content = analysis.get('content', '')
         lines = content.split('\n')
@@ -256,13 +287,20 @@ def display_research_analysis(analysis: Dict[str, str], index: int) -> None:
                 start_idx = i
                 break
         
-        # Display title and subtitle once at the top
-        st.markdown(f"# {analysis.get('title', '')}")
-        st.markdown(f"*{analysis.get('subtitle', '')}*")
-        st.markdown("---")
+        # Filter out any highlighted title/subtitle from the content
+        filtered_lines = []
+        content_started = False
+        for line in lines[start_idx:]:
+            # Skip any lines that contain the title or subtitle with highlighting
+            if not content_started:
+                if line.strip().startswith('Introduction:') or line.strip().startswith('Section 1:'):
+                    content_started = True
+                    filtered_lines.append(line)
+            else:
+                filtered_lines.append(line)
         
-        # Join the remaining lines and display
-        filtered_content = '\n'.join(lines[start_idx:])
+        # Join the filtered lines and display
+        filtered_content = '\n'.join(filtered_lines)
         st.markdown(filtered_content)
 
 def main():
