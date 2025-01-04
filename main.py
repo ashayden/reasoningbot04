@@ -503,7 +503,11 @@ def display_focus_areas(focus_areas):
         st.error("Failed to load focus areas. Please try again.")
         return
     
-    with st.expander("🎯 Focus Areas", expanded=True):
+    # Track container state in session state
+    if 'focus_container_expanded' not in st.session_state:
+        st.session_state.focus_container_expanded = True
+    
+    with st.expander("🎯 Focus Areas", expanded=st.session_state.focus_container_expanded):
         st.write("Choose up to 5 areas to focus your analysis on (optional):")
         
         # Initialize selected_areas if not present
@@ -539,13 +543,15 @@ def display_focus_areas(focus_areas):
             # Add buttons side by side
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("Skip Focus Areas", type="secondary"):
+                if st.button("Skip", type="secondary"):
+                    st.session_state.focus_container_expanded = False
                     st.session_state.app_state['focus_selection_complete'] = True
                     st.session_state.app_state['show_framework'] = True
                     st.rerun()
             with col2:
                 if num_selected <= 5:
-                    if st.button("Continue with Selected Areas", type="primary"):
+                    if st.button("Continue", type="primary"):
+                        st.session_state.focus_container_expanded = False
                         st.session_state.app_state['focus_selection_complete'] = True
                         st.session_state.app_state['show_framework'] = True
                         st.rerun()
