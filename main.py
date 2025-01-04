@@ -10,8 +10,7 @@ from utils import validate_topic, sanitize_topic, QuotaExceededError
 from agents import PreAnalysisAgent, ResearchAnalyst, SynthesisExpert
 from state import AppState
 from components import (
-    display_logo, input_form, display_insights, display_focus_areas,
-    display_research_analysis, display_synthesis
+    display_logo, input_form, display_insights, display_focus_areas
 )
 
 # Configure logging
