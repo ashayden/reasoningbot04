@@ -18,6 +18,50 @@ from utils import rate_limit_decorator
 
 logger = logging.getLogger(__name__)
 
+def parse_title_content(text: str) -> Dict[str, str]:
+    """Parse title and content from analysis text.
+    
+    Args:
+        text: Raw text containing title and content.
+        
+    Returns:
+        Dictionary with 'title', 'subtitle', and 'content' keys.
+    """
+    lines = text.split('\n')
+    result = {
+        'title': '',
+        'subtitle': '',
+        'content': ''
+    }
+    
+    content_lines = []
+    found_title = False
+    found_subtitle = False
+    
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+            
+        # Look for title
+        if not found_title and line.lower().startswith('title:'):
+            result['title'] = line.split(':', 1)[1].strip()
+            found_title = True
+            continue
+            
+        # Look for subtitle
+        if found_title and not found_subtitle and line.lower().startswith('subtitle:'):
+            result['subtitle'] = line.split(':', 1)[1].strip()
+            found_subtitle = True
+            continue
+            
+        # Everything else is content
+        if found_title:  # Only start collecting content after title
+            content_lines.append(line)
+    
+    result['content'] = '\n'.join(content_lines).strip()
+    return result
+
 class BaseAgent:
     """Base class for all agents."""
     

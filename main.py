@@ -30,26 +30,30 @@ st.markdown("""
 }
 
 .stButton > button { 
-    width: 100%; 
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
 }
 
 /* Focus area buttons */
 [data-testid="baseButton-secondary"] {
-    background-color: rgba(30, 30, 30, 0.6) !important;
-    border: 1px solid #333 !important;
-    color: white !important;
+    background-color: #f8f9fa !important;
+    border: 1px solid #dee2e6 !important;
+    color: #2c3338 !important;
     padding: 0.75rem !important;
     min-height: 3rem !important;
     transition: all 0.2s ease !important;
 }
 
 [data-testid="baseButton-secondary"]:hover {
-    background-color: rgba(42, 42, 42, 0.8) !important;
-    border-color: #444 !important;
+    background-color: #e9ecef !important;
+    border-color: #ced4da !important;
 }
 
 [data-testid="baseButton-primary"] {
-    background-color: rgba(0, 102, 204, 0.2) !important;
+    background-color: rgba(0, 102, 204, 0.1) !important;
     border: 1px solid #0066cc !important;
     box-shadow: 0 0 0 1px #0066cc !important;
     color: #0066cc !important;
@@ -60,14 +64,14 @@ st.markdown("""
 }
 
 [data-testid="baseButton-primary"]:hover {
-    background-color: rgba(0, 102, 204, 0.3) !important;
+    background-color: rgba(0, 102, 204, 0.2) !important;
 }
 
 [data-testid="baseButton-primary"]:disabled {
-    background-color: #1E1E1E !important;
-    border-color: #333 !important;
+    background-color: #f8f9fa !important;
+    border-color: #dee2e6 !important;
     box-shadow: none !important;
-    color: #4a4a4a !important;
+    color: #6c757d !important;
     cursor: not-allowed !important;
 }
 
@@ -85,26 +89,26 @@ textarea {
     line-height: 1.5 !important;
     padding: 0.5em !important;
     height: 150px !important;
-    background-color: #1E1E1E !important;
-    border: 1px solid #333 !important;
-    color: #fff !important;
+    background-color: #ffffff !important;
+    border: 1px solid #dee2e6 !important;
+    color: #2c3338 !important;
 }
 
 /* Number input styling */
 div[data-testid="stNumberInput"] input {
-    color: #fff !important;
-    background-color: #1E1E1E !important;
-    border: 1px solid #333 !important;
+    color: #2c3338 !important;
+    background-color: #ffffff !important;
+    border: 1px solid #dee2e6 !important;
 }
 
 div[data-testid="stNumberInput"] button {
-    background-color: #333 !important;
-    border: none !important;
-    color: #fff !important;
+    background-color: #f8f9fa !important;
+    border: 1px solid #dee2e6 !important;
+    color: #2c3338 !important;
 }
 
 div[data-testid="stNumberInput"] button:hover {
-    background-color: #444 !important;
+    background-color: #e9ecef !important;
 }
 </style>
 """, unsafe_allow_html=True)
