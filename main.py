@@ -469,16 +469,16 @@ def main():
         
         # Process each stage
         if st.session_state.app_state['show_insights']:
+            # Generate insights
             process_stage('insights', containers['insights'],
                          lambda **kwargs: PreAnalysisAgent(model).generate_insights(st.session_state.app_state['topic']),
-                         'prompt', spinner_text="💡 Generating insights...",
+                         'focus', spinner_text="💡 Generating insights...",
                          display_fn=display_insights)
-        
-        # Process prompt silently in background
-        if st.session_state.app_state['show_prompt']:
-            optimized_prompt = PromptDesigner(model).design_prompt(st.session_state.app_state['topic'])
-            st.session_state.app_state['prompt'] = optimized_prompt
-            st.session_state.app_state['show_focus'] = True
+            
+            # Generate prompt silently in the background if not already generated
+            if not st.session_state.app_state.get('prompt'):
+                optimized_prompt = PromptDesigner(model).design_prompt(st.session_state.app_state['topic'])
+                st.session_state.app_state['prompt'] = optimized_prompt
         
         if st.session_state.app_state['show_focus']:
             process_stage('focus', containers['focus'],
