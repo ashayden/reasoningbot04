@@ -215,10 +215,15 @@ class ResearchAnalyst(BaseAgent):
         """Conduct analysis based on framework and previous findings."""
         context = f"Previous Analysis:\n{previous_analysis}\n\n" if previous_analysis else ""
         
-        prompt = f"""Topic: {topic}
+        base_prompt = f"""Topic: {topic}
 Framework: {framework}
 {context}
-Using the provided research framework as your guide, conduct a thorough analysis that:
+You are an expert academic researcher and nobel-laureate in the field of {topic}."""
+
+        if not previous_analysis:
+            # First research loop - Focus on framework-based analysis
+            prompt = base_prompt + """
+Using the provided research framework as your guide, conduct a thorough foundational analysis that:
 
 1. Addresses the primary and secondary research questions outlined in the Research Objectives
 2. Follows the specified research methods and analysis techniques from the Methodology section
@@ -226,14 +231,30 @@ Using the provided research framework as your guide, conduct a thorough analysis
 4. Applies the theoretical framework and examines key concept relationships
 5. Considers critical perspectives, including assumptions and limitations
 
-Your analysis should build upon any previous findings while generating new insights.
+Focus on establishing a strong analytical foundation based on the framework."""
+        else:
+            # Subsequent research loops - Build upon previous analysis
+            prompt = base_prompt + """
+Building upon the previous analysis, conduct a deeper investigation that:
+
+1. Identifies emerging patterns and themes from the previous findings
+2. Explores more nuanced relationships between concepts
+3. Uncovers hidden connections and second-order effects
+4. Challenges assumptions made in earlier analysis
+5. Synthesizes insights into novel perspectives
+6. Examines the topic through unconventional theoretical lenses
+7. Proposes creative hypotheses based on observed patterns
+
+Your analysis should progressively become more sophisticated, seeking deeper insights and more complex interconnections with each iteration."""
+
+        prompt += """
 
 Format your response EXACTLY as a Python dictionary with three keys:
-{{
+{
     "title": "A clear, concise title for this analysis phase",
     "subtitle": "A brief subtitle highlighting key focus",
     "content": "Your detailed analysis in markdown format"
-}}
+}"""
 
 Important:
 - Use only straight quotes (")
