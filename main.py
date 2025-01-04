@@ -449,7 +449,7 @@ def main():
                 ),
                 'analysis',
                 "🔨 Building analysis framework...",
-                lambda x: st.expander("🎯 Research Framework", expanded=True).markdown(x)
+                lambda x: st.expander("📄 Research Framework", expanded=False).markdown(x)
             )
             
             # Ensure analysis stage is shown after framework
