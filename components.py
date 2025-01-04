@@ -41,11 +41,10 @@ def display_insights(insights: Dict[str, str]) -> None:
     if not insights:
         return
         
-    st.markdown("## 💡 Initial Insights")
-    
     with st.expander("💡 Initial Insights", expanded=True):
-        st.info(f"**Did you know?** {insights.get('did_you_know', '')}")
-        st.markdown("### Overview")
+        st.markdown("## Did You Know?")
+        st.info(insights.get('did_you_know', ''))
+        st.markdown("## TL;DR")
         st.markdown(insights.get('eli5', ''))
 
 def display_focus_areas(state, handle_continue: Callable, handle_skip: Callable) -> None:
@@ -53,31 +52,34 @@ def display_focus_areas(state, handle_continue: Callable, handle_skip: Callable)
     if not state.focus_areas:
         return
         
-    st.markdown("## 🎯 Research Focus Areas")
-    
-    with st.expander("🎯 Focus Areas", expanded=state.focus_container_expanded):
-        st.markdown("""
-        Select up to 5 areas to focus the research on, or skip to analyze all areas.
-        """)
-        
-        # Create columns for focus area selection
-        cols = st.columns(2)
-        selected = []
-        
-        for i, area in enumerate(state.focus_areas):
-            with cols[i % 2]:
-                if st.checkbox(area, key=f"focus_{i}"):
-                    selected.append(area)
-        
-        st.markdown("---")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("Skip", key="skip_focus", type="secondary"):
-                handle_skip()
-        with col2:
-            if st.button("Continue", key="continue_focus", type="primary", disabled=len(selected) > 5):
-                handle_continue(selected)
-                
-        if len(selected) > 5:
-            st.warning("Please select no more than 5 focus areas.") 
+    with st.expander("🎯 Research Focus Areas", expanded=state.focus_container_expanded):
+        if state.selected_focus_areas:
+            # Display selected focus areas as a list
+            st.markdown("## Selected Focus Areas")
+            for area in state.selected_focus_areas:
+                st.markdown(f"• {area}")
+        else:
+            st.markdown("## Select Focus Areas")
+            st.markdown("Select up to 5 areas to focus the research on, or skip to analyze all areas.")
+            
+            # Create columns for focus area selection
+            cols = st.columns(2)
+            selected = []
+            
+            for i, area in enumerate(state.focus_areas):
+                with cols[i % 2]:
+                    if st.checkbox(area, key=f"focus_{i}"):
+                        selected.append(area)
+            
+            st.markdown("---")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("Skip", key="skip_focus", type="secondary"):
+                    handle_skip()
+            with col2:
+                if st.button("Continue", key="continue_focus", type="primary", disabled=len(selected) > 5):
+                    handle_continue(selected)
+                    
+            if len(selected) > 5:
+                st.warning("Please select no more than 5 focus areas.") 

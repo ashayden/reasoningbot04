@@ -211,10 +211,8 @@ def display_synthesis(synthesis: Dict[str, str]) -> None:
     if not synthesis:
         return
         
-    st.markdown("## 📊 Final Synthesis Report")
-    
-    with st.expander("📊 Final Report", expanded=False):
-        # Display title and subtitle
+    with st.expander("📊 Final Synthesis Report", expanded=False):
+        st.markdown("## Final Report")
         st.markdown(f"# {synthesis.get('title', '')}")
         st.markdown(f"*{synthesis.get('subtitle', '')}*")
         st.markdown("---")
@@ -246,9 +244,7 @@ def display_research_analysis(analysis: Dict[str, str], index: int) -> None:
     # Create a brief summary from the title for the progress indicator
     brief_title = analysis.get('title', '').split(':')[-1].strip() if ':' in analysis.get('title', '') else analysis.get('title', '')
     
-    st.markdown(f"## 📚 Research Analysis #{index + 1}: {brief_title}")
-    
-    with st.expander(f"📚 Research Analysis #{index + 1}", expanded=False):
+    with st.expander(f"📚 Research Analysis #{index + 1}: {brief_title}", expanded=False):
         # Get the content and remove any duplicate title/subtitle that might appear at the start
         content = analysis.get('content', '')
         lines = content.split('\n')
