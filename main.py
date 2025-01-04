@@ -111,64 +111,86 @@ def reset_state():
     st.session_state.iterations = 3
 
 def display_insights(insights):
-    """Display research insights."""
+    """Display insights in proper containers."""
     if insights:
-        st.markdown(f"## {insights['title']}")
-        st.markdown(f"*{insights['subtitle']}*")
-        st.markdown(insights['content'])
+        with st.container():
+            with st.expander("💡 Did You Know?", expanded=True):
+                st.markdown(insights['did_you_know'])
+            
+            with st.expander("⚡ Overview", expanded=True):
+                st.markdown(insights['eli5'])
 
 def display_focus_areas(focus_areas):
-    """Display and handle focus area selection."""
-    if focus_areas:
-        with st.expander("🎯 Select Focus Areas (Optional)", expanded=True):
-            st.write("Choose 0-5 areas to focus the research:")
-            
-            # Create columns for focus area selection
-            cols = st.columns(2)
-            selected = []
-            for i, area in enumerate(focus_areas):
-                col_idx = i % 2
-                with cols[col_idx]:
-                    if st.checkbox(area, key=f"focus_{area}"):
-                        selected.append(area)
-                    if len(selected) >= 5:
-                        break
-            
-            # Show selection status
-            st.markdown("---")
-            num_selected = len(selected)
-            
+    """Display focus areas for selection."""
+    if not focus_areas:
+        st.error("Failed to load focus areas. Please try again.")
+        return
+    
+    # Track container state in session state
+    if 'focus_container_expanded' not in st.session_state:
+        st.session_state.focus_container_expanded = True
+    
+    with st.expander("🎯 Focus Areas", expanded=st.session_state.focus_container_expanded):
+        st.write("Choose up to 5 areas to focus your analysis on (optional):")
+        
+        # Initialize selected_areas if not present
+        if 'selected_areas' not in st.session_state:
+            st.session_state.selected_areas = []
+        
+        # Create columns for focus area selection
+        cols = st.columns(2)
+        for i, area in enumerate(focus_areas):
+            col_idx = i % 2
+            with cols[col_idx]:
+                key = f"focus_area_{i}"
+                is_selected = area in st.session_state.selected_areas
+                if st.checkbox(area, value=is_selected, key=key):
+                    if area not in st.session_state.selected_areas:
+                        st.session_state.selected_areas.append(area)
+                elif area in st.session_state.selected_areas:
+                    st.session_state.selected_areas.remove(area)
+        
+        # Show selection status
+        st.markdown("---")
+        num_selected = len(st.session_state.selected_areas)
+        
+        if num_selected > 5:
+            st.warning("⚠️ Please select no more than 5 focus areas")
+        else:
             if num_selected > 0:
-                st.success(f"✅ Selected {num_selected} focus area{'s' if num_selected > 1 else ''}")
+                st.success(f"✅ You have selected {num_selected} focus area{'s' if num_selected > 1 else ''}")
                 st.write("Selected areas:")
-                for area in selected:
+                for area in st.session_state.selected_areas:
                     st.write(f"- {area}")
             
             # Add buttons side by side
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("Skip", type="secondary"):
+                if st.button("Skip", type="secondary", key="skip_button"):
+                    st.session_state.focus_container_expanded = False
                     st.session_state.selected_focus_areas = []
                     st.session_state.stage = 'analysis'
                     st.rerun()
             with col2:
-                if st.button("Continue", type="primary"):
-                    st.session_state.selected_focus_areas = selected
-                    st.session_state.stage = 'analysis'
-                    st.rerun()
+                if num_selected <= 5:
+                    if st.button("Continue", type="primary", key="continue_button"):
+                        st.session_state.focus_container_expanded = False
+                        st.session_state.selected_focus_areas = st.session_state.selected_areas
+                        st.session_state.stage = 'analysis'
+                        st.rerun()
 
 def display_analysis(analysis):
     """Display research analysis."""
     if analysis:
-        with st.expander(f"📊 {analysis['title']}", expanded=True):
+        with st.expander(f"🔄 {analysis['title']}", expanded=True):
             st.markdown(f"*{analysis['subtitle']}*")
             st.markdown(analysis['content'])
 
 def display_synthesis(synthesis):
     """Display research synthesis."""
     if synthesis:
-        st.markdown("## 📑 Final Research Synthesis")
-        st.markdown(synthesis)
+        with st.expander("📊 Final Research Synthesis", expanded=True):
+            st.markdown(synthesis)
 
 def process_stage():
     """Process the current stage of research."""
@@ -181,20 +203,25 @@ def process_stage():
             
             with st.form("topic_form"):
                 topic = st.text_area(
-                    "Research Topic:",
+                    "What would you like to explore?",
                     help="Enter your research topic or question.",
                     placeholder="e.g., 'Examine the impact of artificial intelligence on healthcare...'"
                 )
                 
                 iterations = st.number_input(
-                    "Number of Research Iterations",
+                    "Number of Analysis Iterations",
                     min_value=1,
                     max_value=5,
                     value=3,
+                    step=1,
                     help="Choose 1-5 iterations. More iterations = deeper insights = longer wait."
                 )
                 
-                submitted = st.form_submit_button("🚀 Start Analysis", use_container_width=True)
+                submitted = st.form_submit_button(
+                    "🚀 Start Analysis",
+                    use_container_width=True,
+                    type="primary"
+                )
                 
                 if submitted and topic:
                     if validate_topic(topic):
