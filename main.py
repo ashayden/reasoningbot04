@@ -117,6 +117,16 @@ div[data-testid="stNumberInput"] button:hover {
 # Logo/Header
 st.image("assets/mara-logo.png", use_container_width=True)
 
+# Initialize model early
+@st.cache_resource
+def get_model():
+    return initialize_gemini()
+
+model = get_model()
+if not model:
+    st.error("Failed to initialize the AI model. Please check your API key in Streamlit secrets and try again.")
+    st.stop()
+
 def initialize_state():
     """Initialize the application state."""
     return {
@@ -253,6 +263,89 @@ def process_stage(stage_name, container, stage_fn, next_stage=None, spinner_text
                 st.rerun()
     elif display_fn and st.session_state.app_state.get(stage_name) is not None:
         display_fn(st.session_state.app_state[stage_name])
+
+def initialize_gemini():
+    """Initialize the Gemini model with caching."""
+    try:
+        # Check if API key exists in secrets
+        if "GOOGLE_API_KEY" not in st.secrets:
+            st.error("Google API key not found in Streamlit secrets.")
+            logger.error("Google API key not found in secrets")
+            return None
+            
+        api_key = st.secrets["GOOGLE_API_KEY"]
+        if not api_key:
+            st.error("Google API key is empty. Please check your Streamlit secrets.")
+            logger.error("Google API key is empty")
+            return None
+            
+        # Configure the API
+        genai.configure(api_key=api_key)
+        
+        try:
+            # Initialize the model
+            model = genai.GenerativeModel(GEMINI_MODEL)
+            logger.info("Successfully initialized Gemini model")
+            return model
+                
+        except Exception as e:
+            if "429" in str(e):
+                st.error("API quota exceeded. Please wait a few minutes and try again.")
+                logger.error("API quota exceeded during initialization")
+            else:
+                st.error(f"Failed to initialize Gemini model: {str(e)}")
+                logger.error(f"Failed to initialize or test Gemini model: {str(e)}")
+            return None
+            
+    except Exception as e:
+        st.error(f"Failed to initialize Gemini API: {str(e)}")
+        logger.error(f"Failed to initialize Gemini API: {str(e)}")
+        return None
+
+def validate_and_sanitize_input(topic: str) -> tuple[bool, str, str]:
+    """Validate and sanitize user input."""
+    if not topic or len(topic.strip()) == 0:
+        return False, "Please enter a topic to analyze.", ""
+    
+    if len(topic) > 1000:
+        return False, "Topic is too long. Please keep it under 1000 characters.", ""
+    
+    sanitized = sanitize_topic(topic)
+    if not sanitized:
+        return False, "Invalid topic format. Please try again.", ""
+    
+    return True, "", sanitized
+
+def handle_error(e: Exception, context: str):
+    """Handle errors consistently."""
+    error_msg = f"Error during {context}: {str(e)}"
+    logger.error(error_msg)
+    
+    # Handle quota exceeded errors with clear user feedback
+    if isinstance(e, QuotaExceededError):
+        st.error("⚠️ API quota limit reached. Please wait 5 minutes before trying again.")
+        st.info("💡 This helps ensure fair usage of the API for all users.")
+        # Disable the form temporarily
+        st.session_state.form_disabled = True
+        # Schedule re-enable after 5 minutes
+        st.session_state.quota_reset_time = time.time() + 300  # 5 minutes
+        return
+    
+    # Provide user-friendly error message for other errors
+    user_msg = {
+        'insights': "Failed to generate initial insights. Please try again.",
+        'prompt': "Failed to optimize the prompt. Please try again.",
+        'focus': "Failed to generate focus areas. Please try again.",
+        'framework': "Failed to build analysis framework. Please try again.",
+        'analysis': "Failed during analysis. Please try again.",
+        'summary': "Failed to generate final report. Please try again."
+    }.get(context, "An unexpected error occurred. Please try again.")
+    
+    st.error(user_msg)
+    
+    # Reset state for the current stage
+    if context in st.session_state.app_state:
+        st.session_state.app_state[context] = None
 
 def main():
     """Main application flow."""
