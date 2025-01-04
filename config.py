@@ -1,7 +1,7 @@
 """Configuration settings for the MARA application."""
 
 # Model configuration
-GEMINI_MODEL = "gemini-exp-1206"
+GEMINI_MODEL = "gemini-pro"
 
 # Generation configurations
 PREANALYSIS_CONFIG = {
@@ -34,6 +34,11 @@ SYNTHESIS_CONFIG = {
     "candidate_count": 1,
     "max_output_tokens": 8192
 }
+
+# Analysis temperature settings
+ANALYSIS_BASE_TEMP = 0.7
+ANALYSIS_TEMP_INCREMENT = 0.1
+ANALYSIS_MAX_TEMP = 0.9
 
 # Input validation
 MIN_TOPIC_LENGTH = 3
