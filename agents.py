@@ -274,60 +274,126 @@ Important Formatting Rules:
 class SynthesisExpert(BaseAgent):
     """Agent responsible for synthesizing findings into a thesis-driven report."""
     
-    def synthesize(self, topic: str, analysis_results: List[str]) -> Optional[str]:
-        """Synthesize analysis results into a thesis-driven report."""
-        prompt = f"""Topic: {topic}
-Analysis Results: {analysis_results}
-
-Create a compelling, narrative-driven synthesis that weaves together the research findings into a cohesive argument. Your synthesis should be both academically rigorous and engaging to read.
-
-Structure your synthesis as follows:
-
-1. Executive Summary (2-3 paragraphs)
-- Open with an engaging hook that captures the significance of the topic
-- Present your main thesis clearly and compellingly
-- Preview the key themes and findings
-- Highlight the broader implications
-
-2. Key Findings and Analysis (Multiple sections with clear headings)
-- Present each major finding with supporting evidence
-- Use clear topic sentences and transitions
-- Build connections between different findings
-- Evaluate the significance of each point
-- Use specific examples and evidence
-- Create a clear narrative progression
-
-3. Synthesis of Insights
-- Weave together the major themes
-- Identify patterns and relationships
-- Draw meaningful connections
-- Present novel interpretations
-- Evaluate broader implications
-
-4. Implications and Future Directions
-- Discuss practical applications
-- Identify areas for further research
-- Consider long-term impacts
-- Address potential challenges
-- Propose next steps
-
-Format Guidelines:
-- Use clear section headings (H2 with ##)
-- Include subsections where appropriate (H3 with ###)
-- Use bullet points sparingly and purposefully
-- Create clear paragraph breaks
-- Use markdown formatting for emphasis
-- Maintain a narrative flow throughout
-- Write in an engaging, professional style
-- Balance academic rigor with readability
-
-Remember to:
-- Make explicit connections between ideas
-- Support claims with specific evidence
-- Evaluate significance of findings
-- Consider multiple perspectives
-- Address potential counterarguments
-- Maintain focus on the main thesis
-"""
+    def synthesize(self, topic: str, focus_areas: Optional[List[str]], analyses: List[str]) -> Optional[Dict[str, str]]:
+        """Synthesize multiple analyses into a cohesive report."""
+        # Convert analyses list to formatted string, extracting content from each analysis dict
+        analyses_text = ""
+        for analysis in analyses:
+            try:
+                if isinstance(analysis, dict) and 'content' in analysis:
+                    analyses_text += analysis['content'] + "\n\n"
+                else:
+                    analyses_text += str(analysis) + "\n\n"
+            except Exception as e:
+                logger.error(f"Error processing analysis: {str(e)}")
+                continue
+                
+        focus_context = f"\nSelected Focus Areas:\n{', '.join(focus_areas)}" if focus_areas else ""
         
-        return self.generate_content(prompt, SYNTHESIS_CONFIG) 
+        prompt = f"""Topic: {topic}{focus_context}
+
+Previous Analyses:
+{analyses_text}
+
+You are an expert synthesis writer tasked with creating a compelling, thesis-driven report that weaves together all research findings into a cohesive narrative. Begin with a creative, specific title that captures your synthesis's main argument, followed by an engaging subtitle that previews your key insights.
+
+For example, instead of generic titles like "Research Synthesis" or "Final Report", create titles like:
+"Preserving Soul: A Blueprint for Cultural Sustainability"
+"Urban Evolution: Navigating Change and Tradition"
+"Community Crossroads: Charting a Path Forward"
+
+Your synthesis should:
+1. Present a clear, compelling thesis that emerges from the research
+2. Weave together key findings into a cohesive narrative
+3. Address all primary and secondary research questions
+4. Evaluate the significance of major findings
+5. Draw meaningful connections between different analyses
+6. Provide specific evidence and examples
+7. Offer actionable recommendations
+8. Consider broader implications
+
+Structure your synthesis with:
+1. Title and Subtitle
+- Create a unique, specific title that captures your main argument
+- Add an engaging subtitle that previews key insights
+- Avoid generic labels like "Research Synthesis" or "Final Report"
+
+2. Executive Summary
+- Present your main thesis
+- Preview key findings
+- Highlight major implications
+
+3. Key Findings and Analysis
+- Organize findings thematically
+- Support with specific evidence
+- Draw clear connections
+
+4. Synthesis and Implications
+- Weave findings into a cohesive narrative
+- Evaluate significance
+- Consider broader context
+
+5. Recommendations
+- Provide actionable insights
+- Consider different stakeholders
+- Address key challenges
+
+Format your response as a dictionary with these exact keys:
+{
+    "title": "Your creative, specific title here",
+    "subtitle": "Your engaging, preview subtitle here",
+    "content": "Your detailed synthesis here"
+}
+
+Important Formatting Rules:
+1. Use clear section headings
+2. Format consistently:
+   - Bold for emphasis (**text**)
+   - Italics for subtitles (*text*)
+   - Clear section breaks
+3. Ensure readability:
+   - Clear topic sentences
+   - Logical flow
+   - Professional tone
+4. Support all claims with evidence
+5. Make explicit connections between ideas"""
+        
+        try:
+            result = self.generate_content(prompt, SYNTHESIS_CONFIG)
+            if not result:
+                return None
+                
+            # Clean and parse the response
+            result = result.strip()
+            result = result.replace('"', '"').replace('"', '"')
+            result = result.replace("'", "'").replace("'", "'")
+            result = result.replace('\n', ' ').replace('\r', ' ')
+            
+            try:
+                synthesis = eval(result)
+            except:
+                result = result.replace('"{', '{').replace('}"', '}')
+                synthesis = eval(result)
+            
+            if not isinstance(synthesis, dict):
+                logger.error("Response is not a dictionary")
+                return None
+                
+            required_keys = {'title', 'subtitle', 'content'}
+            if not all(key in synthesis for key in required_keys):
+                logger.error("Response missing required keys")
+                return None
+                
+            cleaned_synthesis = {}
+            for key in required_keys:
+                if key in synthesis:
+                    value = synthesis[key]
+                    if isinstance(value, (dict, list)):
+                        value = str(value)
+                    cleaned_synthesis[key] = str(value).strip().strip('"\'').strip()
+            
+            return cleaned_synthesis
+            
+        except Exception as e:
+            logger.error(f"Error parsing synthesis response: {str(e)}")
+            return None 
