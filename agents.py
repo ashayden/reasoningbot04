@@ -137,9 +137,9 @@ class PreAnalysisAgent(BaseAgent):
             
             # Generate ELI5
             eli5_prompt = (
-                f"Explain {topic} in extremely simple terms. "
-                "Use basic words, 1-3 sentences, and 1-3 emojis. "
-                "Example: New York is a big city with tall buildings and lots of people 🌆. It's famous for its pizza 🍕 and busy streets."
+                f"Provide a clear, direct overview of {topic} in 1-3 sentences. "
+                "Include 1-3 relevant emojis naturally within the text. "
+                "Focus on key points and avoid phrases like 'The question is about'."
             )
             
             logger.info("Generating ELI5 explanation...")
