@@ -198,6 +198,11 @@ class StageProcessor:
                         raise ValueError(f"Failed to generate content for {stage_name}")
                     
                     self.state.set(stage_name, result)
+                    
+                    # Automatically show next stage for insights
+                    if stage_name == 'insights':
+                        self.state.show_stage('focus')
+                    
                     st.rerun()
             
             # Display existing content if available
@@ -207,6 +212,10 @@ class StageProcessor:
                 # Special handling for insights stage
                 if stage_name == 'insights' and not self.state.get('prompt'):
                     self._generate_optimized_prompt()
+                
+                # Special handling for framework stage
+                if stage_name == 'framework':
+                    self.state.show_stage('analysis')
             
         except Exception as e:
             self._handle_error(stage_name, str(e))
@@ -430,21 +439,27 @@ def main():
         
         # Process framework
         if state_manager.is_stage_visible('framework') and state_manager.can_proceed_to_framework():
+            framework_container = st.container()
             stage_processor.process_stage(
                 'framework',
-                st.container(),
+                framework_container,
                 lambda: FrameworkEngineer(model).create_framework(
                     state_manager.get('prompt', ''),
                     state_manager.get('enhanced_prompt')
                 ),
                 'analysis',
                 "🔨 Building analysis framework...",
-                lambda x: st.expander("🎯 Research Framework", expanded=False).markdown(x)
+                lambda x: st.expander("🎯 Research Framework", expanded=True).markdown(x)
             )
+            
+            # Ensure analysis stage is shown after framework
+            if state_manager.get('framework'):
+                state_manager.show_stage('analysis')
         
         # Process analysis
         if state_manager.is_stage_visible('analysis'):
-            stage_processor.process_analysis(st.container())
+            analysis_container = st.container()
+            stage_processor.process_analysis(analysis_container)
         
         # Process summary
         if state_manager.is_stage_visible('summary'):
@@ -481,11 +496,6 @@ def display_insights(insights: dict):
         
         with st.expander("⚡ Overview", expanded=True):
             st.markdown(insights['eli5'])
-        
-        # Add a continue button to explicitly control state transition
-        if st.button("Continue to Focus Areas", type="primary"):
-            st.session_state.app_state['show_focus'] = True
-            st.rerun()
 
 def display_focus_areas(focus_areas):
     """Display focus areas for selection."""
@@ -493,45 +503,52 @@ def display_focus_areas(focus_areas):
         st.error("Failed to load focus areas. Please try again.")
         return
     
-    st.markdown("### 🎯 Focus Areas")
-    st.write("Choose 3-5 areas to focus your analysis on:")
-    
-    # Initialize selected_areas if not present
-    if 'selected_areas' not in st.session_state.app_state:
-        st.session_state.app_state['selected_areas'] = []
-    
-    # Create columns for focus area selection
-    cols = st.columns(2)
-    for i, area in enumerate(focus_areas):
-        col_idx = i % 2
-        with cols[col_idx]:
-            key = f"focus_area_{i}"
-            is_selected = area in st.session_state.app_state['selected_areas']
-            if st.checkbox(area, value=is_selected, key=key):
-                if area not in st.session_state.app_state['selected_areas']:
-                    st.session_state.app_state['selected_areas'].append(area)
-            elif area in st.session_state.app_state['selected_areas']:
-                st.session_state.app_state['selected_areas'].remove(area)
-    
-    # Show selection status
-    st.markdown("---")
-    num_selected = len(st.session_state.app_state['selected_areas'])
-    
-    if num_selected < 3:
-        st.warning("⚠️ Please select at least 3 focus areas")
-    elif num_selected > 5:
-        st.warning("⚠️ Please select no more than 5 focus areas")
-    else:
-        st.success(f"✅ You have selected {num_selected} focus areas")
-        st.write("Selected areas:")
-        for area in st.session_state.app_state['selected_areas']:
-            st.write(f"- {area}")
+    with st.expander("🎯 Focus Areas", expanded=True):
+        st.write("Choose up to 5 areas to focus your analysis on (optional):")
         
-        # Add a confirm button when the selection is valid
-        if st.button("Continue with Selected Areas", type="primary"):
-            st.session_state.app_state['focus_selection_complete'] = True
-            st.session_state.app_state['show_framework'] = True
-            st.rerun()
+        # Initialize selected_areas if not present
+        if 'selected_areas' not in st.session_state.app_state:
+            st.session_state.app_state['selected_areas'] = []
+        
+        # Create columns for focus area selection
+        cols = st.columns(2)
+        for i, area in enumerate(focus_areas):
+            col_idx = i % 2
+            with cols[col_idx]:
+                key = f"focus_area_{i}"
+                is_selected = area in st.session_state.app_state['selected_areas']
+                if st.checkbox(area, value=is_selected, key=key):
+                    if area not in st.session_state.app_state['selected_areas']:
+                        st.session_state.app_state['selected_areas'].append(area)
+                elif area in st.session_state.app_state['selected_areas']:
+                    st.session_state.app_state['selected_areas'].remove(area)
+        
+        # Show selection status
+        st.markdown("---")
+        num_selected = len(st.session_state.app_state['selected_areas'])
+        
+        if num_selected > 5:
+            st.warning("⚠️ Please select no more than 5 focus areas")
+        else:
+            if num_selected > 0:
+                st.success(f"✅ You have selected {num_selected} focus area{'s' if num_selected > 1 else ''}")
+                st.write("Selected areas:")
+                for area in st.session_state.app_state['selected_areas']:
+                    st.write(f"- {area}")
+            
+            # Add buttons side by side
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("Skip Focus Areas", type="secondary"):
+                    st.session_state.app_state['focus_selection_complete'] = True
+                    st.session_state.app_state['show_framework'] = True
+                    st.rerun()
+            with col2:
+                if num_selected <= 5:
+                    if st.button("Continue with Selected Areas", type="primary"):
+                        st.session_state.app_state['focus_selection_complete'] = True
+                        st.session_state.app_state['show_framework'] = True
+                        st.rerun()
 
 if __name__ == "__main__":
     main() 
