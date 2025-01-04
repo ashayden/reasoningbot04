@@ -3,6 +3,7 @@
 import logging
 import streamlit as st
 import google.generativeai as genai
+from typing import Dict
 
 from config import GEMINI_MODEL
 from utils import validate_topic, sanitize_topic, QuotaExceededError
@@ -182,18 +183,27 @@ def display_focus_areas(focus_areas):
                 st.session_state.stage = 'analysis'
                 st.rerun()
 
-def display_analysis(analysis):
-    """Display research analysis."""
-    if analysis:
-        with st.expander(f"🔄 {analysis['title']}", expanded=False):
-            st.markdown(f"*{analysis['subtitle']}*")
-            st.markdown(analysis['content'])
+def display_research_analysis(analysis_data: Dict[str, str]) -> None:
+    """Display research analysis with prominent title."""
+    if not analysis_data:
+        return
+        
+    with st.expander("📚 " + analysis_data["title"], expanded=False):
+        st.markdown(f"### {analysis_data['title']}")
+        st.markdown(f"*{analysis_data['subtitle']}*")
+        st.markdown("---")
+        st.markdown(analysis_data["content"])
 
-def display_synthesis(synthesis):
-    """Display research synthesis."""
-    if synthesis:
-        with st.expander("📊 Final Research Synthesis", expanded=False):
-            st.markdown(synthesis)
+def display_synthesis(synthesis_data: Dict[str, str]) -> None:
+    """Display synthesis report with prominent title."""
+    if not synthesis_data:
+        return
+        
+    with st.expander("📑 " + synthesis_data["title"], expanded=False):
+        st.markdown(f"### {synthesis_data['title']}")
+        st.markdown(f"*{synthesis_data['subtitle']}*")
+        st.markdown("---")
+        st.markdown(synthesis_data["content"])
 
 def process_stage():
     """Process the current stage of research."""
@@ -258,7 +268,7 @@ def process_stage():
         # Display analysis results if available
         if st.session_state.analysis_results:
             for analysis in st.session_state.analysis_results:
-                display_analysis(analysis)
+                display_research_analysis(analysis)
         
         # Process analysis stage
         if st.session_state.stage == 'analysis':

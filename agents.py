@@ -145,42 +145,53 @@ class ResearchAnalyst(BaseAgent):
         
         base_prompt = f"""Topic: {topic}{focus_context}
 {context}
-You are an expert academic researcher conducting an in-depth analysis. Your goal is to provide specific, evidence-based insights that build upon each other."""
+You are an expert academic researcher conducting an in-depth analysis. Your goal is to provide specific, evidence-based insights that build upon each other.
+
+Format your analysis using the following structure:
+
+1. Main Sections (use clear headings)
+- Each section should focus on a key theme or finding
+- Use descriptive headings that indicate the content
+- Maintain consistent heading style
+
+2. Evidence and Examples
+- Each point should be supported by specific evidence
+- Use bullet points for clarity
+- Start each bullet with a clear topic statement in bold
+- Follow with supporting evidence and explanation
+
+3. Connections and Significance
+- After each section, explain connections to other findings
+- Evaluate the significance of observations
+- Draw clear conclusions
+
+4. Final Section: Implications
+- Conclude with clear implications
+- Provide actionable recommendations
+- Consider future impacts"""
 
         if not previous_analysis:
             # First research loop - Initial comprehensive analysis
             prompt = base_prompt + """
-Conduct a thorough initial analysis that:
+
+Focus your analysis on:
 1. Makes specific, concrete observations about the topic
 2. Provides clear evidence to support each observation
 3. Identifies key patterns and relationships
 4. Establishes clear connections between different aspects
-5. Evaluates the significance of your findings
-
-Structure your analysis with:
-- Clear topic sentences for each point
-- Specific examples and evidence
-- Explicit connections between ideas
-- Evaluation of significance
-- Implications of findings"""
+5. Evaluates the significance of your findings"""
         else:
             # Subsequent research loops - Deeper analysis
             prompt = base_prompt + """
-Building upon previous findings, conduct a deeper analysis that:
+
+Focus your deeper analysis on:
 1. Uncovers more nuanced connections
 2. Challenges or validates previous observations with new evidence
 3. Identifies emerging patterns and trends
 4. Explores complex relationships between factors
 5. Evaluates long-term implications
 6. Proposes new interpretative frameworks
-7. Synthesizes insights into novel perspectives
-
-Structure your analysis with:
-- Clear progression from previous findings
-- Specific new evidence and examples
-- Explicit evaluation of relationships
-- Critical analysis of implications
-- Synthesis of new insights"""
+7. Synthesizes insights into novel perspectives"""
 
         prompt += """
 
@@ -191,14 +202,26 @@ Format your response EXACTLY as shown below:
     "content": "Your detailed analysis here"
 }
 
-Important:
-- Use clear topic sentences and transitions
-- Support each point with specific evidence
-- Make explicit connections between ideas
-- Evaluate the significance of findings
-- Use markdown formatting for readability
-- Avoid generalizations - be specific and concrete
-- Do not use nested dictionaries or lists"""
+Important Formatting Rules:
+1. Use clear section headings with proper spacing
+2. Format bullet points consistently:
+   • Start with a bold statement: **Key Point:** followed by evidence
+   • Use proper bullet points (•)
+   • Maintain consistent indentation
+3. Use markdown formatting:
+   - Bold for emphasis (**text**)
+   - Italics for subtitles (*text*)
+   - Clear section breaks (use blank lines)
+4. Maintain consistent structure:
+   - Main sections with headings
+   - Bulleted evidence points
+   - Connection/significance paragraphs
+   - Clear implications section
+5. Ensure readability:
+   - Use clear topic sentences
+   - Provide specific evidence
+   - Create logical flow
+   - Maintain professional tone"""
         
         try:
             # Adjust temperature based on iteration
