@@ -15,6 +15,71 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Page configuration
+st.set_page_config(
+    page_title="Research Assistant",
+    page_icon="🔍",
+    layout="wide"
+)
+
+# Custom CSS
+st.markdown("""
+<style>
+.block-container { 
+    max-width: 800px; 
+    padding: 2rem 1rem; 
+}
+
+.stButton > button { 
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+/* Focus area buttons */
+[data-testid="baseButton-secondary"] {
+    background-color: #f8f9fa !important;
+    border: 1px solid #dee2e6 !important;
+    color: #2c3338 !important;
+    padding: 0.75rem !important;
+    min-height: 3rem !important;
+    transition: all 0.2s ease !important;
+}
+
+[data-testid="baseButton-secondary"]:hover {
+    background-color: #e9ecef !important;
+    border-color: #ced4da !important;
+}
+
+[data-testid="baseButton-primary"] {
+    background-color: rgba(0, 102, 204, 0.1) !important;
+    border: 1px solid #0066cc !important;
+    box-shadow: 0 0 0 1px #0066cc !important;
+    color: #0066cc !important;
+    font-weight: 500 !important;
+    padding: 0.75rem !important;
+    min-height: 3rem !important;
+    transition: all 0.2s ease !important;
+}
+
+[data-testid="baseButton-primary"]:hover {
+    background-color: rgba(0, 102, 204, 0.2) !important;
+}
+
+textarea {
+    font-size: 1.1em !important;
+    line-height: 1.5 !important;
+    padding: 0.5em !important;
+    height: 150px !important;
+    background-color: #ffffff !important;
+    border: 1px solid #dee2e6 !important;
+    color: #2c3338 !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 def initialize_session_state():
     """Initialize session state variables."""
     if 'topic' not in st.session_state:
@@ -57,22 +122,40 @@ def display_focus_areas(focus_areas):
     if focus_areas:
         with st.expander("🎯 Select Focus Areas (Optional)", expanded=True):
             st.write("Choose 0-5 areas to focus the research:")
-            selected = []
-            for area in focus_areas:
-                if st.checkbox(area, key=f"focus_{area}"):
-                    selected.append(area)
-                if len(selected) >= 5:
-                    break
             
-            col1, col2 = st.columns([1, 1])
+            # Create columns for focus area selection
+            cols = st.columns(2)
+            selected = []
+            for i, area in enumerate(focus_areas):
+                col_idx = i % 2
+                with cols[col_idx]:
+                    if st.checkbox(area, key=f"focus_{area}"):
+                        selected.append(area)
+                    if len(selected) >= 5:
+                        break
+            
+            # Show selection status
+            st.markdown("---")
+            num_selected = len(selected)
+            
+            if num_selected > 0:
+                st.success(f"✅ Selected {num_selected} focus area{'s' if num_selected > 1 else ''}")
+                st.write("Selected areas:")
+                for area in selected:
+                    st.write(f"- {area}")
+            
+            # Add buttons side by side
+            col1, col2 = st.columns(2)
             with col1:
-                if st.button("Skip"):
+                if st.button("Skip", type="secondary"):
                     st.session_state.selected_focus_areas = []
                     st.session_state.stage = 'analysis'
+                    st.rerun()
             with col2:
-                if st.button("Continue"):
+                if st.button("Continue", type="primary"):
                     st.session_state.selected_focus_areas = selected
                     st.session_state.stage = 'analysis'
+                    st.rerun()
 
 def display_analysis(analysis):
     """Display research analysis."""
@@ -97,9 +180,21 @@ def process_stage():
             st.write("Enter a topic to begin the research process.")
             
             with st.form("topic_form"):
-                topic = st.text_input("Research Topic:", key="topic_input")
-                iterations = st.slider("Number of Research Iterations:", 1, 5, 3, key="iterations_input")
-                submitted = st.form_submit_button("Start Analysis")
+                topic = st.text_area(
+                    "Research Topic:",
+                    help="Enter your research topic or question.",
+                    placeholder="e.g., 'Examine the impact of artificial intelligence on healthcare...'"
+                )
+                
+                iterations = st.number_input(
+                    "Number of Research Iterations",
+                    min_value=1,
+                    max_value=5,
+                    value=3,
+                    help="Choose 1-5 iterations. More iterations = deeper insights = longer wait."
+                )
+                
+                submitted = st.form_submit_button("🚀 Start Analysis", use_container_width=True)
                 
                 if submitted and topic:
                     if validate_topic(topic):
@@ -162,7 +257,7 @@ def process_stage():
             
             display_synthesis(st.session_state.synthesis)
             
-            if st.button("Start New Research"):
+            if st.button("Start New Research", type="primary"):
                 reset_state()
                 st.rerun()
     
