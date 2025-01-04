@@ -2,6 +2,7 @@
 
 import logging
 import time
+import random
 from typing import Any, Callable, Tuple
 from functools import wraps
 from config import MIN_TOPIC_LENGTH, MAX_TOPIC_LENGTH
@@ -26,40 +27,52 @@ class ProcessingError(MARAError):
     pass
 
 def rate_limit_decorator(func: Callable) -> Callable:
-    """Decorator to implement rate limiting for API calls.
-    
-    Ensures a minimum delay between API calls to prevent rate limit errors.
+    """Decorator to implement rate limiting with exponential backoff.
     
     Args:
-        func: The function to wrap with rate limiting.
+        func: The function to rate limit
         
     Returns:
-        Wrapped function with rate limiting.
+        The wrapped function with rate limiting
     """
-    last_call_time = {}
+    last_call_time = 0
+    base_delay = 1  # Base delay in seconds
+    max_retries = 3
     
     @wraps(func)
     def wrapper(*args, **kwargs) -> Any:
-        # Minimum time between calls (in seconds)
-        min_delay = 1.0
+        nonlocal last_call_time
         
-        # Get current time
+        # Ensure minimum time between calls
         current_time = time.time()
+        time_since_last_call = current_time - last_call_time
+        if time_since_last_call < base_delay:
+            sleep_time = base_delay - time_since_last_call
+            logger.info(f"Rate limiting: Sleeping for {sleep_time:.2f} seconds")
+            time.sleep(sleep_time)
         
-        # Check if we need to wait
-        if func in last_call_time:
-            elapsed = current_time - last_call_time[func]
-            if elapsed < min_delay:
-                time.sleep(min_delay - elapsed)
+        # Implement exponential backoff for retries
+        for attempt in range(max_retries):
+            try:
+                result = func(*args, **kwargs)
+                last_call_time = time.time()
+                return result
+            except Exception as e:
+                if "429" in str(e):  # API quota error
+                    if attempt < max_retries - 1:  # Don't sleep on last attempt
+                        delay = (2 ** attempt * base_delay) + (random.random() * 0.1)
+                        logger.warning(f"API quota exceeded. Attempt {attempt + 1}/{max_retries}. "
+                                     f"Retrying in {delay:.2f} seconds...")
+                        time.sleep(delay)
+                    else:
+                        logger.error(f"API quota exceeded after {max_retries} attempts")
+                        raise Exception("API quota exceeded. Please try again later.") from e
+                else:
+                    logger.error(f"Error in rate-limited function {func.__name__}: {str(e)}")
+                    raise
         
-        try:
-            # Update last call time before making the call
-            last_call_time[func] = time.time()
-            return func(*args, **kwargs)
-        except Exception as e:
-            logger.error(f"Error in rate-limited function {func.__name__}: {str(e)}")
-            raise
-            
+        return None  # Should never reach here due to raise in loop
+    
     return wrapper
 
 def validate_topic(topic: str) -> Tuple[bool, str]:
