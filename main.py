@@ -164,78 +164,18 @@ def initialize_gemini():
         genai.configure(api_key=api_key)
         
         try:
-            # Initialize the model
+            # Initialize the model without testing
             model = genai.GenerativeModel(GEMINI_MODEL)
-            
-            # Test the model with a minimal prompt
-            logger.info("Testing Gemini model initialization...")
-            response = model.generate_content("Hello")
-            
-            # Extract content from response, ignoring thought process
-            try:
-                # Get the full response text
-                full_text = response.candidates[0].content.parts[0].text
-                
-                # Split into lines and filter out thought process
-                lines = full_text.split('\n')
-                content_lines = []
-                in_thought_block = False
-                
-                thought_starters = [
-                    "first i will", "i will", "thoughts", "thinking process", "let me",
-                    "i need to", "i'll", "step 1", "step 2", "the user wants",
-                    "draft answer", "self-critique", "i am thinking", "i should",
-                    "my approach", "i'm going to", "let's", "here's how", "my plan",
-                    "i understand", "to answer this", "to respond", "my response",
-                    "my analysis", "i can see", "i notice", "i observe",
-                    "first, ", "second, ", "third, ", "finally, ", "next, ",
-                    "to start", "to begin", "i must", "i have to"
-                ]
-                
-                for line in lines:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    
-                    # Check if this line starts a thought block
-                    if any(line.lower().startswith(starter) for starter in thought_starters):
-                        in_thought_block = True
-                        continue
-                    
-                    # Check if this line is part of a thought block
-                    if any(marker in line.lower() for marker in [
-                        "i will", "i'll", "i should", "i need", "i must",
-                        "i have to", "i am", "i'm", "let me", "let's"
-                    ]):
-                        in_thought_block = True
-                        continue
-                    
-                    # If we're not in a thought block, add the line to content
-                    if not in_thought_block:
-                        content_lines.append(line)
-                    
-                    # Reset thought block if we hit a clear content marker
-                    if any(marker in line for marker in ["🌟", "💡", "🔍", "📝", "🎯", "⚡"]):
-                        in_thought_block = False
-                
-                # Join the content lines
-                test_text = "\n".join(content_lines).strip()
-                if not test_text:
-                    st.error("Model initialization test failed - no valid content in response")
-                    logger.error("Model initialization test failed - no valid content in response")
-                    return None
-                    
-                logger.info("Successfully extracted content from test response")
-                return model
-                
-            except (AttributeError, IndexError) as e:
-                st.error(f"Model initialization test failed - invalid response structure: {str(e)}")
-                logger.error(f"Model initialization test failed - invalid response structure: {str(e)}")
-                return None
+            logger.info("Successfully initialized Gemini model")
+            return model
                 
         except Exception as e:
-            st.error(f"Failed to initialize or test Gemini model: {str(e)}")
-            logger.error(f"Failed to initialize or test Gemini model: {str(e)}")
+            if "429" in str(e):
+                st.error("API quota exceeded. Please wait a few minutes and try again.")
+                logger.error("API quota exceeded during initialization")
+            else:
+                st.error(f"Failed to initialize Gemini model: {str(e)}")
+                logger.error(f"Failed to initialize or test Gemini model: {str(e)}")
             return None
             
     except Exception as e:
