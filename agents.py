@@ -243,11 +243,11 @@ Important Formatting Rules:
 5. Use complete sentences with proper punctuation
 6. Maintain consistent indentation throughout
 
-Format your response EXACTLY as a Python dictionary:
+Format your response EXACTLY as a Python dictionary with this structure:
 {
-    "title": "A clear, concise title for this analysis phase",
-    "subtitle": "A brief subtitle highlighting key focus",
-    "content": "Your detailed analysis following the format above"
+    "title": "Your title here",
+    "subtitle": "Your subtitle here",
+    "content": "Your content here"
 }
 
 Important:
