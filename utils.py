@@ -21,9 +21,15 @@ class MARAError(Exception):
 
 class QuotaExceededError(MARAError):
     """Raised when API quota is exhausted."""
-    def __init__(self, retry_after: int = 300):
+    def __init__(self, retry_after: int = 300, message: str = None):
         self.retry_after = retry_after
-        super().__init__(f"API quota exceeded. Please try again in {retry_after} seconds.")
+        if message is None:
+            message = f"API quota exceeded. Please try again in {retry_after} seconds."
+        super().__init__(message)
+        
+    def get_retry_after(self) -> int:
+        """Get the recommended retry delay in seconds."""
+        return self.retry_after
 
 class ValidationError(MARAError):
     """Raised when input validation fails."""
@@ -114,14 +120,7 @@ class APIRateLimiter:
 rate_limiter = APIRateLimiter()
 
 def rate_limit_decorator(func: Callable) -> Callable:
-    """Decorator to implement rate limiting with quota management.
-    
-    Args:
-        func: The function to rate limit
-        
-    Returns:
-        The wrapped function with rate limiting
-    """
+    """Decorator to implement rate limiting with quota management."""
     @wraps(func)
     def wrapper(*args, **kwargs) -> Any:
         max_retries = 3

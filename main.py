@@ -210,16 +210,17 @@ def handle_error(e: Exception, context: str):
     
     # Handle quota exceeded errors specially
     if isinstance(e, QuotaExceededError):
-        retry_after = getattr(e, 'retry_after', 300)
-        user_msg = f"API quota exceeded. Please wait {retry_after} seconds before trying again."
-        st.error(user_msg)
+        retry_after = e.get_retry_after()
+        st.error(f"API quota exceeded. Please wait {retry_after} seconds before trying again.")
+        
         # Add a countdown timer
-        placeholder = st.empty()
+        progress_text = "You can try again in"
+        progress_container = st.empty()
         for remaining in range(retry_after, 0, -1):
-            placeholder.info(f"⏳ You can try again in {remaining} seconds...")
+            progress_container.info(f"⏳ {progress_text} {remaining} seconds...")
             time.sleep(1)
-        placeholder.empty()
-        st.info("✅ You can now try again!")
+        progress_container.empty()
+        st.success("✅ You can now try again!")
         return
     
     # Provide user-friendly error message for other errors
