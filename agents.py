@@ -243,19 +243,16 @@ Important Formatting Rules:
 5. Use complete sentences with proper punctuation
 6. Maintain consistent indentation throughout
 
-Format your response EXACTLY as a Python dictionary with this structure:
-{
-    "title": "Your title here",
-    "subtitle": "Your subtitle here",
-    "content": "Your content here"
-}
+Format your response EXACTLY as a Python dictionary with this structure (using straight quotes only):
+{"title": "Your title here", "subtitle": "Your subtitle here", "content": "Your content here"}
 
-Important:
-- Use only straight quotes (")
-- Each key-value pair should be on its own line
-- Ensure proper dictionary formatting
-- Avoid nested quotes or special characters in keys
-- Content must follow the exact formatting structure specified above
+Important formatting rules:
+1. Use only straight quotes (")
+2. No line breaks in the dictionary structure
+3. Keep the exact keys: title, subtitle, content
+4. Ensure proper dictionary formatting
+5. Avoid nested quotes or special characters in keys
+6. Content must follow the exact formatting structure specified above
 """
 
         if not previous_analysis:
