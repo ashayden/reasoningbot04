@@ -8,11 +8,9 @@ import streamlit as st
 from google.generativeai.types import GenerationConfig
 
 from config import (
-    PROMPT_DESIGN_CONFIG,
-    FRAMEWORK_CONFIG,
+    PREANALYSIS_CONFIG,
     ANALYSIS_CONFIG,
     SYNTHESIS_CONFIG,
-    PREANALYSIS_CONFIG,
     ANALYSIS_BASE_TEMP,
     ANALYSIS_TEMP_INCREMENT,
     ANALYSIS_MAX_TEMP
@@ -50,32 +48,31 @@ class PreAnalysisAgent(BaseAgent):
 1. Did You Know: Share one fascinating, lesser-known fact about the topic. Keep it to a single clear sentence.
 2. Overview: Provide a clear, accessible 2-3 sentence explanation for a general audience. Focus on key points and avoid technical jargon.
 
-Format your response EXACTLY as a Python dictionary like this:
-{{"did_you_know": "Your fact here", "eli5": "Your overview here"}}
+Format your response as a Python dictionary with this structure:
+{{"title": "Initial Insights", "subtitle": "Key Discoveries", "content": "Your insights here"}}
 
-Important: Use only straight quotes (") not curly quotes, and ensure the response is a valid Python dictionary."""
+Important formatting rules:
+1. Use only straight quotes (")
+2. No line breaks in the dictionary
+3. Keep the exact keys: title, subtitle, content
+4. Ensure proper dictionary formatting
+5. Avoid nested quotes or special characters
+6. Content should be clear and engaging"""
         
         try:
             result = self.generate_content(prompt, PREANALYSIS_CONFIG)
             if not result:
                 return None
                 
-            # Clean the response to ensure valid Python syntax
+            # Clean and parse the response
             result = result.strip()
-            result = result.replace('"', '"').replace('"', '"')  # Replace curly quotes
-            result = result.replace("'", "'").replace("'", "'")  # Replace curly single quotes
+            result = result.replace('"', '"').replace('"', '"')
+            result = result.replace("'", "'").replace("'", "'")
             
-            # Safely evaluate the string as a Python dictionary
             insights = eval(result)
             
-            # Validate the dictionary structure
-            if not isinstance(insights, dict):
-                logger.error("Response is not a dictionary")
-                return None
-                
-            required_keys = {'did_you_know', 'eli5'}
-            if not all(key in insights for key in required_keys):
-                logger.error("Response missing required keys")
+            if not isinstance(insights, dict) or not all(key in insights for key in ['title', 'subtitle', 'content']):
+                logger.error("Invalid response format")
                 return None
                 
             return insights
@@ -91,157 +88,75 @@ Important: Use only straight quotes (") not curly quotes, and ensure the respons
 2. Include both obvious and non-obvious angles
 3. Span theoretical and practical implications
 
-Format your response EXACTLY as a Python list of strings, one per line, like this:
+Format your response as a Python list of strings, one per line:
 [
     "First focus area",
     "Second focus area",
     "Third focus area"
 ]
 
-Important: 
+Important:
 - Use only straight quotes (")
-- Each focus area should be on its own line
-- Do not include any explanations or additional text
-- Keep each focus area concise (3-7 words)"""
+- Each focus area should be concise (3-7 words)
+- Make each area distinct and specific
+- Ensure areas are relevant to the topic"""
         
         try:
             result = self.generate_content(prompt, PREANALYSIS_CONFIG)
             if not result:
                 return None
                 
-            # Clean the response to ensure valid Python syntax
+            # Clean and parse the response
             result = result.strip()
+            result = result.replace('"', '"').replace('"', '"')
+            result = result.replace("'", "'").replace("'", "'")
             
-            # Try parsing as a direct Python list first
-            try:
-                result = result.replace('"', '"').replace('"', '"')  # Replace curly quotes
-                result = result.replace("'", "'").replace("'", "'")  # Replace curly single quotes
-                focus_areas = eval(result)
-            except:
-                # Fallback: try to parse line by line
-                logger.info("Falling back to line-by-line parsing")
-                lines = [line.strip() for line in result.split('\n')]
-                focus_areas = []
-                for line in lines:
-                    # Remove common prefixes and clean up
-                    line = line.strip('[]," \t-•*')
-                    if line and not line.startswith(('Format', 'Important', 'Use', 'Each', 'Do not')):
-                        focus_areas.append(line)
+            focus_areas = eval(result)
             
-            # Validate the list structure
-            if not isinstance(focus_areas, list):
-                logger.error("Response is not a list")
+            if not isinstance(focus_areas, list) or not (8 <= len(focus_areas) <= 10):
+                logger.error("Invalid response format")
                 return None
-            
-            # Clean up and validate each focus area
-            cleaned_areas = []
-            for area in focus_areas:
-                if isinstance(area, str) and area.strip():
-                    # Remove any remaining quotes and clean up whitespace
-                    cleaned = area.strip().strip('"\'').strip()
-                    if cleaned:
-                        cleaned_areas.append(cleaned)
-            
-            # Validate final list
-            if not (8 <= len(cleaned_areas) <= 10):
-                logger.error(f"Invalid number of focus areas: {len(cleaned_areas)}")
-                return None
-            
-            return cleaned_areas
+                
+            return [area.strip().strip('"\'').strip() for area in focus_areas if area.strip()]
             
         except Exception as e:
             logger.error(f"Error parsing focus areas response: {str(e)}")
             return None
 
-class PromptDesigner(BaseAgent):
-    """Agent responsible for optimizing research prompts."""
-    
-    def design_prompt(self, topic: str) -> Optional[str]:
-        """Design an optimized research prompt."""
-        prompt = f"""Create a research prompt for '{topic}' that:
-1. Encourages comprehensive analysis
-2. Highlights key areas of investigation
-3. Suggests innovative approaches
-4. Maintains academic rigor
-
-Return the prompt as a clear, focused paragraph."""
-        
-        return self.generate_content(prompt, PROMPT_DESIGN_CONFIG)
-
-class FrameworkEngineer(BaseAgent):
-    """Agent responsible for creating analysis frameworks."""
-    
-    def create_framework(self, initial_prompt: str, enhanced_prompt: Optional[str] = None) -> Optional[str]:
-        """Create a research framework based on the prompt design."""
-        prompt_context = enhanced_prompt or initial_prompt
-        
-        prompt = f"""Based on: {prompt_context}
-
-Create a research framework that:
-
-1. Research Objectives
-   - Primary and secondary questions
-   - Expected outcomes
-   - Key hypotheses
-
-2. Methodology
-   - Research methods
-   - Data collection
-   - Analysis techniques
-
-3. Investigation Areas
-   - Core topics
-   - Subtopics
-   - Cross-cutting themes
-
-4. Theoretical Framework
-   - Key concepts
-   - Relationships
-   - Integration points
-
-5. Critical Perspectives
-   - Assumptions
-   - Limitations
-   - Alternative views
-
-Format as a clear, structured markdown document."""
-        
-        return self.generate_content(prompt, FRAMEWORK_CONFIG)
-
 class ResearchAnalyst(BaseAgent):
-    """Agent responsible for conducting deep analysis."""
+    """Agent responsible for conducting iterative research analysis."""
     
-    def analyze(self, topic: str, framework: str, previous_analysis: Optional[str] = None) -> Optional[Dict[str, str]]:
-        """Conduct analysis based on framework and previous findings."""
+    def analyze(self, topic: str, focus_areas: Optional[List[str]], previous_analysis: Optional[str] = None) -> Optional[Dict[str, str]]:
+        """Conduct analysis based on topic, focus areas, and previous findings."""
         context = f"Previous Analysis:\n{previous_analysis}\n\n" if previous_analysis else ""
+        focus_context = f"\nSelected Focus Areas:\n{', '.join(focus_areas)}" if focus_areas else ""
         
-        base_prompt = f"""Topic: {topic}
-Framework: {framework}
+        base_prompt = f"""Topic: {topic}{focus_context}
 {context}
-You are an expert academic researcher and nobel-laureate in the field of {topic}.
+You are an expert academic researcher conducting an in-depth analysis."""
 
-Format your response using the EXACT structure below, with proper line breaks and spacing:
+        if not previous_analysis:
+            # First research loop - Initial comprehensive analysis
+            prompt = base_prompt + """
+Conduct a thorough initial analysis that:
+1. Examines the core aspects of the topic
+2. Identifies key patterns and relationships
+3. Explores fundamental concepts
+4. Establishes a strong analytical foundation
+5. Considers multiple perspectives"""
+        else:
+            # Subsequent research loops - Deeper analysis
+            prompt = base_prompt + """
+Building upon previous findings, conduct a deeper analysis that:
+1. Uncovers hidden connections and patterns
+2. Explores nuanced relationships
+3. Challenges assumptions
+4. Proposes creative interpretations
+5. Synthesizes insights into novel perspectives
+6. Examines unconventional angles
+7. Identifies emerging implications"""
 
-# [Title]
-*[Subtitle]*
-
-[Section Name]:
-• [Point 1]: Detailed explanation of the first point, using complete sentences and proper punctuation.
-
-• [Point 2]: Detailed explanation of the second point, using complete sentences and proper punctuation.
-
-[Next Section Name]:
-• [Point 1]: Detailed explanation of the first point, using complete sentences and proper punctuation.
-
-• [Point 2]: Detailed explanation of the second point, using complete sentences and proper punctuation.
-
-Important Formatting Rules:
-1. Each section must have its own heading followed by a colon
-2. Each bullet point must start with a bullet (•) followed by a title in bold and a colon
-3. Each point's explanation must be on the same line as its title
-4. Add a blank line between each bullet point and between sections
-5. Use complete sentences with proper punctuation
-6. Maintain consistent indentation throughout
+        prompt += """
 
 Format your response as a Python dictionary with this structure:
 {{"title": "Your title here", "subtitle": "Your subtitle here", "content": "Your content here"}}
@@ -252,52 +167,7 @@ Important formatting rules:
 3. Keep the exact keys: title, subtitle, content
 4. Ensure proper dictionary formatting
 5. Avoid nested quotes or special characters
-6. Content must follow the formatting structure specified above
-"""
-
-        if not previous_analysis:
-            # First research loop - Focus on framework-based analysis
-            prompt = base_prompt + """
-Using the provided research framework as your guide, conduct a thorough foundational analysis that:
-
-1. Addresses the primary and secondary research questions outlined in the Research Objectives
-2. Follows the specified research methods and analysis techniques from the Methodology section
-3. Investigates all core topics, subtopics, and cross-cutting themes listed in Investigation Areas
-4. Applies the theoretical framework and examines key concept relationships
-5. Considers critical perspectives, including assumptions and limitations
-
-Focus on establishing a strong analytical foundation based on the framework."""
-        else:
-            # Subsequent research loops - Build upon previous analysis
-            prompt = base_prompt + """
-Building upon the previous analysis, conduct a deeper investigation that:
-
-1. Identifies emerging patterns and themes from the previous findings
-2. Explores more nuanced relationships between concepts
-3. Uncovers hidden connections and second-order effects
-4. Challenges assumptions made in earlier analysis
-5. Synthesizes insights into novel perspectives
-6. Examines the topic through unconventional theoretical lenses
-7. Proposes creative hypotheses based on observed patterns
-
-Your analysis should progressively become more sophisticated, seeking deeper insights and more complex interconnections with each iteration."""
-
-        prompt += """
-
-Format your response EXACTLY as a Python dictionary with three keys:
-{
-    "title": "A clear, concise title for this analysis phase",
-    "subtitle": "A brief subtitle highlighting key focus",
-    "content": "Your detailed analysis in markdown format"
-}
-
-Important:
-- Use only straight quotes (")
-- Each key-value pair should be on its own line
-- Ensure proper dictionary formatting
-- Avoid nested quotes or special characters in keys
-- Content can use markdown formatting
-"""
+6. Content should be detailed and well-structured"""
         
         try:
             # Adjust temperature based on iteration
@@ -308,79 +178,17 @@ Important:
             if not result:
                 return None
                 
-            # Clean the response to ensure valid Python syntax
+            # Clean and parse the response
             result = result.strip()
+            result = result.replace('"', '"').replace('"', '"')
+            result = result.replace("'", "'").replace("'", "'")
             
-            # Try to extract dictionary using string manipulation first
-            try:
-                # Find the dictionary boundaries
-                start_idx = result.find('{')
-                end_idx = result.rfind('}') + 1
-                if start_idx == -1 or end_idx == 0:
-                    raise ValueError("Could not find dictionary boundaries")
-                
-                # Extract and clean the dictionary string
-                dict_str = result[start_idx:end_idx]
-                dict_str = dict_str.replace('"', '"').replace('"', '"')  # Replace curly quotes
-                dict_str = dict_str.replace("'", "'").replace("'", "'")  # Replace curly single quotes
-                dict_str = dict_str.replace('\n', ' ').replace('\r', ' ')  # Remove newlines
-                
-                # Safely evaluate the string as a Python dictionary
-                analysis = eval(dict_str)
-                
-            except:
-                # Fallback: try to parse line by line
-                logger.info("Falling back to line-by-line parsing")
-                lines = result.split('\n')
-                analysis = {}
-                current_key = None
-                current_value = []
-                
-                for line in lines:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    
-                    # Check for key-value pairs
-                    if '"title":' in line:
-                        current_key = 'title'
-                        value = line.split(':', 1)[1].strip().strip('",')
-                        analysis[current_key] = value
-                    elif '"subtitle":' in line:
-                        current_key = 'subtitle'
-                        value = line.split(':', 1)[1].strip().strip('",')
-                        analysis[current_key] = value
-                    elif '"content":' in line:
-                        current_key = 'content'
-                        value = line.split(':', 1)[1].strip().strip('"')
-                        current_value = [value]
-                    elif current_key == 'content':
-                        current_value.append(line)
-                
-                if current_value:
-                    analysis['content'] = ' '.join(current_value)
+            analysis = eval(result)
             
-            # Validate the dictionary structure
-            if not isinstance(analysis, dict):
-                logger.error("Response is not a dictionary")
+            if not isinstance(analysis, dict) or not all(key in analysis for key in ['title', 'subtitle', 'content']):
+                logger.error("Invalid response format")
                 return None
                 
-            required_keys = {'title', 'subtitle', 'content'}
-            if not all(key in analysis for key in required_keys):
-                logger.error("Response missing required keys")
-                return None
-                
-            # Clean up values
-            for key in required_keys:
-                if key in analysis:
-                    # Remove any remaining quotes and clean up whitespace
-                    analysis[key] = analysis[key].strip().strip('"\'').strip()
-            
-            # Ensure all values are strings and not empty
-            if not all(isinstance(analysis[key], str) and analysis[key].strip() for key in required_keys):
-                logger.error("Invalid or empty values in response")
-                return None
-            
             return analysis
             
         except Exception as e:
@@ -388,60 +196,47 @@ Important:
             return None
 
 class SynthesisExpert(BaseAgent):
-    """Agent responsible for synthesizing findings."""
+    """Agent responsible for synthesizing findings into a thesis-driven report."""
     
     def synthesize(self, topic: str, analysis_results: List[str]) -> Optional[str]:
-        """Synthesize all analysis results into a final report."""
+        """Synthesize analysis results into a thesis-driven report."""
         prompt = f"""Topic: {topic}
 Analysis Results: {analysis_results}
 
-Create a comprehensive research synthesis that addresses ALL of the following components:
+Create a comprehensive thesis-driven synthesis that includes:
 
-1. Executive Summary
-- High-level overview of key findings
-- Most significant discoveries and insights
-- Major patterns and themes identified
+1. Thesis Statement
+- Clear, arguable main claim about the topic
+- Based on research findings
+- Specific and focused
 
-2. Research Questions Addressed
-Primary Question:
-- Detailed answer with supporting evidence
-- Key findings and implications
-- Degree of confidence in conclusions
+2. Executive Summary
+- Overview of key findings
+- Major patterns and themes
+- Significance of conclusions
 
-Secondary Questions:
-- Systematic response to each question
-- Evidence from multiple analysis phases
-- Areas of certainty vs. uncertainty
+3. Evidence Analysis
+- Detailed examination of supporting evidence
+- Connections between findings
+- Strength of evidence
+- Counter-arguments addressed
 
-3. Analysis Integration
-- Synthesis of all research phases
-- Emerging patterns across analyses
-- Evolution of understanding
-- Interconnections between findings
+4. Argumentation
+- Logical flow of ideas
+- Clear reasoning
+- Evidence-based claims
+- Alternative viewpoints considered
 
-4. Key Conclusions
-- Primary conclusions with evidence
-- Secondary findings and insights
-- Unexpected discoveries
-- Knowledge gaps identified
-
-5. Implications and Impact
-- Theoretical implications
+5. Implications
+- Theoretical significance
 - Practical applications
-- Future research directions
-- Broader significance
-- Potential impacts on field
+- Future directions
+- Broader impact
 
-6. Critical Discussion
-- Strengths and limitations
-- Alternative interpretations
-- Competing perspectives
-- Methodological considerations
-
-Format as a structured markdown document with clear sections, subsections, and bullet points.
-Ensure comprehensive coverage while maintaining clarity and readability.
-Support all conclusions with evidence from the analysis phases.
-Address any contradictions or inconsistencies in the findings.
+Format as a structured markdown document with clear sections and subsections.
+Ensure strong connections between evidence and thesis.
+Address potential counterarguments.
+Maintain academic rigor while being accessible.
 """
         
         return self.generate_content(prompt, SYNTHESIS_CONFIG) 
