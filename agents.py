@@ -218,7 +218,46 @@ class ResearchAnalyst(BaseAgent):
         base_prompt = f"""Topic: {topic}
 Framework: {framework}
 {context}
-You are an expert academic researcher and nobel-laureate in the field of {topic}."""
+You are an expert academic researcher and nobel-laureate in the field of {topic}.
+
+Format your response using the following strict markdown structure:
+
+# [Title]
+*[Subtitle]*
+
+## Key Findings
+[2-3 sentence overview of main discoveries]
+
+## Detailed Analysis
+### [Section Heading 1]
+- Point 1
+- Point 2
+- Point 3
+
+### [Section Heading 2]
+- Point 1
+- Point 2
+- Point 3
+
+## Implications
+- Key implication 1
+- Key implication 2
+- Key implication 3
+
+Format your response EXACTLY as a Python dictionary:
+{
+    "title": "A clear, concise title for this analysis phase",
+    "subtitle": "A brief subtitle highlighting key focus",
+    "content": "Your detailed analysis following the markdown structure above"
+}
+
+Important:
+- Use only straight quotes (")
+- Each key-value pair should be on its own line
+- Ensure proper dictionary formatting
+- Avoid nested quotes or special characters in keys
+- Content must follow the exact markdown structure specified above
+"""
 
         if not previous_analysis:
             # First research loop - Focus on framework-based analysis
