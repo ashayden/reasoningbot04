@@ -5,7 +5,7 @@ from typing import Dict, List, Callable
 
 def display_logo() -> None:
     """Display the application logo."""
-    st.image("assets/logo.png", width=120)
+    st.image("assets/mara-logo.png", width=120)
 
 def input_form(state, handle_submit: Callable) -> None:
     """Display the topic input form."""
