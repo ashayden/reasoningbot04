@@ -3,8 +3,6 @@
 import logging
 import streamlit as st
 import google.generativeai as genai
-import os
-from typing import Dict
 import time
 import re
 from typing import Optional, Tuple, List, Dict, Any
@@ -185,7 +183,8 @@ def initialize_state():
         'focus_areas': None,
         'framework': None,
         'analysis_results': [],
-        'focus_selection_complete': False
+        'focus_selection_complete': False,
+        'selected_areas': []
     }
 
 def reset_state(topic, iterations):
@@ -222,7 +221,6 @@ def display_focus_areas(focus_areas: list):
     if 'current_focus_areas' not in st.session_state:
         st.session_state.current_focus_areas = []
     
-    # Create container for focus area selection
     focus_container = st.container()
     
     with focus_container:
@@ -241,6 +239,7 @@ def display_focus_areas(focus_areas: list):
             
             # Update session state with current selections
             st.session_state.current_focus_areas = selected
+            st.session_state.app_state['selected_areas'] = selected
             
             st.markdown("---")
             
@@ -252,8 +251,7 @@ def display_focus_areas(focus_areas: list):
                 if col1.button(
                     "Skip",
                     key="skip_focus",
-                    use_container_width=True,
-                    on_click=lambda: setattr(st.session_state, 'focus_area_expanded', False)
+                    use_container_width=True
                 ):
                     st.session_state.app_state['focus_selection_complete'] = True
                     st.session_state.app_state['show_framework'] = True
@@ -267,8 +265,7 @@ def display_focus_areas(focus_areas: list):
                     key="continue_focus",
                     disabled=continue_disabled,
                     type="primary",
-                    use_container_width=True,
-                    on_click=lambda: setattr(st.session_state, 'focus_area_expanded', False)
+                    use_container_width=True
                 ):
                     st.session_state.app_state['focus_selection_complete'] = True
                     st.session_state.app_state['show_framework'] = True
