@@ -30,12 +30,15 @@ def rate_limit_decorator(func: Callable) -> Callable:
     @wraps(func)
     def wrapper(*args, **kwargs) -> Any:
         try:
-            # Add small delay between calls
-            time.sleep(0.5)
+            # Add delay between calls to prevent rapid retries
+            time.sleep(1.0)  # Increased delay
             return func(*args, **kwargs)
         except Exception as e:
             if "429" in str(e):
-                raise QuotaExceededError("API quota exceeded. Please try again in 5 minutes.")
+                # Set a flag in session state to prevent rapid retries
+                if hasattr(st, 'session_state'):
+                    st.session_state.form_disabled = True
+                raise QuotaExceededError("API quota exceeded. Please wait 5 minutes before trying again.")
             raise
     return wrapper
 

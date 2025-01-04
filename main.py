@@ -208,9 +208,13 @@ def handle_error(e: Exception, context: str):
     error_msg = f"Error during {context}: {str(e)}"
     logger.error(error_msg)
     
-    # Handle quota exceeded errors
+    # Handle quota exceeded errors with clear user feedback
     if isinstance(e, QuotaExceededError):
-        st.error("API quota exceeded. Please wait 5 minutes before trying again.")
+        st.error("⚠️ API quota limit reached. Please wait 5 minutes before trying again.")
+        st.info("💡 This helps ensure fair usage of the API for all users.")
+        # Disable the form temporarily
+        if 'form_disabled' not in st.session_state:
+            st.session_state.form_disabled = True
         return
     
     # Provide user-friendly error message for other errors
@@ -415,7 +419,8 @@ def main():
         
         submit = st.form_submit_button(
             "🚀 Start Analysis",
-            use_container_width=True
+            use_container_width=True,
+            disabled=st.session_state.get('form_disabled', False)
         )
     
     # Process submission
