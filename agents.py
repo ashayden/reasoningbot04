@@ -166,11 +166,27 @@ class PromptDesigner(BaseAgent):
     def generate_focus_areas(self, topic: str) -> Optional[list]:
         """Generate potential focus areas for the topic."""
         try:
-            prompt = f"""Generate 8-12 focus areas for analyzing {topic}.
-            Include core sub-topics, related fields, specific aspects, key issues, and important considerations.
-            Each focus area should be 2-5 words, specific, and distinct.
+            prompt = f"""Generate 10-12 diverse focus areas for analyzing {topic}.
+            
+            Include a balanced mix of perspectives:
+            - Academic/Theoretical (core concepts, frameworks, methodologies)
+            - Practical/Applied (real-world applications, case studies)
+            - Social/Cultural (societal impact, cultural significance)
+            - Historical/Evolutionary (development over time, key milestones)
+            - Current/Future (emerging trends, future implications)
+            - Critical/Analytical (challenges, debates, controversies)
+            - Human Interest (personal stories, everyday relevance)
+            - Technical/Specialized (specific processes, technical aspects)
+            
+            Guidelines:
+            - Keep primary topic "{topic}" central to each focus area
+            - Each focus area should be 2-5 words, specific and distinct
+            - Ensure variety in scope (micro to macro perspectives)
+            - Include both mainstream and unique angles
+            - Balance serious academic with engaging/accessible aspects
+            
             Format as a Python list of strings.
-            Example: ["Machine Learning Applications", "Ethical Implications", "Data Privacy"]"""
+            Example: ["Historical Development Patterns", "Societal Impact Analysis", "Technical Implementation Methods"]"""
             
             response_text = self.generate_content(prompt, PROMPT_DESIGN_CONFIG)
             if not response_text:
@@ -221,41 +237,103 @@ class FrameworkEngineer(BaseAgent):
         
         prompt = f"""{prompt_context}
 
-        Based on these prompts, create a comprehensive research framework that follows this exact structure:
+        As a distinguished research methodologist, create an innovative yet rigorous research framework that transcends conventional boundaries while maintaining academic integrity. Structure the framework as follows:
 
         A. Research Objectives:
            1. Primary Research Questions
+              - Core inquiries that challenge existing paradigms
+              - Questions that bridge multiple disciplines
+              - Investigations that reveal hidden connections
            2. Secondary Research Questions
+              - Supporting inquiries that illuminate nuances
+              - Questions that explore unexpected relationships
+              - Probes into underlying mechanisms
            3. Expected Outcomes
+              - Anticipated theoretical contributions
+              - Potential paradigm shifts
+              - Novel interpretative frameworks
 
         B. Methodological Approach:
            1. Research Methods
+              - Integration of complementary methodologies
+              - Innovative analytical approaches
+              - Cross-disciplinary techniques
            2. Data Collection Strategies
+              - Multi-modal evidence gathering
+              - Triangulation approaches
+              - Novel data source identification
            3. Analysis Techniques
+              - Advanced interpretative methods
+              - Pattern recognition strategies
+              - Synthesis of disparate findings
 
         C. Investigation Areas:
            1. Core Topics
+              - Central theoretical constructs
+              - Key phenomenological aspects
+              - Fundamental relationships
            2. Subtopics
+              - Emergent themes and patterns
+              - Interconnected elements
+              - Hidden variables
            3. Cross-cutting Themes
+              - Meta-level patterns
+              - Systemic relationships
+              - Unexpected correlations
 
-        D. Ethical Considerations:
-           1. Key Ethical Issues
-           2. Stakeholder Analysis
-           3. Risk Assessment
+        D. Theoretical Integration:
+           1. Conceptual Frameworks
+              - Synthesis of competing theories
+              - Novel theoretical propositions
+              - Integration points
+           2. Interdisciplinary Connections
+              - Cross-domain implications
+              - Theoretical bridges
+              - Paradigm intersections
+           3. Knowledge Gaps
+              - Theoretical blind spots
+              - Unexplored territories
+              - Potential breakthroughs
 
-        E. Evaluation Framework:
-           1. Success Metrics
-           2. Quality Indicators
-           3. Validation Methods
+        E. Critical Perspectives:
+           1. Epistemological Considerations
+              - Underlying assumptions
+              - Knowledge construction
+              - Theoretical limitations
+           2. Methodological Tensions
+              - Competing approaches
+              - Validity challenges
+              - Integration difficulties
+           3. Alternative Viewpoints
+              - Contrasting frameworks
+              - Opposing perspectives
+              - Novel interpretations
 
-        F. Timeline and Milestones:
-           1. Research Phases
-           2. Key Deliverables
-           3. Review Points
+        F. Research Impact:
+           1. Theoretical Implications
+              - Paradigm advancement
+              - Knowledge expansion
+              - Conceptual innovation
+           2. Practical Applications
+              - Real-world relevance
+              - Implementation pathways
+              - Societal impact
+           3. Future Directions
+              - Emerging questions
+              - Research trajectories
+              - Potential developments
 
-        For each section and subsection, provide detailed and specific content relevant to the topic.
-        Ensure each point is thoroughly explained and contextually appropriate.
-        Use clear, academic language while maintaining accessibility."""
+        For each section and subsection:
+        - Develop sophisticated, multi-layered analyses
+        - Identify unexpected connections and relationships
+        - Challenge conventional wisdom while maintaining rigor
+        - Consider both obvious and subtle implications
+        - Integrate diverse theoretical perspectives
+        - Highlight potential paradigm shifts
+        - Emphasize novel interpretative frameworks
+
+        Use precise academic language while ensuring clarity and accessibility.
+        Focus on creating a framework that reveals hidden patterns and unexpected insights."""
         
         return self.generate_content(prompt, FRAMEWORK_CONFIG)
 
@@ -288,9 +366,8 @@ class ResearchAnalyst(BaseAgent):
         """Conduct research analysis."""
         if previous_analysis is None:
             self.iteration_count = 0  # Reset counter for new analysis
-            prompt = f"""Acting as a leading expert in topic-related field: Based on the framework above, conduct an initial research analysis of '{topic}'. 
-            Follow the methodological approaches and evaluation criteria specified in the framework.
-            Provide detailed findings for each key area of investigation outlined.
+            prompt = f"""As a Nobel laureate-level expert in the field, conduct a groundbreaking initial research analysis of '{topic}'. 
+            Leverage the provided framework to reveal profound insights and unexpected connections while maintaining rigorous academic standards.
             
             Framework context:
             {framework}
@@ -298,115 +375,150 @@ class ResearchAnalyst(BaseAgent):
             Structure your analysis using this format:
 
             Start with:
-            Title: [Descriptive title reflecting the main focus]
-            Subtitle: [Specific aspect or approach being analyzed]
+            Title: [Compelling title that captures the essence of your discoveries]
+            Subtitle: [Intriguing aspect that challenges conventional understanding]
 
             Then provide a comprehensive analysis following this structure:
 
             1. Introduction
-               - Context and background
-               - Scope of analysis
-               - Key objectives
+               - Contextual groundwork that challenges existing paradigms
+               - Novel framing of the research scope
+               - Ambitious yet achievable objectives that push boundaries
+               - Unexpected angles or perspectives that merit exploration
 
-            2. Methodology Overview
-               - Approach used
-               - Data sources
-               - Analytical methods
+            2. Theoretical Foundation
+               - Synthesis of competing theoretical frameworks
+               - Identification of hidden assumptions and biases
+               - Novel theoretical connections across disciplines
+               - Emerging paradigms and their implications
 
-            3. Key Findings
-               - Primary discoveries (with citations)
-               - Supporting evidence (with citations)
-               - Critical insights
+            3. Methodological Innovation
+               - Advanced analytical approaches
+               - Integration of complementary methods
+               - Novel data triangulation strategies
+               - Innovative analytical frameworks
 
-            4. Analysis
-               - Detailed examination of findings (with citations)
-               - Interpretation of results
-               - Connections and patterns
+            4. Key Discoveries
+               - Groundbreaking findings with robust evidence (with citations)
+               - Unexpected patterns and relationships
+               - Counter-intuitive insights
+               - Paradigm-shifting implications
 
-            5. Implications
-               - Theoretical implications
-               - Practical applications
-               - Future considerations
+            5. Critical Analysis
+               - Deep examination of complex relationships (with citations)
+               - Multi-level interpretation of findings
+               - Integration of competing perspectives
+               - Identification of emergent patterns
+               - Exploration of paradoxes and tensions
 
-            6. Limitations and Gaps
-               - Current limitations
-               - Areas needing further research
-               - Potential biases
+            6. Theoretical Implications
+               - Contributions to existing theories
+               - Novel theoretical propositions
+               - Cross-disciplinary implications
+               - Potential paradigm shifts
+               - Future theoretical directions
 
-            7. References
-               - List all cited works in APA format
+            7. Practical Significance
+               - Real-world applications and impact
+               - Implementation challenges and opportunities
+               - Societal implications
+               - Future possibilities
+
+            8. Research Frontiers
+               - Emerging questions and paradoxes
+               - Unexplored territories
+               - Methodological innovations needed
+               - Future research trajectories
+
+            9. References
+               - Comprehensive bibliography in APA format
                - Include DOIs where available
-               - Ensure all citations in the text have corresponding references
+               - Balance seminal works with cutting-edge research
+               - Include cross-disciplinary sources
 
-            Important:
-            - Use in-text citations in APA format (Author, Year) for all major claims and findings
-            - Each section should have at least 2-3 relevant citations
-            - Ensure citations are from reputable academic sources
-            - Include a mix of seminal works and recent research (last 5 years)
-            - All citations must have corresponding entries in the References section
+            Critical Requirements:
+            - Challenge conventional wisdom while maintaining academic rigor
+            - Identify unexpected connections across disciplines
+            - Support all claims with robust evidence and citations
+            - Include 3-4 citations per major section
+            - Balance theoretical depth with practical implications
+            - Emphasize novel interpretations and insights
+            - Consider counter-intuitive findings
+            - Explore paradoxes and tensions in the field
+            - Integrate competing theoretical perspectives
+            - Highlight potential paradigm shifts
 
-            Ensure each section is thoroughly developed with specific examples and evidence."""
+            Your analysis should not merely summarize existing knowledge but should push the boundaries of understanding while maintaining scholarly excellence."""
         else:
             self.iteration_count += 1  # Increment counter for subsequent iterations
-            prompt = f"""Review the previous research iteration and expand the analysis.
+            prompt = f"""As a Nobel laureate building upon previous research, conduct a deeper analysis that reveals new layers of understanding and unexpected connections.
             
             Previous analysis:
             {previous_analysis}
             
-            For this iteration #{self.iteration_count + 1}, focus on:
-            1. Identifying gaps or areas needing more depth
-            2. Exploring new connections and implications
-            3. Refining and strengthening key arguments
-            4. Adding new supporting evidence or perspectives
+            For iteration #{self.iteration_count + 1}, transcend conventional boundaries by:
+            1. Identifying subtle patterns and hidden relationships
+            2. Exploring paradoxes and apparent contradictions
+            3. Challenging assumptions and established paradigms
+            4. Synthesizing disparate findings into novel frameworks
+            5. Revealing unexpected implications and applications
             
             Structure your analysis using this format:
 
             Start with:
-            Title: [Descriptive title reflecting the new focus]
-            Subtitle: [Specific aspect being expanded upon]
+            Title: [Compelling title that captures your novel insights]
+            Subtitle: [Intriguing aspect that challenges current understanding]
 
             Then provide:
 
-            1. Previous Analysis Review
-               - Key points from previous iteration
-               - Areas identified for expansion
-               - New perspectives to explore
+            1. Meta-Analysis
+               - Critical evaluation of previous findings
+               - Identification of hidden patterns
+               - Emerging questions and paradoxes
+               - Novel interpretative frameworks
 
-            2. Expanded Analysis
-               - Deeper investigation of key themes (with citations)
-               - New evidence and insights (with citations)
-               - Advanced interpretations
+            2. Theoretical Advancement
+               - Integration of competing perspectives
+               - Novel theoretical propositions
+               - Cross-disciplinary implications
+               - Paradigm-shifting insights
 
-            3. Novel Connections
-               - Cross-cutting themes (with citations)
-               - Interdisciplinary insights
-               - Emerging patterns
+            3. Methodological Innovation
+               - Advanced analytical approaches
+               - Novel data interpretation strategies
+               - Integration of diverse methods
+               - Innovative frameworks
 
-            4. Critical Evaluation
-               - Strengthened arguments (with citations)
-               - Counter-arguments addressed
-               - Enhanced evidence base
+            4. Unexpected Connections
+               - Cross-domain relationships
+               - Counter-intuitive findings
+               - Emergent patterns
+               - Novel synthesis of ideas
 
-            5. Synthesis and Integration
-               - Integration with previous findings
-               - Enhanced understanding
-               - Refined conclusions
+            5. Critical Implications
+               - Theoretical breakthroughs
+               - Practical applications
+               - Societal impact
+               - Future directions
 
             6. References
-               - List all new citations in APA format
+               - Comprehensive bibliography in APA format
                - Include DOIs where available
-               - Ensure all citations have corresponding references
+               - Emphasize cutting-edge research
+               - Include cross-disciplinary sources
 
-            Important:
-            - Use in-text citations in APA format (Author, Year) for all major claims and findings
-            - Each section should have at least 2-3 relevant citations
-            - Ensure citations are from reputable academic sources
-            - Include a mix of seminal works and recent research (last 5 years)
-            - All citations must have corresponding entries in the References section
+            Critical Requirements:
+            - Push beyond conventional analysis while maintaining rigor
+            - Identify subtle patterns and relationships
+            - Support novel insights with robust evidence
+            - Include 3-4 citations per major section
+            - Emphasize unexpected connections
+            - Challenge existing paradigms
+            - Explore paradoxes and tensions
+            - Propose innovative frameworks
+            - Consider counter-intuitive implications
 
-            Note: As this is iteration {self.iteration_count + 1}, be more explorative and creative 
-            while maintaining academic rigor. Push the boundaries of conventional analysis while 
-            ensuring all claims are well-supported."""
+            Note: As iteration {self.iteration_count + 1}, strive to reveal deeper layers of understanding and unexpected connections that challenge and expand current knowledge."""
         
         result = self.generate_content(prompt, self._get_analysis_config())
         if result:
