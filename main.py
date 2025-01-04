@@ -450,66 +450,152 @@ def handle_error(e: Exception, context: str):
     if context in st.session_state.app_state:
         st.session_state.app_state[context] = None
 
+def handle_form_submission(topic: str, iterations: int):
+    """Handle form submission and validate input."""
+    logger.info(f"Form submitted with topic: '{topic}' and iterations: {iterations}")
+    
+    # Validate and sanitize input
+    is_valid, error_msg, sanitized_topic = validate_and_sanitize_input(topic)
+    if not is_valid:
+        logger.error(f"Topic validation failed: {error_msg}")
+        st.error(error_msg)
+        return
+    
+    logger.info(f"Topic validated successfully. Sanitized topic: '{sanitized_topic}'")
+    
+    # Reset state and start analysis
+    reset_state(sanitized_topic, iterations)
+    logger.info("State reset, initiating rerun")
+    st.rerun()
+
 def main():
     """Main application function."""
-    initialize_state()
+    # Initialize app_state if not exists
+    if 'app_state' not in st.session_state:
+        logger.info("Initializing new app_state")
+        st.session_state.app_state = initialize_state()
+    else:
+        logger.info("Using existing app_state")
+        logger.info(f"Current app_state: {st.session_state.app_state}")
     
-    # Display header
-    st.title("🔍 Topic Analysis")
+    # Check if quota timer has expired
+    if hasattr(st.session_state, 'quota_reset_time'):
+        if time.time() >= st.session_state.quota_reset_time:
+            st.session_state.form_disabled = False
+            del st.session_state.quota_reset_time
     
-    # Create form for topic input
+    # Input form
     with st.form("analysis_form"):
         topic = st.text_area(
             "What would you like to explore?",
-            height=200
+            help="Enter your research topic or question.",
+            placeholder="e.g., 'Examine the impact of artificial intelligence on healthcare...'"
         )
+        
         iterations = st.number_input(
             "Number of Analysis Iterations",
             min_value=1,
             max_value=5,
-            value=2
+            value=2,
+            step=1,
+            help="Choose 1-5 iterations. More iterations = deeper insights = longer wait."
         )
-        submitted = st.form_submit_button("🚀 Start Analysis")
         
-        if submitted:
-            handle_form_submission(topic, iterations)
+        submit = st.form_submit_button(
+            "🚀 Start Analysis",
+            use_container_width=True,
+            disabled=st.session_state.get('form_disabled', False)
+        )
     
-    # Process each stage based on app state
-    if st.session_state.app_state.get('topic'):
-        # Process insights
-        process_stage(
-            'insights',
-            st.container(),
-            lambda **kwargs: PreAnalysisAgent(model).generate_insights(st.session_state.app_state['topic']),
-            next_stage='focus',
-            spinner_text="Generating insights...",
-            display_fn=display_insights
-        )
+    # Process submission
+    if submit:
+        handle_form_submission(topic, iterations)
+    
+    # Only proceed with analysis if we have a topic
+    if not st.session_state.app_state.get('topic'):
+        logger.info("No topic in app_state, returning")
+        return
+    
+    try:
+        logger.info("Starting analysis process")
+        # Initialize containers for each stage
+        containers = {
+            'insights': st.empty(),
+            'focus': st.empty(),
+            'framework': st.empty(),
+            'analysis': st.empty(),
+            'summary': st.empty()
+        }
         
-        # Process focus areas
+        # Process each stage
+        if st.session_state.app_state.get('show_insights'):
+            logger.info("Processing insights stage")
+            try:
+                process_stage('insights', containers['insights'],
+                            lambda **kwargs: PreAnalysisAgent(model).generate_insights(st.session_state.app_state['topic']),
+                            'focus', spinner_text="💡 Generating insights...",
+                            display_fn=display_insights)
+            except Exception as e:
+                logger.error(f"Error in insights stage: {str(e)}", exc_info=True)
+                st.error("Failed to generate insights. Please try again.")
+                return
+        
         if st.session_state.app_state.get('show_focus'):
-            process_stage(
-                'focus',
-                st.container(),
-                lambda **kwargs: PreAnalysisAgent(model).generate_focus_areas(st.session_state.app_state['topic']),
-                next_stage='framework',
-                spinner_text="Generating focus areas...",
-                display_fn=display_focus_areas
-            )
+            logger.info("Processing focus areas stage")
+            process_stage('focus', containers['focus'],
+                         lambda **kwargs: PreAnalysisAgent(model).generate_focus_areas(st.session_state.app_state['topic']),
+                         'framework', spinner_text="🎯 Generating focus areas...",
+                         display_fn=display_focus_areas)
         
-        # Process framework
-        if st.session_state.app_state.get('show_framework'):
-            process_stage(
-                'framework',
-                st.container(),
-                lambda **kwargs: FrameworkEngineer(model).generate_framework(
-                    st.session_state.app_state['topic'],
-                    st.session_state.app_state['selected_areas']
-                ),
-                next_stage='analysis',
-                spinner_text="Generating framework...",
-                display_fn=display_framework
-            )
+        # Only show framework after focus selection is complete
+        if st.session_state.app_state.get('show_framework') and st.session_state.app_state.get('focus_selection_complete'):
+            logger.info("Processing framework stage")
+            process_stage('framework', containers['framework'],
+                         lambda **kwargs: FrameworkEngineer(model).create_framework(
+                             st.session_state.app_state.get('prompt', ''),
+                             st.session_state.app_state.get('enhanced_prompt')
+                         ),
+                         'analysis', spinner_text="🔨 Building analysis framework...",
+                         display_fn=lambda x: st.expander("🎯 Research Framework", expanded=False).markdown(x))
+        
+        # Process analysis (special handling due to iterations)
+        if st.session_state.app_state.get('show_analysis'):
+            logger.info("Processing analysis stage")
+            with containers['analysis']:
+                if len(st.session_state.app_state.get('analysis_results', [])) < st.session_state.app_state.get('iterations', 2):
+                    with st.spinner("🔄 Performing analysis..."):
+                        result = ResearchAnalyst(model).analyze(
+                            st.session_state.app_state['topic'],
+                            st.session_state.app_state.get('framework', ''),
+                            st.session_state.app_state.get('analysis_results', [])[-1] if st.session_state.app_state.get('analysis_results') else None
+                        )
+                        if result:
+                            content = format_analysis_result(result)
+                            if 'analysis_results' not in st.session_state.app_state:
+                                st.session_state.app_state['analysis_results'] = []
+                            st.session_state.app_state['analysis_results'].append(content)
+                            if len(st.session_state.app_state['analysis_results']) == st.session_state.app_state['iterations']:
+                                st.session_state.app_state['show_summary'] = True
+                            st.rerun()
+                
+                for i, result in enumerate(st.session_state.app_state.get('analysis_results', [])):
+                    with st.expander(f"🔄 Research Analysis #{i + 1}", expanded=False):
+                        st.markdown(result)
+        
+        if st.session_state.app_state.get('show_summary'):
+            logger.info("Processing summary stage")
+            process_stage('summary', containers['summary'],
+                         lambda **kwargs: SynthesisExpert(model).synthesize(
+                             st.session_state.app_state['topic'],
+                             st.session_state.app_state.get('analysis_results', [])
+                         ),
+                         spinner_text="📊 Generating final report...",
+                         display_fn=lambda x: st.expander("📊 Final Report", expanded=False).markdown(x))
+                     
+    except Exception as e:
+        logger.error(f"Error in analysis process: {str(e)}", exc_info=True)
+        handle_error(e, "analysis")
+        return
 
 def format_analysis_result(result: Dict[str, str]) -> str:
     """Format analysis result with consistent structure."""
