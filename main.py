@@ -213,7 +213,7 @@ def display_synthesis(synthesis: Dict[str, str]) -> None:
         
     st.markdown("## 📊 Final Synthesis Report")
     
-    with st.expander("View Synthesis Report", expanded=False):
+    with st.expander("📊 Final Report", expanded=False):
         # Display title and subtitle
         st.markdown(f"# {synthesis.get('title', '')}")
         st.markdown(f"*{synthesis.get('subtitle', '')}*")
@@ -246,23 +246,24 @@ def display_research_analysis(analysis: Dict[str, str], index: int) -> None:
     # Create a brief summary from the title for the progress indicator
     brief_title = analysis.get('title', '').split(':')[-1].strip() if ':' in analysis.get('title', '') else analysis.get('title', '')
     
-    st.markdown(f"### 📚 Research Analysis #{index + 1}: {brief_title}")
+    st.markdown(f"## 📚 Research Analysis #{index + 1}: {brief_title}")
     
-    with st.expander("View Analysis", expanded=False):
-        st.markdown(f"# {analysis.get('title', '')}")
-        st.markdown(f"*{analysis.get('subtitle', '')}*")
-        st.markdown("---")
-        
+    with st.expander(f"📚 Research Analysis #{index + 1}", expanded=False):
         # Get the content and remove any duplicate title/subtitle that might appear at the start
         content = analysis.get('content', '')
         lines = content.split('\n')
         
-        # Skip any lines that might be duplicating the title/subtitle
+        # Find where the actual content begins (after title/subtitle/intro)
         start_idx = 0
         for i, line in enumerate(lines):
-            if line.strip().startswith('###') or line.strip().startswith('Introduction'):
+            if line.strip().startswith('Introduction:') or line.strip().startswith('Section 1:'):
                 start_idx = i
                 break
+        
+        # Display title and subtitle once at the top
+        st.markdown(f"# {analysis.get('title', '')}")
+        st.markdown(f"*{analysis.get('subtitle', '')}*")
+        st.markdown("---")
         
         # Join the remaining lines and display
         filtered_content = '\n'.join(lines[start_idx:])

@@ -43,7 +43,7 @@ def display_insights(insights: Dict[str, str]) -> None:
         
     st.markdown("## 💡 Initial Insights")
     
-    with st.expander("View Overview", expanded=True):
+    with st.expander("💡 Initial Insights", expanded=True):
         st.info(f"**Did you know?** {insights.get('did_you_know', '')}")
         st.markdown("### Overview")
         st.markdown(insights.get('eli5', ''))
@@ -55,7 +55,7 @@ def display_focus_areas(state, handle_continue: Callable, handle_skip: Callable)
         
     st.markdown("## 🎯 Research Focus Areas")
     
-    with st.expander("Select Focus Areas", expanded=state.focus_container_expanded):
+    with st.expander("🎯 Focus Areas", expanded=state.focus_container_expanded):
         st.markdown("""
         Select up to 5 areas to focus the research on, or skip to analyze all areas.
         """)
