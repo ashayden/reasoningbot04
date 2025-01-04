@@ -39,32 +39,55 @@ class APIRateLimiter:
     def __init__(self):
         self.last_call_time = 0
         self.quota_reset_time = None
-        self.calls_remaining = 60  # Default quota limit
-        self.base_delay = 1.0
+        self.calls_remaining = 60  # Default per-minute quota
+        self.daily_calls = 0
+        self.daily_limit = 1000  # Conservative daily limit
+        self.base_delay = 2.0  # Increased base delay
         self.quota_exceeded = False
         self.error_counts: Dict[str, int] = {}
+        self.last_reset = time.time()
     
     def check_quota(self) -> None:
         """Check if we're within quota limits."""
         current_time = time.time()
         
-        # Reset quota if reset time has passed
-        if self.quota_reset_time and current_time >= self.quota_reset_time:
-            self.quota_reset_time = None
-            self.quota_exceeded = False
+        # Reset per-minute quota if a minute has passed
+        if current_time - self.last_reset >= 60:
             self.calls_remaining = 60
+            self.last_reset = current_time
             self.error_counts.clear()
-            logger.info("API quota reset")
+            logger.info("Per-minute quota reset")
+        
+        # Reset daily quota at midnight UTC
+        current_day = datetime.utcnow().date()
+        last_call_day = datetime.fromtimestamp(self.last_call_time).date()
+        if current_day != last_call_day:
+            self.daily_calls = 0
+            logger.info("Daily quota reset")
         
         # Check if we're in quota exceeded state
         if self.quota_exceeded:
             wait_time = int(self.quota_reset_time - current_time) if self.quota_reset_time else 300
             raise QuotaExceededError(retry_after=wait_time)
         
-        # Enforce minimum delay between calls
+        # Check quota limits
+        if self.calls_remaining <= 0:
+            self.quota_exceeded = True
+            self.quota_reset_time = self.last_reset + 60
+            raise QuotaExceededError(retry_after=int(self.quota_reset_time - current_time))
+        
+        if self.daily_calls >= self.daily_limit:
+            self.quota_exceeded = True
+            tomorrow = (datetime.utcnow() + timedelta(days=1)).replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
+            self.quota_reset_time = tomorrow.timestamp()
+            raise QuotaExceededError(retry_after=int(self.quota_reset_time - current_time))
+        
+        # Enforce minimum delay between calls with jitter
         time_since_last_call = current_time - self.last_call_time
         if time_since_last_call < self.base_delay:
-            sleep_time = self.base_delay - time_since_last_call
+            sleep_time = self.base_delay - time_since_last_call + (random.random() * 0.5)
             logger.info(f"Rate limiting: Sleeping for {sleep_time:.2f} seconds")
             time.sleep(sleep_time)
     
@@ -74,16 +97,18 @@ class APIRateLimiter:
         self.error_counts[error_str] = self.error_counts.get(error_str, 0) + 1
         
         if "429" in error_str:
-            # If we get multiple 429s, implement longer cooldown
-            if self.error_counts[error_str] >= 3:
-                self.quota_exceeded = True
-                self.quota_reset_time = time.time() + 300  # 5 minute cooldown
-                logger.warning("Multiple quota errors detected. Implementing 5 minute cooldown.")
-                raise QuotaExceededError()
+            # Implement progressive cooldown
+            cooldown_time = min(300 * self.error_counts[error_str], 3600)  # Max 1 hour
+            self.quota_exceeded = True
+            self.quota_reset_time = time.time() + cooldown_time
+            logger.warning(f"Quota error detected. Implementing {cooldown_time} second cooldown.")
+            raise QuotaExceededError(retry_after=cooldown_time)
     
     def update_last_call(self) -> None:
-        """Update the last successful call time."""
+        """Update the last successful call time and quotas."""
         self.last_call_time = time.time()
+        self.calls_remaining -= 1
+        self.daily_calls += 1
 
 # Global rate limiter instance
 rate_limiter = APIRateLimiter()

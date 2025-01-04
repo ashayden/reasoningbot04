@@ -165,40 +165,53 @@ class PreAnalysisAgent(BaseAgent):
         try:
             logger.info(f"Generating insights for topic: {topic}")
             
-            # Generate fun fact
-            fact_prompt = (
-                f"Generate a single interesting fact about {topic}. "
-                "Make it surprising and include 1-2 relevant emojis. "
-                "Keep it to one sentence."
-            )
+            # Combined prompt for both fact and ELI5
+            combined_prompt = f"""Provide two distinct insights about {topic}:
+
+            1. Interesting Fact:
+            Generate a single surprising fact about {topic}. Include 1-2 relevant emojis. Keep it to one sentence.
+
+            2. Overview:
+            Provide a clear, direct overview of {topic} in 1-3 sentences. Include 1-3 relevant emojis naturally within the text. Focus on key points and avoid phrases like 'The question is about'.
+
+            Format the response exactly as:
+            FACT: [your fact here]
+            OVERVIEW: [your overview here]"""
             
-            logger.info("Generating fun fact...")
-            fact_text = self.generate_content(fact_prompt, PREANALYSIS_CONFIG)
-            if not fact_text:
-                logger.error("Failed to generate fun fact")
+            logger.info("Generating combined insights...")
+            response = self.generate_content(combined_prompt, PREANALYSIS_CONFIG)
+            
+            if not response:
+                logger.error("Failed to generate insights")
                 return None
-            logger.info("Fun fact generated successfully")
-            
-            # Generate ELI5
-            eli5_prompt = (
-                f"Provide a clear, direct overview of {topic} in 1-3 sentences. "
-                "Include 1-3 relevant emojis naturally within the text. "
-                "Focus on key points and avoid phrases like 'The question is about'."
-            )
-            
-            logger.info("Generating ELI5 explanation...")
-            eli5_text = self.generate_content(eli5_prompt, PREANALYSIS_CONFIG)
-            if not eli5_text:
-                logger.error("Failed to generate ELI5 explanation")
+                
+            # Parse the response
+            try:
+                lines = response.split('\n')
+                fact_text = ""
+                eli5_text = ""
+                
+                for line in lines:
+                    line = line.strip()
+                    if line.startswith('FACT:'):
+                        fact_text = line.replace('FACT:', '').strip()
+                    elif line.startswith('OVERVIEW:'):
+                        eli5_text = line.replace('OVERVIEW:', '').strip()
+                
+                if not fact_text or not eli5_text:
+                    logger.error("Failed to parse insights from response")
+                    return None
+                
+                insights = {
+                    'did_you_know': fact_text,
+                    'eli5': eli5_text
+                }
+                logger.info("Successfully generated both insights")
+                return insights
+                
+            except Exception as e:
+                logger.error(f"Failed to parse insights: {str(e)}")
                 return None
-            logger.info("ELI5 explanation generated successfully")
-            
-            insights = {
-                'did_you_know': fact_text,
-                'eli5': eli5_text
-            }
-            logger.info("Successfully generated both insights")
-            return insights
             
         except Exception as e:
             logger.error(f"PreAnalysis generation failed: {str(e)}")
