@@ -180,8 +180,8 @@ class PreAnalysisAgent(BaseAgent):
             
             if not response:
                 logger.error("Failed to generate insights")
-                return None
-            
+            return None
+        
             # Parse the response
             lines = response.split('\n')
             fact_text = ""
@@ -196,15 +196,15 @@ class PreAnalysisAgent(BaseAgent):
             
             if not fact_text or not eli5_text:
                 logger.error("Failed to parse insights from response")
-                return None
-            
-            insights = {
+            return None
+        
+        insights = {
                 'did_you_know': fact_text,
                 'eli5': eli5_text
-            }
+        }
             logger.info("Successfully generated both insights")
-            return insights
-            
+        return insights
+
         except Exception as e:
             logger.error(f"PreAnalysis generation failed: {str(e)}")
             raise
