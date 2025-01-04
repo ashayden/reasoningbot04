@@ -30,8 +30,8 @@ def rate_limit_decorator(func: Callable) -> Callable:
     @wraps(func)
     def wrapper(*args, **kwargs) -> Any:
         try:
-            # Add delay between calls to prevent rapid retries
-            time.sleep(1.0)  # Increased delay
+            # Add small delay between calls
+            time.sleep(0.5)
             return func(*args, **kwargs)
         except Exception as e:
             if "429" in str(e):
