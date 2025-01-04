@@ -5,9 +5,10 @@ import streamlit as st
 import google.generativeai as genai
 import os
 from typing import Dict
+import time
 
 from config import GEMINI_MODEL
-from utils import validate_topic, sanitize_topic
+from utils import validate_topic, sanitize_topic, QuotaExceededError
 from agents import PreAnalysisAgent, PromptDesigner, FrameworkEngineer, ResearchAnalyst, SynthesisExpert
 
 # Configure logging
@@ -267,7 +268,21 @@ def handle_error(e: Exception, context: str):
     error_msg = f"Error during {context}: {str(e)}"
     logger.error(error_msg)
     
-    # Provide user-friendly error message
+    # Handle quota exceeded errors specially
+    if isinstance(e, QuotaExceededError):
+        retry_after = getattr(e, 'retry_after', 300)
+        user_msg = f"API quota exceeded. Please wait {retry_after} seconds before trying again."
+        st.error(user_msg)
+        # Add a countdown timer
+        placeholder = st.empty()
+        for remaining in range(retry_after, 0, -1):
+            placeholder.info(f"⏳ You can try again in {remaining} seconds...")
+            time.sleep(1)
+        placeholder.empty()
+        st.info("✅ You can now try again!")
+        return
+    
+    # Provide user-friendly error message for other errors
     user_msg = {
         'insights': "Failed to generate initial insights. Please try again.",
         'prompt': "Failed to optimize the prompt. Please try again.",

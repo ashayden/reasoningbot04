@@ -3,8 +3,9 @@
 import logging
 import time
 import random
-from typing import Any, Callable, Tuple
+from typing import Any, Callable, Tuple, Dict
 from functools import wraps
+from datetime import datetime, timedelta
 from config import MIN_TOPIC_LENGTH, MAX_TOPIC_LENGTH
 
 # Configure logging with more detailed format
@@ -18,6 +19,12 @@ class MARAError(Exception):
     """Base exception class for MARA application."""
     pass
 
+class QuotaExceededError(MARAError):
+    """Raised when API quota is exhausted."""
+    def __init__(self, retry_after: int = 300):
+        self.retry_after = retry_after
+        super().__init__(f"API quota exceeded. Please try again in {retry_after} seconds.")
+
 class ValidationError(MARAError):
     """Raised when input validation fails."""
     pass
@@ -26,8 +33,63 @@ class ProcessingError(MARAError):
     """Raised when processing operations fail."""
     pass
 
+class APIRateLimiter:
+    """Manages API rate limiting and quota tracking."""
+    
+    def __init__(self):
+        self.last_call_time = 0
+        self.quota_reset_time = None
+        self.calls_remaining = 60  # Default quota limit
+        self.base_delay = 1.0
+        self.quota_exceeded = False
+        self.error_counts: Dict[str, int] = {}
+    
+    def check_quota(self) -> None:
+        """Check if we're within quota limits."""
+        current_time = time.time()
+        
+        # Reset quota if reset time has passed
+        if self.quota_reset_time and current_time >= self.quota_reset_time:
+            self.quota_reset_time = None
+            self.quota_exceeded = False
+            self.calls_remaining = 60
+            self.error_counts.clear()
+            logger.info("API quota reset")
+        
+        # Check if we're in quota exceeded state
+        if self.quota_exceeded:
+            wait_time = int(self.quota_reset_time - current_time) if self.quota_reset_time else 300
+            raise QuotaExceededError(retry_after=wait_time)
+        
+        # Enforce minimum delay between calls
+        time_since_last_call = current_time - self.last_call_time
+        if time_since_last_call < self.base_delay:
+            sleep_time = self.base_delay - time_since_last_call
+            logger.info(f"Rate limiting: Sleeping for {sleep_time:.2f} seconds")
+            time.sleep(sleep_time)
+    
+    def handle_error(self, error: Exception) -> None:
+        """Handle API errors and update quota tracking."""
+        error_str = str(error)
+        self.error_counts[error_str] = self.error_counts.get(error_str, 0) + 1
+        
+        if "429" in error_str:
+            # If we get multiple 429s, implement longer cooldown
+            if self.error_counts[error_str] >= 3:
+                self.quota_exceeded = True
+                self.quota_reset_time = time.time() + 300  # 5 minute cooldown
+                logger.warning("Multiple quota errors detected. Implementing 5 minute cooldown.")
+                raise QuotaExceededError()
+    
+    def update_last_call(self) -> None:
+        """Update the last successful call time."""
+        self.last_call_time = time.time()
+
+# Global rate limiter instance
+rate_limiter = APIRateLimiter()
+
 def rate_limit_decorator(func: Callable) -> Callable:
-    """Decorator to implement rate limiting with exponential backoff.
+    """Decorator to implement rate limiting with quota management.
     
     Args:
         func: The function to rate limit
@@ -35,43 +97,40 @@ def rate_limit_decorator(func: Callable) -> Callable:
     Returns:
         The wrapped function with rate limiting
     """
-    last_call_time = 0
-    base_delay = 1  # Base delay in seconds
-    max_retries = 3
-    
     @wraps(func)
     def wrapper(*args, **kwargs) -> Any:
-        nonlocal last_call_time
+        max_retries = 3
         
-        # Ensure minimum time between calls
-        current_time = time.time()
-        time_since_last_call = current_time - last_call_time
-        if time_since_last_call < base_delay:
-            sleep_time = base_delay - time_since_last_call
-            logger.info(f"Rate limiting: Sleeping for {sleep_time:.2f} seconds")
-            time.sleep(sleep_time)
-        
-        # Implement exponential backoff for retries
         for attempt in range(max_retries):
             try:
+                # Check quota before making call
+                rate_limiter.check_quota()
+                
+                # Make the API call
                 result = func(*args, **kwargs)
-                last_call_time = time.time()
+                
+                # Update successful call time
+                rate_limiter.update_last_call()
                 return result
+                
             except Exception as e:
-                if "429" in str(e):  # API quota error
-                    if attempt < max_retries - 1:  # Don't sleep on last attempt
-                        delay = (2 ** attempt * base_delay) + (random.random() * 0.1)
-                        logger.warning(f"API quota exceeded. Attempt {attempt + 1}/{max_retries}. "
-                                     f"Retrying in {delay:.2f} seconds...")
-                        time.sleep(delay)
-                    else:
-                        logger.error(f"API quota exceeded after {max_retries} attempts")
-                        raise Exception("API quota exceeded. Please try again later.") from e
+                # Handle the error and update quota tracking
+                rate_limiter.handle_error(e)
+                
+                if attempt < max_retries - 1:
+                    # Calculate backoff delay
+                    delay = (2 ** attempt * rate_limiter.base_delay) + (random.random() * 0.1)
+                    logger.warning(f"API error on attempt {attempt + 1}/{max_retries}. "
+                                 f"Retrying in {delay:.2f} seconds...")
+                    time.sleep(delay)
                 else:
+                    # If we've exhausted retries, raise the error
+                    if isinstance(e, QuotaExceededError):
+                        raise
                     logger.error(f"Error in rate-limited function {func.__name__}: {str(e)}")
                     raise
         
-        return None  # Should never reach here due to raise in loop
+        return None  # Should never reach here
     
     return wrapper
 
