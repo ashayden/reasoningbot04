@@ -3,7 +3,9 @@
 import logging
 import streamlit as st
 import google.generativeai as genai
-from typing import Dict
+from typing import Dict, Tuple
+import re
+import markdown
 
 from config import GEMINI_MODEL
 from utils import validate_topic, sanitize_topic, QuotaExceededError
@@ -194,8 +196,28 @@ def display_research_analysis(analysis_data: Dict[str, str]) -> None:
         st.markdown("---")
         st.markdown(analysis_data["content"])
 
+def generate_download_content(synthesis_data: Dict[str, str], format: str) -> Tuple[str, str, bytes]:
+    """Generate downloadable content in the specified format."""
+    if format == "markdown":
+        content = f"# {synthesis_data['title']}\n\n"
+        content += f"*{synthesis_data['subtitle']}*\n\n"
+        content += synthesis_data['content']
+        return "text/markdown", "synthesis_report.md", content.encode('utf-8')
+    elif format == "txt":
+        content = f"{synthesis_data['title']}\n"
+        content += f"{synthesis_data['subtitle']}\n\n"
+        content += re.sub(r'\*\*|•|\n###', '', synthesis_data['content'])  # Remove markdown
+        return "text/plain", "synthesis_report.txt", content.encode('utf-8')
+    else:  # PDF
+        import pdfkit
+        html_content = f"<h1>{synthesis_data['title']}</h1>"
+        html_content += f"<p><em>{synthesis_data['subtitle']}</em></p>"
+        html_content += markdown.markdown(synthesis_data['content'])
+        pdf_content = pdfkit.from_string(html_content, False)
+        return "application/pdf", "synthesis_report.pdf", pdf_content
+
 def display_synthesis(synthesis_data: Dict[str, str]) -> None:
-    """Display synthesis report with prominent title."""
+    """Display synthesis report with prominent title and download options."""
     if not synthesis_data:
         return
         
@@ -204,6 +226,41 @@ def display_synthesis(synthesis_data: Dict[str, str]) -> None:
         st.markdown(f"*{synthesis_data['subtitle']}*")
         st.markdown("---")
         st.markdown(synthesis_data["content"])
+        
+        # Add download options
+        st.markdown("---")
+        st.markdown("### Download Report")
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if st.button("📥 Download PDF"):
+                mime_type, filename, content = generate_download_content(synthesis_data, "pdf")
+                st.download_button(
+                    label="Download PDF",
+                    data=content,
+                    file_name=filename,
+                    mime=mime_type
+                )
+        
+        with col2:
+            if st.button("📝 Download Markdown"):
+                mime_type, filename, content = generate_download_content(synthesis_data, "markdown")
+                st.download_button(
+                    label="Download Markdown",
+                    data=content,
+                    file_name=filename,
+                    mime=mime_type
+                )
+        
+        with col3:
+            if st.button("📄 Download Text"):
+                mime_type, filename, content = generate_download_content(synthesis_data, "txt")
+                st.download_button(
+                    label="Download Text",
+                    data=content,
+                    file_name=filename,
+                    mime=mime_type
+                )
 
 def process_stage():
     """Process the current stage of the analysis."""

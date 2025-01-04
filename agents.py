@@ -208,12 +208,12 @@ FORMATTING REQUIREMENTS:
    - Keep paragraphs focused
 
 RESPONSE FORMAT:
-Create a JSON object with three fields:
+Return your response as a Python dictionary with three fields:
 1. title: A unique, descriptive title for your analysis
 2. subtitle: An engaging subtitle that previews key insights
 3. content: Your analysis with proper markdown formatting
 
-Example structure (DO NOT COPY THE CONTENT, ONLY THE STRUCTURE):
+Example structure (DO NOT COPY THE EXAMPLE TEXT):
 {
     "title": "Urban Transformation: A City in Motion",
     "subtitle": "Examining the Forces of Change and Adaptation",
@@ -267,15 +267,16 @@ Focus your deeper analysis on:
             # Clean up the dictionary string
             dict_str = dict_str.replace('\n', ' ')  # Remove newlines temporarily
             dict_str = dict_str.replace('\\n', '__NEWLINE__')  # Preserve intended newlines
+            dict_str = dict_str.replace('\\', '\\\\')  # Escape backslashes
             dict_str = re.sub(r'(?<!\\)"', '\\"', dict_str)  # Escape unescaped quotes
             dict_str = dict_str.replace("'", '"')  # Replace single quotes with double quotes
             
             # Parse the dictionary
             try:
-                import json
-                analysis = json.loads(dict_str)
-            except json.JSONDecodeError:
-                logger.error("Failed to parse response as JSON")
+                import ast
+                analysis = ast.literal_eval(dict_str)
+            except:
+                logger.error("Failed to parse response as dictionary")
                 return None
             
             # Validate the dictionary structure
