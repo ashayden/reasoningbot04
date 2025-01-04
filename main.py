@@ -198,40 +198,42 @@ def process_stage():
         model = genai.GenerativeModel(GEMINI_MODEL)
         
         if st.session_state.stage == 'input':
-            st.title("🔍 Research Assistant")
-            st.write("Enter a topic to begin the research process.")
+            # Display logo
+            st.image("assets/mara-logo.png", use_container_width=True)
         
-        # Always show the input form
-        with st.form("topic_form", clear_on_submit=False):
-            topic = st.text_area(
-                "What would you like to explore?",
-                value=st.session_state.get('topic', ''),
-                help="Enter your research topic or question.",
-                placeholder="e.g., 'Examine the impact of artificial intelligence on healthcare...'"
-            )
-            
-            iterations = st.number_input(
-                "Number of Analysis Iterations",
-                min_value=1,
-                max_value=5,
-                value=st.session_state.get('iterations', 2),
-                step=1,
-                help="Choose 1-5 iterations. More iterations = deeper insights = longer wait."
-            )
-            
-            submitted = st.form_submit_button(
-                "🚀 Start Analysis",
-                use_container_width=True,
-                type="primary"
-            )
-            
-            if submitted and topic:
-                if validate_topic(topic):
-                    st.session_state.topic = sanitize_topic(topic)
-                    st.session_state.iterations = iterations
-                    st.session_state.stage = 'insights'
-                    st.rerun()
+        # Input form
+        if st.session_state.stage == 'input':
+            with st.form("topic_form", clear_on_submit=False):
+                topic = st.text_area(
+                    "What would you like to explore?",
+                    value=st.session_state.get('topic', ''),
+                    help="Enter your research topic or question.",
+                    placeholder="e.g., 'Examine the impact of artificial intelligence on healthcare...'"
+                )
+                
+                iterations = st.number_input(
+                    "Number of Analysis Iterations",
+                    min_value=1,
+                    max_value=5,
+                    value=st.session_state.get('iterations', 2),
+                    step=1,
+                    help="Choose 1-5 iterations. More iterations = deeper insights = longer wait."
+                )
+                
+                submitted = st.form_submit_button(
+                    "🚀 Start Analysis",
+                    use_container_width=True,
+                    type="primary"
+                )
+                
+                if submitted and topic:
+                    if validate_topic(topic):
+                        st.session_state.topic = sanitize_topic(topic)
+                        st.session_state.iterations = iterations
+                        st.session_state.stage = 'insights'
+                        st.rerun()
         
+        # Other stages
         if st.session_state.stage == 'insights':
             pre_analysis = PreAnalysisAgent(model)
             insights = pre_analysis.generate_insights(st.session_state.topic)

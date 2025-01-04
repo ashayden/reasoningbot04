@@ -141,7 +141,7 @@ class ResearchAnalyst(BaseAgent):
     def analyze(self, topic: str, focus_areas: Optional[List[str]], previous_analysis: Optional[str] = None) -> Optional[Dict[str, str]]:
         """Conduct analysis based on topic, focus areas, and previous findings."""
         context = f"Previous Analysis:\n{previous_analysis}\n\n" if previous_analysis else ""
-        focus_context = f"\nSelected Focus Areas:\n{', '.join(focus_areas)}" if focus_areas else ""
+        focus_context = f"\nSelected Focus Areas:\n{', '.join(focus_areas) if focus_areas else []}"
         
         base_prompt = f"""Topic: {topic}{focus_context}
 {context}
@@ -178,7 +178,8 @@ Important:
 - No line breaks in the dictionary
 - Keep the exact keys: title, subtitle, content
 - Ensure proper dictionary formatting
-- Avoid nested quotes or special characters"""
+- Avoid nested quotes or special characters
+- Content should be a single string with proper markdown formatting"""
         
         try:
             # Adjust temperature based on iteration
@@ -208,12 +209,16 @@ Important:
                 logger.error("Response missing required keys")
                 return None
                 
-            # Clean up values
+            # Clean up values and ensure they're strings
+            cleaned_analysis = {}
             for key in required_keys:
                 if key in analysis:
-                    analysis[key] = analysis[key].strip().strip('"\'').strip()
+                    value = analysis[key]
+                    if isinstance(value, (dict, list)):
+                        value = str(value)
+                    cleaned_analysis[key] = str(value).strip().strip('"\'').strip()
             
-            return analysis
+            return cleaned_analysis
             
         except Exception as e:
             logger.error(f"Error parsing analysis response: {str(e)}")
