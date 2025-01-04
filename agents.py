@@ -186,6 +186,8 @@ Remember:
 - Focus on selected areas if specified'''
 
             response = self._generate_with_backoff(prompt)
+            if not response:
+                return None
             
             # Clean and parse the response
             cleaned_response = response.strip()
@@ -212,13 +214,17 @@ Remember:
                     result = {
                         "title": title,
                         "subtitle": subtitle,
-                        "content": content
+                        "content": content.replace('\\n', '\n')  # Convert literal \n to newlines
                     }
             
             # Validate the result
             required_keys = ['title', 'subtitle', 'content']
             if not all(key in result for key in required_keys):
                 raise ValueError("Missing required keys in analysis response")
+                
+            # Clean up content formatting
+            if 'content' in result:
+                result['content'] = result['content'].replace('\\n', '\n')
                 
             return result
 
@@ -229,14 +235,15 @@ Remember:
 class SynthesisExpert(BaseAgent):
     """Agent responsible for synthesizing findings into a thesis-driven report."""
     
-    def synthesize(self, topic: str, focus_areas: Optional[List[str]], analyses: List[str]) -> Optional[Dict[str, str]]:
+    def synthesize(self, topic: str, focus_areas: Optional[List[str]], analyses: List[Dict[str, str]]) -> Optional[Dict[str, str]]:
         """Synthesize multiple analyses into a cohesive report."""
-        # Convert analyses list to formatted string, extracting content from each analysis dict
+        # Convert analyses list to formatted string
         analyses_text = ""
         for analysis in analyses:
             try:
-                if isinstance(analysis, dict) and 'content' in analysis:
-                    analyses_text += analysis['content'] + "\n\n"
+                if isinstance(analysis, dict):
+                    analyses_text += f"\nTitle: {analysis.get('title', '')}\n"
+                    analyses_text += f"Content: {analysis.get('content', '')}\n\n"
                 else:
                     analyses_text += str(analysis) + "\n\n"
             except Exception as e:
@@ -245,110 +252,74 @@ class SynthesisExpert(BaseAgent):
                 
         focus_context = f"\nSelected Focus Areas:\n{', '.join(focus_areas)}" if focus_areas else ""
         
-        prompt = f"""Topic: {topic}{focus_context}
+        prompt = f'''Topic: {topic}{focus_context}
 
 Previous Analyses:
 {analyses_text}
 
-You are an expert synthesis writer tasked with creating a compelling, thesis-driven report that weaves together all research findings into a cohesive narrative. Begin with a creative, specific title that captures your synthesis's main argument, followed by an engaging subtitle that previews your key insights.
+Create a compelling, thesis-driven synthesis that weaves together all research findings into a cohesive narrative.
 
-For example, instead of generic titles like "Research Synthesis" or "Final Report", create titles like:
-"Preserving Soul: A Blueprint for Cultural Sustainability"
-"Urban Evolution: Navigating Change and Tradition"
-"Community Crossroads: Charting a Path Forward"
-
-Your synthesis should:
-1. Present a clear, compelling thesis that emerges from the research
-2. Weave together key findings into a cohesive narrative
-3. Address all primary and secondary research questions
-4. Evaluate the significance of major findings
-5. Draw meaningful connections between different analyses
-6. Provide specific evidence and examples
-7. Offer actionable recommendations
-8. Consider broader implications
-
-Structure your synthesis with:
-1. Title and Subtitle
-- Create a unique, specific title that captures your main argument
-- Add an engaging subtitle that previews key insights
-- Avoid generic labels like "Research Synthesis" or "Final Report"
-
-2. Executive Summary
-- Present your main thesis
-- Preview key findings
-- Highlight major implications
-
-3. Key Findings and Analysis
-- Organize findings thematically
-- Support with specific evidence
-- Draw clear connections
-
-4. Synthesis and Implications
-- Weave findings into a cohesive narrative
-- Evaluate significance
-- Consider broader context
-
-5. Recommendations
-- Provide actionable insights
-- Consider different stakeholders
-- Address key challenges
-
-Format your response as a dictionary with these exact keys:
-{
+Return your response in this exact format:
+{{
     "title": "Your creative, specific title here",
-    "subtitle": "Your engaging, preview subtitle here",
+    "subtitle": "Your engaging subtitle here",
     "content": "Your detailed synthesis here"
-}
+}}
 
-Important Formatting Rules:
-1. Use clear section headings
-2. Format consistently:
-   - Bold for emphasis (**text**)
-   - Italics for subtitles (*text*)
-   - Clear section breaks
-3. Ensure readability:
-   - Clear topic sentences
-   - Logical flow
-   - Professional tone
-4. Support all claims with evidence
-5. Make explicit connections between ideas"""
+Important:
+1. Title should be unique and specific (not generic like "Research Synthesis")
+2. Content should include:
+   - Clear thesis statement
+   - Integration of key findings
+   - Supporting evidence
+   - Actionable recommendations
+3. Use markdown formatting:
+   - ### for section headings
+   - ** for bold text
+   - * for italics
+   - Bullet points where appropriate'''
         
         try:
-            result = self.generate_content(prompt, SYNTHESIS_CONFIG)
-            if not result:
+            response = self._generate_with_backoff(prompt)
+            if not response:
                 return None
                 
             # Clean and parse the response
-            result = result.strip()
-            result = result.replace('"', '"').replace('"', '"')
-            result = result.replace("'", "'").replace("'", "'")
-            result = result.replace('\n', ' ').replace('\r', ' ')
+            cleaned_response = response.strip()
+            if not cleaned_response.startswith('{'):
+                cleaned_response = '{' + cleaned_response
+            if not cleaned_response.endswith('}'):
+                cleaned_response = cleaned_response + '}'
             
+            # Parse response
             try:
-                synthesis = eval(result)
+                result = ast.literal_eval(cleaned_response)
             except:
-                result = result.replace('"{', '{').replace('}"', '}')
-                synthesis = eval(result)
+                try:
+                    result = json.loads(cleaned_response)
+                except:
+                    # Last resort parsing
+                    parts = cleaned_response.split('",')
+                    title = parts[0].split('"title": "')[1]
+                    subtitle = parts[1].split('"subtitle": "')[1]
+                    content = parts[2].split('"content": "')[1].rstrip('"}')
+                    result = {
+                        "title": title,
+                        "subtitle": subtitle,
+                        "content": content.replace('\\n', '\n')
+                    }
             
-            if not isinstance(synthesis, dict):
-                logger.error("Response is not a dictionary")
-                return None
-                
-            required_keys = {'title', 'subtitle', 'content'}
-            if not all(key in synthesis for key in required_keys):
-                logger.error("Response missing required keys")
-                return None
-                
-            cleaned_synthesis = {}
-            for key in required_keys:
-                if key in synthesis:
-                    value = synthesis[key]
-                    if isinstance(value, (dict, list)):
-                        value = str(value)
-                    cleaned_synthesis[key] = str(value).strip().strip('"\'').strip()
+            # Validate and clean result
+            required_keys = ['title', 'subtitle', 'content']
+            if not all(key in result for key in required_keys):
+                raise ValueError("Missing required keys in synthesis response")
             
-            return cleaned_synthesis
+            # Clean up content formatting
+            if 'content' in result:
+                result['content'] = result['content'].replace('\\n', '\n')
+            
+            return result
             
         except Exception as e:
-            logger.error(f"Error parsing synthesis response: {str(e)}")
+            logger.error(f"Error generating synthesis: {str(e)}")
             return None 
