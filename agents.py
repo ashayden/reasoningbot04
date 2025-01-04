@@ -91,10 +91,18 @@ Important: Use only straight quotes (") not curly quotes, and ensure the respons
 2. Include both obvious and non-obvious angles
 3. Span theoretical and practical implications
 
-Format your response EXACTLY as a Python list like this:
-["First focus area", "Second focus area", "Third focus area"]
+Format your response EXACTLY as a Python list of strings, one per line, like this:
+[
+    "First focus area",
+    "Second focus area",
+    "Third focus area"
+]
 
-Important: Use only straight quotes (") and ensure the response is a valid Python list."""
+Important: 
+- Use only straight quotes (")
+- Each focus area should be on its own line
+- Do not include any explanations or additional text
+- Keep each focus area concise (3-7 words)"""
         
         try:
             result = self.generate_content(prompt, PREANALYSIS_CONFIG)
@@ -103,27 +111,43 @@ Important: Use only straight quotes (") and ensure the response is a valid Pytho
                 
             # Clean the response to ensure valid Python syntax
             result = result.strip()
-            result = result.replace('"', '"').replace('"', '"')  # Replace curly quotes
-            result = result.replace("'", "'").replace("'", "'")  # Replace curly single quotes
             
-            # Safely evaluate the string as a Python list
-            focus_areas = eval(result)
+            # Try parsing as a direct Python list first
+            try:
+                result = result.replace('"', '"').replace('"', '"')  # Replace curly quotes
+                result = result.replace("'", "'").replace("'", "'")  # Replace curly single quotes
+                focus_areas = eval(result)
+            except:
+                # Fallback: try to parse line by line
+                logger.info("Falling back to line-by-line parsing")
+                lines = [line.strip() for line in result.split('\n')]
+                focus_areas = []
+                for line in lines:
+                    # Remove common prefixes and clean up
+                    line = line.strip('[]," \t-•*')
+                    if line and not line.startswith(('Format', 'Important', 'Use', 'Each', 'Do not')):
+                        focus_areas.append(line)
             
             # Validate the list structure
             if not isinstance(focus_areas, list):
                 logger.error("Response is not a list")
                 return None
-                
-            if not (8 <= len(focus_areas) <= 10):
-                logger.error(f"Invalid number of focus areas: {len(focus_areas)}")
+            
+            # Clean up and validate each focus area
+            cleaned_areas = []
+            for area in focus_areas:
+                if isinstance(area, str) and area.strip():
+                    # Remove any remaining quotes and clean up whitespace
+                    cleaned = area.strip().strip('"\'').strip()
+                    if cleaned:
+                        cleaned_areas.append(cleaned)
+            
+            # Validate final list
+            if not (8 <= len(cleaned_areas) <= 10):
+                logger.error(f"Invalid number of focus areas: {len(cleaned_areas)}")
                 return None
-                
-            # Ensure all items are strings
-            if not all(isinstance(item, str) for item in focus_areas):
-                logger.error("Not all focus areas are strings")
-                return None
-                
-            return focus_areas
+            
+            return cleaned_areas
             
         except Exception as e:
             logger.error(f"Error parsing focus areas response: {str(e)}")
