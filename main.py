@@ -6,13 +6,19 @@ import google.generativeai as genai
 import os
 from typing import Dict
 import time
+import re
+from typing import Optional, Tuple, List, Dict, Any
 
 from config import GEMINI_MODEL
-from utils import validate_topic, sanitize_topic, QuotaExceededError
+from utils import validate_topic, sanitize_topic, QuotaExceededError, MARAError
 from agents import PreAnalysisAgent, PromptDesigner, FrameworkEngineer, ResearchAnalyst, SynthesisExpert
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 logger = logging.getLogger(__name__)
 
 # Page configuration
@@ -116,6 +122,44 @@ div[data-testid="stNumberInput"] button:hover {
 
 # Logo/Header
 st.image("assets/mara-logo.png", use_container_width=True)
+
+def initialize_gemini():
+    """Initialize the Gemini model with caching."""
+    try:
+        # Check if API key exists in secrets
+        if "GOOGLE_API_KEY" not in st.secrets:
+            st.error("Google API key not found in Streamlit secrets.")
+            logger.error("Google API key not found in secrets")
+            return None
+            
+        api_key = st.secrets["GOOGLE_API_KEY"]
+        if not api_key:
+            st.error("Google API key is empty. Please check your Streamlit secrets.")
+            logger.error("Google API key is empty")
+            return None
+            
+        # Configure the API
+        genai.configure(api_key=api_key)
+        
+        try:
+            # Initialize the model
+            model = genai.GenerativeModel(GEMINI_MODEL)
+            logger.info("Successfully initialized Gemini model")
+            return model
+                
+        except Exception as e:
+            if "429" in str(e):
+                st.error("API quota exceeded. Please wait a few minutes and try again.")
+                logger.error("API quota exceeded during initialization")
+            else:
+                st.error(f"Failed to initialize Gemini model: {str(e)}")
+                logger.error(f"Failed to initialize or test Gemini model: {str(e)}")
+            return None
+            
+    except Exception as e:
+        st.error(f"Failed to initialize Gemini API: {str(e)}")
+        logger.error(f"Failed to initialize Gemini API: {str(e)}")
+        return None
 
 # Initialize model early
 @st.cache_resource
@@ -263,44 +307,6 @@ def process_stage(stage_name, container, stage_fn, next_stage=None, spinner_text
                 st.rerun()
     elif display_fn and st.session_state.app_state.get(stage_name) is not None:
         display_fn(st.session_state.app_state[stage_name])
-
-def initialize_gemini():
-    """Initialize the Gemini model with caching."""
-    try:
-        # Check if API key exists in secrets
-        if "GOOGLE_API_KEY" not in st.secrets:
-            st.error("Google API key not found in Streamlit secrets.")
-            logger.error("Google API key not found in secrets")
-            return None
-            
-        api_key = st.secrets["GOOGLE_API_KEY"]
-        if not api_key:
-            st.error("Google API key is empty. Please check your Streamlit secrets.")
-            logger.error("Google API key is empty")
-            return None
-            
-        # Configure the API
-        genai.configure(api_key=api_key)
-        
-        try:
-            # Initialize the model
-            model = genai.GenerativeModel(GEMINI_MODEL)
-            logger.info("Successfully initialized Gemini model")
-            return model
-                
-        except Exception as e:
-            if "429" in str(e):
-                st.error("API quota exceeded. Please wait a few minutes and try again.")
-                logger.error("API quota exceeded during initialization")
-            else:
-                st.error(f"Failed to initialize Gemini model: {str(e)}")
-                logger.error(f"Failed to initialize or test Gemini model: {str(e)}")
-            return None
-            
-    except Exception as e:
-        st.error(f"Failed to initialize Gemini API: {str(e)}")
-        logger.error(f"Failed to initialize Gemini API: {str(e)}")
-        return None
 
 def validate_and_sanitize_input(topic: str) -> tuple[bool, str, str]:
     """Validate and sanitize user input."""
