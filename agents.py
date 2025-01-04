@@ -14,7 +14,7 @@ from config import (
     SYNTHESIS_CONFIG,
     PREANALYSIS_CONFIG
 )
-from utils import rate_limit_decorator, parse_title_content
+from utils import rate_limit_decorator
 
 logger = logging.getLogger(__name__)
 

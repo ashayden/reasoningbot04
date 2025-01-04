@@ -1,6 +1,7 @@
 """Utility functions for the MARA application."""
 
 import logging
+import time
 from typing import Any, Callable, Tuple
 from functools import wraps
 from config import MIN_TOPIC_LENGTH, MAX_TOPIC_LENGTH
@@ -23,6 +24,43 @@ class ValidationError(MARAError):
 class ProcessingError(MARAError):
     """Raised when processing operations fail."""
     pass
+
+def rate_limit_decorator(func: Callable) -> Callable:
+    """Decorator to implement rate limiting for API calls.
+    
+    Ensures a minimum delay between API calls to prevent rate limit errors.
+    
+    Args:
+        func: The function to wrap with rate limiting.
+        
+    Returns:
+        Wrapped function with rate limiting.
+    """
+    last_call_time = {}
+    
+    @wraps(func)
+    def wrapper(*args, **kwargs) -> Any:
+        # Minimum time between calls (in seconds)
+        min_delay = 1.0
+        
+        # Get current time
+        current_time = time.time()
+        
+        # Check if we need to wait
+        if func in last_call_time:
+            elapsed = current_time - last_call_time[func]
+            if elapsed < min_delay:
+                time.sleep(min_delay - elapsed)
+        
+        try:
+            # Update last call time before making the call
+            last_call_time[func] = time.time()
+            return func(*args, **kwargs)
+        except Exception as e:
+            logger.error(f"Error in rate-limited function {func.__name__}: {str(e)}")
+            raise
+            
+    return wrapper
 
 def validate_topic(topic: str) -> Tuple[bool, str]:
     """Validate the input topic string.
