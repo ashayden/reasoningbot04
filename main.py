@@ -217,36 +217,22 @@ def display_synthesis(synthesis: Dict[str, str]) -> None:
         st.markdown(f"*{synthesis.get('subtitle', '')}*")
         st.markdown("---")
         
-        # Get the content and remove any duplicate title/subtitle that might appear at the start
+        # Get the content
         content = synthesis.get('content', '')
-        lines = content.split('\n')
-        
-        # Find where the actual content begins (after title/subtitle/intro)
-        start_idx = 0
-        for i, line in enumerate(lines):
-            if line.strip().startswith('Introduction:') or line.strip().startswith('Section 1:'):
-                start_idx = i
-                break
-        
-        # Filter out any highlighted title/subtitle from the content
-        filtered_lines = []
-        content_started = False
-        for line in lines[start_idx:]:
-            # Skip any lines that contain "Final Report" or are highlighted title/subtitle
-            if "Final Report" in line:
-                continue
-            if not content_started:
-                if line.strip().startswith('Introduction:') or line.strip().startswith('Section 1:'):
-                    content_started = True
+        if content:
+            # Remove any highlighted text backgrounds
+            lines = content.split('\n')
+            filtered_lines = []
+            for line in lines:
+                if not any(bg in line.lower() for bg in ['background-color:', 'rgb', 'rgba', '#']):
                     filtered_lines.append(line)
-            else:
-                filtered_lines.append(line)
+            
+            filtered_content = '\n'.join(filtered_lines)
+            st.markdown(filtered_content)
+        else:
+            st.warning("No content available for this synthesis.")
         
-        # Join the filtered lines and display
-        filtered_content = '\n'.join(filtered_lines)
-        st.markdown(filtered_content)
-        
-        # Create download content without "Final Report"
+        # Create download content
         synthesis_text = f"""# {synthesis.get('title', '')}
 
 *{synthesis.get('subtitle', '')}*
@@ -281,7 +267,15 @@ def display_research_analysis(analysis: Dict[str, str], index: int) -> None:
         # Get the content
         content = analysis.get('content', '')
         if content:
-            st.markdown(content)
+            # Remove any highlighted text backgrounds
+            lines = content.split('\n')
+            filtered_lines = []
+            for line in lines:
+                if not any(bg in line.lower() for bg in ['background-color:', 'rgb', 'rgba', '#']):
+                    filtered_lines.append(line)
+            
+            filtered_content = '\n'.join(filtered_lines)
+            st.markdown(filtered_content)
         else:
             st.warning("No content available for this analysis.")
 
