@@ -220,7 +220,7 @@ def display_synthesis(synthesis: Dict[str, str]) -> None:
         # Get the content
         content = synthesis.get('content', '')
         if content:
-            # Process content to remove highlighted sections
+            # Process content to remove highlighted sections and labels
             lines = content.split('\n')
             filtered_lines = []
             for line in lines:
@@ -232,6 +232,9 @@ def display_synthesis(synthesis: Dict[str, str]) -> None:
                     continue
                 # Skip lines that exactly match the subtitle
                 if line.strip() == synthesis.get('subtitle', '').strip():
+                    continue
+                # Skip section labels
+                if line.strip() in ['Introduction:', 'Conclusion:']:
                     continue
                 # Remove any HTML-style background coloring
                 if '<span' in line.lower() and 'background' in line.lower():
@@ -246,12 +249,11 @@ def display_synthesis(synthesis: Dict[str, str]) -> None:
             # Remove any remaining highlight markers
             filtered_content = filtered_content.replace('==', '')
             
-            # Store the filtered content in session state to persist after download
-            if 'synthesis_content' not in st.session_state:
-                st.session_state.synthesis_content = filtered_content
+            # Store the filtered content in session state
+            st.session_state['synthesis_content'] = filtered_content
             
             # Display the content
-            st.markdown(st.session_state.synthesis_content)
+            st.markdown(st.session_state['synthesis_content'])
         else:
             st.warning("No content available for this synthesis.")
         
@@ -262,7 +264,7 @@ def display_synthesis(synthesis: Dict[str, str]) -> None:
 
 ---
 
-{st.session_state.synthesis_content}
+{st.session_state['synthesis_content']}
 """
         # Use a unique key for the download button to prevent rerun
         st.download_button(
@@ -290,7 +292,7 @@ def display_research_analysis(analysis: Dict[str, str], index: int) -> None:
         # Get the content
         content = analysis.get('content', '')
         if content:
-            # Process content to remove highlighted sections
+            # Process content to remove highlighted sections and labels
             lines = content.split('\n')
             filtered_lines = []
             for line in lines:
@@ -302,6 +304,9 @@ def display_research_analysis(analysis: Dict[str, str], index: int) -> None:
                     continue
                 # Skip lines that exactly match the subtitle
                 if line.strip() == analysis.get('subtitle', '').strip():
+                    continue
+                # Skip section labels
+                if line.strip() in ['Introduction:', 'Conclusion:']:
                     continue
                 # Remove any HTML-style background coloring
                 if '<span' in line.lower() and 'background' in line.lower():
