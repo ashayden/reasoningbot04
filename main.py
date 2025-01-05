@@ -278,30 +278,12 @@ def display_research_analysis(analysis: Dict[str, str], index: int) -> None:
         st.markdown(f"*{analysis.get('subtitle', '')}*")
         st.markdown("---")
         
-        # Get the content and remove any duplicate title/subtitle that might appear at the start
+        # Get the content
         content = analysis.get('content', '')
-        lines = content.split('\n')
-        
-        # Find where the actual content begins (after title/subtitle/intro)
-        start_idx = 0
-        for i, line in enumerate(lines):
-            if line.strip().startswith('Introduction:') or line.strip().startswith('Section 1:'):
-                start_idx = i
-                break
-        
-        # Filter out any highlighted title/subtitle from the content
-        filtered_lines = []
-        content_started = False
-        for line in lines[start_idx:]:
-            if not content_started:
-                if line.strip().startswith('Introduction:') or line.strip().startswith('Section 1:'):
-                    content_started = True
-            if content_started:
-                filtered_lines.append(line)
-        
-        # Join the filtered lines and display
-        filtered_content = '\n'.join(filtered_lines)
-        st.markdown(filtered_content)
+        if content:
+            st.markdown(content)
+        else:
+            st.warning("No content available for this analysis.")
 
 def main():
     """Main application entry point."""

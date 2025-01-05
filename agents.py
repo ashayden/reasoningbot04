@@ -65,14 +65,15 @@ class PreAnalysisAgent(BaseAgent):
         """Generate initial insights about the topic."""
         prompt = f"""Analyze '{topic}' and provide two insights:
 
-1. Did You Know: Share one fascinating, lesser-known fact about the topic. Keep it to a single clear sentence. ALWAYS include 1-3 relevant emojis at the start of the fact.
-2. Overview: If '{topic}' is a question, provide a clear, direct answer. Otherwise, provide a clear, accessible 2-3 sentence explanation for a general audience. Focus on key points and avoid technical jargon. ALWAYS include 1-3 relevant emojis at the start of the overview.
+1. Did You Know: Share one fascinating, lesser-known fact about the topic. Keep it to a single clear sentence. Include 1-3 relevant emojis placed naturally within the text where they are most contextually relevant (not grouped at the start).
+2. Overview: If '{topic}' is a question, provide a clear, direct answer. Otherwise, provide a clear, accessible 2-3 sentence explanation for a general audience. Focus on key points and avoid technical jargon. Include 1-3 relevant emojis placed naturally within the text where they are most contextually relevant (not grouped at the start).
 
 Format your response EXACTLY as a Python dictionary with these two keys:
-{{"did_you_know": "Your fact here with emojis", "eli5": "Your overview here with emojis"}}
+{{"did_you_know": "Your fact here with contextual emojis", "eli5": "Your overview here with contextual emojis"}}
 
 Important:
-- ALWAYS include 1-3 relevant emojis at the start of each response
+- Place emojis naturally within the text where they are most relevant
+- Do not group emojis together at the start or end
 - Use only straight quotes (")
 - No line breaks in the dictionary
 - Keep the exact keys: did_you_know, eli5
