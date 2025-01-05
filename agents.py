@@ -360,18 +360,14 @@ Required sections and formatting:
    - Brief annotations explaining relevance
    
 6. References
-   - Well-structured citation section
-   - Include key sources from analyses
+   - Format all citations in APA style
+   - Place each reference on a new line
+   - Include only sources directly referenced in the analyses
+   - Example format: Author, A. A. (Year). Title of work. Publisher/Source.
+   - Ensure all in-text citations have corresponding references
+   - Sort references alphabetically by author's last name
 
 Use markdown formatting:
-- ### for section headings
-- ## for major sections
-- ** for bold text
-- * for italics
-- Bullet points for lists
-- > for important quotes/callouts
-
-Writing guidelines:
 - Maintain authoritative but accessible tone
 - Define technical terms when introduced
 - Use clear topic sentences and transitions
