@@ -220,14 +220,28 @@ def display_synthesis(synthesis: Dict[str, str]) -> None:
         # Get the content
         content = synthesis.get('content', '')
         if content:
-            # Remove any highlighted text backgrounds
+            # Process content to remove highlighted sections
             lines = content.split('\n')
             filtered_lines = []
             for line in lines:
-                if not any(bg in line.lower() for bg in ['background-color:', 'rgb', 'rgba', '#']):
-                    filtered_lines.append(line)
+                # Skip lines with background styling
+                if any(bg in line.lower() for bg in ['background-color:', 'rgb', 'rgba', '#']):
+                    continue
+                # Skip lines with "Subtitle:" prefix
+                if line.strip().startswith('Subtitle:'):
+                    continue
+                # Remove any HTML-style background coloring
+                if '<span' in line.lower() and 'background' in line.lower():
+                    continue
+                # Remove any markdown-style highlighting
+                if line.strip().startswith('==') and line.strip().endswith('=='):
+                    continue
+                filtered_lines.append(line)
             
+            # Join and clean the content
             filtered_content = '\n'.join(filtered_lines)
+            # Remove any remaining highlight markers
+            filtered_content = filtered_content.replace('==', '')
             st.markdown(filtered_content)
         else:
             st.warning("No content available for this synthesis.")
@@ -267,14 +281,28 @@ def display_research_analysis(analysis: Dict[str, str], index: int) -> None:
         # Get the content
         content = analysis.get('content', '')
         if content:
-            # Remove any highlighted text backgrounds
+            # Process content to remove highlighted sections
             lines = content.split('\n')
             filtered_lines = []
             for line in lines:
-                if not any(bg in line.lower() for bg in ['background-color:', 'rgb', 'rgba', '#']):
-                    filtered_lines.append(line)
+                # Skip lines with background styling
+                if any(bg in line.lower() for bg in ['background-color:', 'rgb', 'rgba', '#']):
+                    continue
+                # Skip lines with "Subtitle:" prefix
+                if line.strip().startswith('Subtitle:'):
+                    continue
+                # Remove any HTML-style background coloring
+                if '<span' in line.lower() and 'background' in line.lower():
+                    continue
+                # Remove any markdown-style highlighting
+                if line.strip().startswith('==') and line.strip().endswith('=='):
+                    continue
+                filtered_lines.append(line)
             
+            # Join and clean the content
             filtered_content = '\n'.join(filtered_lines)
+            # Remove any remaining highlight markers
+            filtered_content = filtered_content.replace('==', '')
             st.markdown(filtered_content)
         else:
             st.warning("No content available for this analysis.")
