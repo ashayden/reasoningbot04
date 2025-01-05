@@ -307,10 +307,10 @@ class SynthesisExpert(BaseAgent):
         """Synthesize multiple analyses into a cohesive, expert-level report with clear organization and recommendations."""
         # Convert analyses list to formatted string
         analyses_text = ""
-        for analysis in analyses:
+        for i, analysis in enumerate(analyses, 1):
             try:
                 if isinstance(analysis, dict):
-                    analyses_text += f"\nTitle: {analysis.get('title', '')}\n"
+                    analyses_text += f"\nResearch Analysis {i}. {analysis.get('title', '')}\n"
                     analyses_text += f"Content: {analysis.get('content', '')}\n\n"
                 else:
                     analyses_text += str(analysis) + "\n\n"
@@ -360,12 +360,17 @@ Required sections and formatting:
    - Brief annotations explaining relevance
    
 6. References
-   - Format all citations in APA style
-   - Place each reference on a new line
+   - Format all citations in APA style (7th edition)
+   - Each reference must be on a new line
    - Include only sources directly referenced in the analyses
-   - Example format: Author, A. A. (Year). Title of work. Publisher/Source.
-   - Ensure all in-text citations have corresponding references
-   - Sort references alphabetically by author's last name
+   - Format: Author, A. A. (Year). Title of work. Publisher/Source.
+   - For research analyses, use this format: Research Analysis [Number]. (Year). [Title of Analysis].
+   - Remove any placeholder text or example references
+   - Do not include "References" as a heading - it will be added automatically
+   - Do not include any explanatory text or notes
+   - Do not include any empty lines between references
+   - Do not include any quotation marks or special characters
+   - Sort references alphabetically by author's last name or analysis number
 
 Use markdown formatting:
 - Maintain authoritative but accessible tone
