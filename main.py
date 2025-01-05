@@ -206,11 +206,25 @@ def process_stage():
         logger.error(f"Error during analysis: {str(e)}")
         st.error(f"An error occurred: {str(e)}")
 
+def clean_content(content: str) -> str:
+    """Clean content by removing unwanted characters and formatting."""
+    # Remove trailing quotes and brackets
+    content = content.rstrip('"}]').rstrip("'}]")
+    # Remove standalone quotes and brackets
+    content = content.replace('"}', '').replace("'}", '').replace(']', '')
+    # Remove any empty lines at the end
+    content = content.rstrip()
+    return content
+
 def display_synthesis(synthesis: Dict[str, str]) -> None:
     """Display the final synthesis report."""
     if not synthesis:
         return
         
+    # Store synthesis content in session state
+    if 'synthesis_content' not in st.session_state:
+        st.session_state['synthesis_content'] = None
+    
     with st.expander("📊 Final Synthesis Report", expanded=False):
         # Display title and subtitle
         st.markdown(f"# {synthesis.get('title', '')}")
@@ -246,8 +260,8 @@ def display_synthesis(synthesis: Dict[str, str]) -> None:
             
             # Join and clean the content
             filtered_content = '\n'.join(filtered_lines)
-            # Remove any remaining highlight markers
-            filtered_content = filtered_content.replace('==', '')
+            # Remove any remaining highlight markers and clean the content
+            filtered_content = clean_content(filtered_content.replace('==', ''))
             
             # Store the filtered content in session state
             st.session_state['synthesis_content'] = filtered_content
@@ -256,8 +270,9 @@ def display_synthesis(synthesis: Dict[str, str]) -> None:
             st.markdown(st.session_state['synthesis_content'])
         else:
             st.warning("No content available for this synthesis.")
-        
-        # Create download content using the stored filtered content
+    
+    # Create download button outside the expander
+    if st.session_state['synthesis_content']:
         synthesis_text = f"""# {synthesis.get('title', '')}
 
 *{synthesis.get('subtitle', '')}*
@@ -266,7 +281,7 @@ def display_synthesis(synthesis: Dict[str, str]) -> None:
 
 {st.session_state['synthesis_content']}
 """
-        # Use a unique key for the download button to prevent rerun
+        # Place download button below all sections
         st.download_button(
             label="Download Report",
             data=synthesis_text,
@@ -318,8 +333,8 @@ def display_research_analysis(analysis: Dict[str, str], index: int) -> None:
             
             # Join and clean the content
             filtered_content = '\n'.join(filtered_lines)
-            # Remove any remaining highlight markers
-            filtered_content = filtered_content.replace('==', '')
+            # Remove any remaining highlight markers and clean the content
+            filtered_content = clean_content(filtered_content.replace('==', ''))
             st.markdown(filtered_content)
         else:
             st.warning("No content available for this analysis.")
