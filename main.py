@@ -293,12 +293,10 @@ def display_research_analysis(analysis: Dict[str, str], index: int) -> None:
         filtered_lines = []
         content_started = False
         for line in lines[start_idx:]:
-            # Skip any lines that contain the title or subtitle with highlighting
             if not content_started:
                 if line.strip().startswith('Introduction:') or line.strip().startswith('Section 1:'):
                     content_started = True
-                    filtered_lines.append(line)
-            else:
+            if content_started:
                 filtered_lines.append(line)
         
         # Join the filtered lines and display
