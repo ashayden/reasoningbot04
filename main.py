@@ -227,8 +227,11 @@ def display_synthesis(synthesis: Dict[str, str]) -> None:
                 # Skip lines with background styling
                 if any(bg in line.lower() for bg in ['background-color:', 'rgb', 'rgba', '#']):
                     continue
-                # Skip lines with "Subtitle:" prefix
-                if line.strip().startswith('Subtitle:'):
+                # Skip lines with subtitle variations
+                if any(sub in line for sub in ['Subtitle:', 'subtitle:', 'Subtitle: ', 'subtitle: ']):
+                    continue
+                # Skip lines that exactly match the subtitle
+                if line.strip() == synthesis.get('subtitle', '').strip():
                     continue
                 # Remove any HTML-style background coloring
                 if '<span' in line.lower() and 'background' in line.lower():
@@ -242,18 +245,24 @@ def display_synthesis(synthesis: Dict[str, str]) -> None:
             filtered_content = '\n'.join(filtered_lines)
             # Remove any remaining highlight markers
             filtered_content = filtered_content.replace('==', '')
-            st.markdown(filtered_content)
+            
+            # Store the filtered content in session state to persist after download
+            if 'synthesis_content' not in st.session_state:
+                st.session_state.synthesis_content = filtered_content
+            
+            # Display the content
+            st.markdown(st.session_state.synthesis_content)
         else:
             st.warning("No content available for this synthesis.")
         
-        # Create download content
+        # Create download content using the stored filtered content
         synthesis_text = f"""# {synthesis.get('title', '')}
 
 *{synthesis.get('subtitle', '')}*
 
 ---
 
-{filtered_content}
+{st.session_state.synthesis_content}
 """
         # Use a unique key for the download button to prevent rerun
         st.download_button(
@@ -288,8 +297,11 @@ def display_research_analysis(analysis: Dict[str, str], index: int) -> None:
                 # Skip lines with background styling
                 if any(bg in line.lower() for bg in ['background-color:', 'rgb', 'rgba', '#']):
                     continue
-                # Skip lines with "Subtitle:" prefix
-                if line.strip().startswith('Subtitle:'):
+                # Skip lines with subtitle variations
+                if any(sub in line for sub in ['Subtitle:', 'subtitle:', 'Subtitle: ', 'subtitle: ']):
+                    continue
+                # Skip lines that exactly match the subtitle
+                if line.strip() == analysis.get('subtitle', '').strip():
                     continue
                 # Remove any HTML-style background coloring
                 if '<span' in line.lower() and 'background' in line.lower():
