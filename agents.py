@@ -202,6 +202,26 @@ class ResearchAnalyst(BaseAgent):
     def analyze(self, topic: str, focus_areas: List[str], previous_analysis: Optional[str] = None) -> Dict[str, str]:
         """Generate research analysis for the given topic and focus areas."""
         try:
+            # Calculate iteration number based on previous analysis
+            iteration = 1
+            if previous_analysis:
+                iteration = len([a for a in previous_analysis.split('\n') if a.startswith('Title:')]) + 1
+
+            # Adjust temperature based on iteration
+            current_temp = min(
+                ANALYSIS_BASE_TEMP + (ANALYSIS_TEMP_INCREMENT * (iteration - 1)),
+                ANALYSIS_MAX_TEMP
+            )
+            
+            # Create config for this iteration
+            iteration_config = ANALYSIS_CONFIG.copy()
+            iteration_config['temperature'] = current_temp
+            # Increase max tokens with each iteration
+            iteration_config['max_output_tokens'] = min(
+                ANALYSIS_CONFIG['max_output_tokens'] + (256 * (iteration - 1)),
+                4096  # Maximum safe token limit
+            )
+            
             prompt = f'''Analyze the topic "{topic}" focusing on recent developments and key insights.
             
 Previous analysis (if any): {previous_analysis if previous_analysis else "None"}
@@ -212,7 +232,14 @@ Important notes:
 2. Write a subtitle that previews your key findings
 3. Structure your analysis with clear sections and bullet points
 4. Use markdown formatting for headings and emphasis
-5. Return your response in this exact format:
+5. As this is iteration {iteration}, {
+    "focus on foundational aspects and key concepts" if iteration == 1 else
+    "build upon previous findings and explore deeper connections" if iteration == 2 else
+    "delve into nuanced implications and complex relationships" if iteration == 3 else
+    "synthesize insights and explore innovative perspectives" if iteration == 4 else
+    "push boundaries and explore transformative implications"
+}
+6. Return your response in this exact format:
 {{
     "title": "Your Unique Title Here",
     "subtitle": "Your Subtitle Here",
@@ -274,10 +301,10 @@ Remember:
             return None
 
 class SynthesisExpert(BaseAgent):
-    """Agent responsible for synthesizing findings into a thesis-driven report."""
+    """Agent responsible for synthesizing findings into a comprehensive, expert-level report."""
     
     def synthesize(self, topic: str, focus_areas: Optional[List[str]], analyses: List[Dict[str, str]]) -> Optional[Dict[str, str]]:
-        """Synthesize multiple analyses into a cohesive report."""
+        """Synthesize multiple analyses into a cohesive, expert-level report with clear organization and recommendations."""
         # Convert analyses list to formatted string
         analyses_text = ""
         for analysis in analyses:
@@ -298,27 +325,58 @@ class SynthesisExpert(BaseAgent):
 Previous Analyses:
 {analyses_text}
 
-Create a compelling, thesis-driven synthesis that weaves together all research findings into a cohesive narrative.
+As an expert in fields relevant to {topic} and an engaging writer, create a comprehensive synthesis of the research findings. Adopt the perspective of a subject matter expert and skilled communicator to make complex ideas accessible while maintaining intellectual rigor.
 
 Return your response in this exact format:
 {{
-    "title": "Your creative, specific title here",
-    "subtitle": "Your engaging subtitle here",
+    "title": "Your creative, specific title that captures the key insight",
+    "subtitle": "Your engaging subtitle that previews the main findings",
     "content": "Your detailed synthesis here"
 }}
 
-Important:
-1. Title should be unique and specific (not generic like "Research Synthesis")
-2. Content should include:
-   - Clear thesis statement
-   - Integration of key findings
-   - Supporting evidence
-   - Actionable recommendations
-3. Use markdown formatting:
-   - ### for section headings
-   - ** for bold text
-   - * for italics
-   - Bullet points where appropriate'''
+Required sections and formatting:
+1. Executive Summary
+   - Begin with a clear, engaging overview of key findings
+   - Present main thesis and supporting points
+   - Highlight significance and implications
+
+2. Detailed Analysis
+   - Organize findings into clear thematic sections
+   - Support claims with evidence from analyses
+   - Explain complex concepts clearly
+   - Address relationships between key ideas
+   
+3. Discussion & Implications
+   - Examine broader significance
+   - Address counter-arguments or limitations
+   - Discuss real-world applications
+   
+4. Recommendations
+   - Actionable next steps
+   - Areas for further investigation
+   
+5. Further Reading
+   - Curated list of high-quality sources
+   - Brief annotations explaining relevance
+   
+6. References
+   - Well-structured citation section
+   - Include key sources from analyses
+
+Use markdown formatting:
+- ### for section headings
+- ## for major sections
+- ** for bold text
+- * for italics
+- Bullet points for lists
+- > for important quotes/callouts
+
+Writing guidelines:
+- Maintain authoritative but accessible tone
+- Define technical terms when introduced
+- Use clear topic sentences and transitions
+- Provide concrete examples
+- Balance depth with clarity'''
         
         try:
             response = self._generate_with_backoff(prompt)
