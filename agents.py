@@ -68,7 +68,7 @@ class PreAnalysisAgent(BaseAgent):
 1. Did You Know: Share one fascinating, lesser-known fact about the topic. Keep it to a single clear sentence. Include 1-3 relevant emojis placed naturally within the text where they are most contextually relevant (not grouped at the start).
 2. Overview: If '{topic}' is a question, provide a clear, direct answer. Otherwise, provide a clear, accessible 2-3 sentence explanation for a general audience. Focus on key points and avoid technical jargon. Include 1-3 relevant emojis placed naturally within the text where they are most contextually relevant (not grouped at the start).
 
-Format your response EXACTLY as a Python dictionary with these two keys:
+Format your response EXACTLY as shown below, including the comma between key-value pairs:
 {{"did_you_know": "Your fact here with contextual emojis", "eli5": "Your overview here with contextual emojis"}}
 
 Important:
@@ -77,7 +77,7 @@ Important:
 - Use only straight quotes (")
 - No line breaks in the dictionary
 - Keep the exact keys: did_you_know, eli5
-- Ensure proper dictionary formatting
+- Ensure proper dictionary formatting with comma between key-value pairs
 - Avoid nested quotes or special characters"""
         
         try:
@@ -91,8 +91,29 @@ Important:
             result = result.replace("'", "'").replace("'", "'")  # Replace curly single quotes
             result = result.replace('\n', ' ').replace('\r', ' ')  # Remove newlines
             
-            # Safely evaluate the string as a Python dictionary
-            insights = eval(result)
+            # Try multiple parsing approaches
+            try:
+                # First try ast.literal_eval for safety
+                import ast
+                insights = ast.literal_eval(result)
+            except:
+                try:
+                    # Try json.loads as fallback
+                    import json
+                    insights = json.loads(result)
+                except:
+                    # Last resort: basic string manipulation
+                    # Extract content between curly braces
+                    content = result[result.find('{'): result.rfind('}') + 1]
+                    # Split by comma and extract key-value pairs
+                    pairs = content.strip('{}').split('",')
+                    insights = {}
+                    for pair in pairs:
+                        if ':' in pair:
+                            key, value = pair.split(':', 1)
+                            key = key.strip().strip('"').strip()
+                            value = value.strip().strip('"').strip()
+                            insights[key] = value
             
             # Validate the dictionary structure
             if not isinstance(insights, dict):
