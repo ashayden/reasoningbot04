@@ -25,7 +25,7 @@ def input_form(state: AppState, on_submit: Callable) -> None:
             max_value=5,
             value=state.iterations,
             step=1,
-            help="Choose 1-5 iterations. More iterations = deeper insights = longer wait."
+            help="Choose 1-5 iterations. More Iterations = Deeper Insights & Longer Wait."
         )
         
         if state.stage == 'input':
