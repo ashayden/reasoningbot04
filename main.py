@@ -225,7 +225,7 @@ def display_synthesis(synthesis: Dict[str, str]) -> None:
     if 'synthesis_content' not in st.session_state:
         st.session_state['synthesis_content'] = None
     
-    with st.expander("📊 Final Synthesis Report", expanded=False):
+    with st.expander("📊 Final Synthesis Report", expanded=True):
         # Display title and subtitle
         st.markdown(f"# {synthesis.get('title', '')}")
         st.markdown(f"*{synthesis.get('subtitle', '')}*")
@@ -264,9 +264,10 @@ def display_synthesis(synthesis: Dict[str, str]) -> None:
             filtered_content = clean_content(filtered_content.replace('==', ''))
             
             # Store the filtered content in session state
-            st.session_state['synthesis_content'] = filtered_content
+            if not st.session_state['synthesis_content']:
+                st.session_state['synthesis_content'] = filtered_content
             
-            # Display the content
+            # Display the content from session state
             st.markdown(st.session_state['synthesis_content'])
         else:
             st.warning("No content available for this synthesis.")

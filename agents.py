@@ -68,7 +68,7 @@ class PreAnalysisAgent(BaseAgent):
 1. Did You Know: Share one fascinating, lesser-known fact about the topic. Keep it to a single clear sentence. Include 1-3 relevant emojis placed naturally within the text where they are most contextually relevant (not grouped at the start).
 2. Overview: If '{topic}' is a question, provide a clear, direct answer. Otherwise, provide a clear, accessible 2-3 sentence explanation for a general audience. Focus on key points and avoid technical jargon. Include 1-3 relevant emojis placed naturally within the text where they are most contextually relevant (not grouped at the start).
 
-Format your response EXACTLY as shown below:
+Format your response EXACTLY as shown below, including the comma between key-value pairs:
 {{"did_you_know": "Your fact here with contextual emojis", "eli5": "Your overview here with contextual emojis"}}
 
 Important:
@@ -77,7 +77,7 @@ Important:
 - Use only straight quotes (")
 - No line breaks in the dictionary
 - Keep the exact keys: did_you_know, eli5
-- Ensure proper dictionary formatting with commas between key-value pairs
+- Ensure proper dictionary formatting with comma between key-value pairs
 - Avoid nested quotes or special characters"""
         
         try:
