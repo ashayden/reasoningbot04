@@ -178,25 +178,33 @@ def main():
         input_form(state, handle_topic_submission)
         
         if state.synthesis:
-            # Store synthesis in session state to persist through downloads
-            if 'current_synthesis' not in st.session_state:
-                st.session_state.current_synthesis = state.synthesis
+            # Ensure synthesis persists in session state
+            synthesis_key = f"synthesis_{state.last_topic}"
+            if synthesis_key not in st.session_state:
+                st.session_state[synthesis_key] = state.synthesis
             
-            synthesis = st.session_state.current_synthesis
-            st.title(synthesis.get('title', 'Research Results'))
+            synthesis = st.session_state[synthesis_key]
+            
+            # Create columns for title and download button
+            col1, col2 = st.columns([0.8, 0.2])
+            with col1:
+                st.title(synthesis.get('title', 'Research Results'))
+            with col2:
+                # Download button for report
+                report_content = f"# {synthesis.get('title', 'Research Results')}\n\n"
+                report_content += synthesis.get('content', '')
+                
+                st.download_button(
+                    "📥 Download Report",
+                    report_content,
+                    file_name="research_report.md",
+                    mime="text/markdown",
+                    key=f"download_{synthesis_key}",  # Unique key based on topic
+                    use_container_width=True
+                )
+            
+            # Display content
             st.markdown(clean_markdown_content(synthesis.get('content', '')))
-            
-            # Download button for report
-            report_content = f"# {synthesis.get('title', 'Research Results')}\n\n"
-            report_content += synthesis.get('content', '')
-            
-            st.download_button(
-                "📥 Download Report",
-                report_content,
-                file_name="research_report.md",
-                mime="text/markdown",
-                key="download_report"  # Add unique key to prevent reuse
-            )
 
 if __name__ == "__main__":
     main() 

@@ -386,16 +386,11 @@ class SynthesisExpert(BaseAgent):
     def synthesize(self, topic: str, focus_areas: Optional[List[str]], analyses: List[Dict[str, str]]) -> Optional[Dict[str, str]]:
         """Synthesize multiple analyses into a cohesive, expert-level report with clear organization and recommendations."""
         # Cache key for persistence
-        cache_key = f"synthesis_{topic}_{'-'.join(focus_areas) if focus_areas else 'all'}"
+        synthesis_key = f"synthesis_{topic}"
         
-        # Check cache first
-        @st.cache_data(ttl=3600)
-        def get_cached_synthesis(key: str):
-            return st.session_state.get(key)
-        
-        cached_result = get_cached_synthesis(cache_key)
-        if cached_result:
-            return cached_result
+        # Check if synthesis already exists in session state
+        if synthesis_key in st.session_state:
+            return st.session_state[synthesis_key]
 
         # Convert analyses list to formatted string with improved structure
         analyses_text = self._format_analyses(analyses)
@@ -506,8 +501,8 @@ Use markdown formatting:
             if result and 'content' in result:
                 result['content'] = self._format_references(result['content'])
             
-            # Cache the result
-            st.session_state[cache_key] = result
+            # Store in session state for persistence
+            st.session_state[synthesis_key] = result
             return result
             
         except Exception as e:
