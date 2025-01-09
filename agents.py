@@ -13,9 +13,7 @@ from config import (
     PREANALYSIS_CONFIG,
     ANALYSIS_CONFIG,
     SYNTHESIS_CONFIG,
-    ANALYSIS_BASE_TEMP,
-    ANALYSIS_TEMP_INCREMENT,
-    ANALYSIS_MAX_TEMP
+    ProgressiveConfig
 )
 from utils import rate_limit_decorator, GeminiAPIError
 
@@ -244,20 +242,8 @@ class ResearchAnalyst(BaseAgent):
             if previous_analysis:
                 iteration = len([a for a in previous_analysis.split('\n') if a.startswith('Title:')]) + 1
 
-            # Adjust temperature based on iteration
-            current_temp = min(
-                ANALYSIS_BASE_TEMP + (ANALYSIS_TEMP_INCREMENT * (iteration - 1)),
-                ANALYSIS_MAX_TEMP
-            )
-            
-            # Create config for this iteration
-            iteration_config = ANALYSIS_CONFIG.copy()
-            iteration_config['temperature'] = current_temp
-            # Increase max tokens with each iteration
-            iteration_config['max_output_tokens'] = min(
-                ANALYSIS_CONFIG['max_output_tokens'] + (256 * (iteration - 1)),
-                4096  # Maximum safe token limit
-            )
+            # Get configuration for this iteration
+            config = ProgressiveConfig.get_iteration_config(iteration)
             
             prompt = f'''Analyze the topic "{topic}" focusing on recent developments and key insights.
             
@@ -301,17 +287,16 @@ Remember:
             if not cleaned_response.endswith('}'):
                 cleaned_response = cleaned_response + '}'
                 
-            # Safely evaluate the string as a dictionary
-            import ast
+            # Parse response
             try:
+                import ast
                 result = ast.literal_eval(cleaned_response)
             except:
-                # Fallback parsing if ast.literal_eval fails
-                import json
                 try:
+                    import json
                     result = json.loads(cleaned_response)
                 except:
-                    # Last resort: basic string manipulation
+                    # Last resort parsing
                     parts = cleaned_response.split('",')
                     title = parts[0].split('"title": "')[1]
                     subtitle = parts[1].split('"subtitle": "')[1]
@@ -319,7 +304,7 @@ Remember:
                     result = {
                         "title": title,
                         "subtitle": subtitle,
-                        "content": content.replace('\\n', '\n')  # Convert literal \n to newlines
+                        "content": content.replace('\\n', '\n')
                     }
             
             # Validate the result
