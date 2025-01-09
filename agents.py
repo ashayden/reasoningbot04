@@ -323,22 +323,67 @@ Remember:
 
 class SynthesisExpert(BaseAgent):
     """Agent responsible for synthesizing findings into a comprehensive, expert-level report."""
-    
-    def synthesize(self, topic: str, focus_areas: Optional[List[str]], analyses: List[Dict[str, str]]) -> Optional[Dict[str, str]]:
-        """Synthesize multiple analyses into a cohesive, expert-level report with clear organization and recommendations."""
-        # Convert analyses list to formatted string
-        analyses_text = ""
-        for i, analysis in enumerate(analyses, 1):
-            try:
-                if isinstance(analysis, dict):
-                    analyses_text += f"\nResearch Analysis {i}. {analysis.get('title', '')}\n"
-                    analyses_text += f"Content: {analysis.get('content', '')}\n\n"
-                else:
-                    analyses_text += str(analysis) + "\n\n"
-            except Exception as e:
-                logger.error(f"Error processing analysis: {str(e)}")
+
+    def _format_references(self, content: str) -> str:
+        """Format references according to APA 7th edition standards."""
+        # Split content to isolate references section
+        sections = content.split("References")
+        if len(sections) < 2:
+            return content
+            
+        main_content, references = sections[0], sections[1]
+        
+        # Process references
+        ref_lines = [line.strip() for line in references.split('\n') if line.strip()]
+        formatted_refs = []
+        
+        for ref in ref_lines:
+            # Skip lines that don't look like references
+            if not ref or ref.startswith('#') or ref.startswith('-'):
                 continue
                 
+            # Format Research Analysis references
+            if "Research Analysis" in ref:
+                try:
+                    analysis_num = ref.split("Research Analysis")[1].split('.')[0].strip()
+                    title = ref.split(').')[1].strip() if ').' in ref else ref
+                    formatted_refs.append(f"Research Analysis {analysis_num}. ({time.strftime('%Y')}). {title}.")
+                except:
+                    formatted_refs.append(ref)
+            # Format standard references
+            else:
+                # Ensure proper punctuation
+                if not ref.endswith('.'):
+                    ref += '.'
+                formatted_refs.append(ref)
+        
+        # Sort references
+        formatted_refs.sort(key=lambda x: (
+            'Research Analysis' not in x,  # Research Analyses first
+            x.lower()  # Then alphabetically
+        ))
+        
+        # Combine content
+        formatted_content = main_content + "\n\n## References\n\n" + '\n'.join(formatted_refs)
+        return formatted_content
+
+    def synthesize(self, topic: str, focus_areas: Optional[List[str]], analyses: List[Dict[str, str]]) -> Optional[Dict[str, str]]:
+        """Synthesize multiple analyses into a cohesive, expert-level report with clear organization and recommendations."""
+        # Cache key for persistence
+        cache_key = f"synthesis_{topic}_{'-'.join(focus_areas) if focus_areas else 'all'}"
+        
+        # Check cache first
+        @st.cache_data(ttl=3600)
+        def get_cached_synthesis(key: str):
+            return st.session_state.get(key)
+        
+        cached_result = get_cached_synthesis(cache_key)
+        if cached_result:
+            return cached_result
+
+        # Convert analyses list to formatted string with improved structure
+        analyses_text = self._format_analyses(analyses)
+        
         focus_context = f"\nSelected Focus Areas:\n{', '.join(focus_areas)}" if focus_areas else ""
         
         prompt = f'''Topic: {topic}{focus_context}
@@ -399,7 +444,7 @@ Use markdown formatting:
 - Use clear topic sentences and transitions
 - Provide concrete examples
 - Balance depth with clarity'''
-        
+
         try:
             response = self._generate_with_backoff(prompt)
             if not response:
@@ -414,9 +459,11 @@ Use markdown formatting:
             
             # Parse response
             try:
+                import ast
                 result = ast.literal_eval(cleaned_response)
             except:
                 try:
+                    import json
                     result = json.loads(cleaned_response)
                 except:
                     # Last resort parsing
@@ -439,8 +486,32 @@ Use markdown formatting:
             if 'content' in result:
                 result['content'] = result['content'].replace('\\n', '\n')
             
+            # Format references in the result
+            if result and 'content' in result:
+                result['content'] = self._format_references(result['content'])
+            
+            # Cache the result
+            st.session_state[cache_key] = result
             return result
             
         except Exception as e:
             logger.error(f"Error generating synthesis: {str(e)}")
-            return None 
+            return None
+
+    def _format_analyses(self, analyses: List[Dict[str, str]]) -> str:
+        """Format analyses for synthesis input with improved structure."""
+        formatted_text = ""
+        for i, analysis in enumerate(analyses, 1):
+            try:
+                if isinstance(analysis, dict):
+                    formatted_text += f"\n## Research Analysis {i}\n"
+                    formatted_text += f"### {analysis.get('title', '')}\n"
+                    if 'subtitle' in analysis:
+                        formatted_text += f"#### {analysis['subtitle']}\n"
+                    formatted_text += f"{analysis.get('content', '')}\n\n"
+                else:
+                    formatted_text += f"Analysis {i}: {str(analysis)}\n\n"
+            except Exception as e:
+                logger.error(f"Error formatting analysis {i}: {str(e)}")
+                continue
+        return formatted_text 

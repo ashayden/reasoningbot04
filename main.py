@@ -1,349 +1,196 @@
-"""Main application file for the MARA research assistant."""
+"""Main application module for MARA."""
 
-import logging
 import streamlit as st
 import google.generativeai as genai
-from typing import List, Dict
+from typing import List, Optional
 
-from config import GEMINI_MODEL
-from utils import validate_topic, sanitize_topic, QuotaExceededError
 from agents import PreAnalysisAgent, ResearchAnalyst, SynthesisExpert
-from state import AppState
 from components import (
-    display_logo, input_form, display_insights, display_focus_areas
+    display_logo, input_form, display_insights,
+    display_focus_areas
+)
+from config import (
+    GEMINI_MODEL, MIN_TOPIC_LENGTH, MAX_TOPIC_LENGTH,
+    ProgressiveConfig, API_RATE_LIMIT
+)
+from state import AppState
+from utils import (
+    safe_api_call, parse_gemini_response, rate_limit_decorator,
+    clean_markdown_content, APIError
 )
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
-
-# Page configuration
+# Initialize Streamlit page configuration
 st.set_page_config(
-    page_title="Research Assistant",
+    page_title="MARA Research Assistant",
     page_icon="🔍",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
 
-# Custom CSS
-st.markdown("""
-<style>
-.block-container { 
-    max-width: 800px; 
-    padding: 2rem 1rem; 
-}
+def initialize_state() -> None:
+    """Initialize or reset application state."""
+    if 'app_state' not in st.session_state:
+        st.session_state.app_state = AppState()
 
-.stButton > button { 
-    width: 100%;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-}
-
-[data-testid="baseButton-secondary"] {
-    background-color: #f8f9fa;
-    border: 1px solid #dee2e6;
-    color: #2c3338;
-    padding: 0.75rem;
-    min-height: 3rem;
-    transition: all 0.2s ease;
-}
-
-[data-testid="baseButton-secondary"]:hover {
-    background-color: #e9ecef;
-    border-color: #ced4da;
-}
-
-[data-testid="baseButton-primary"] {
-    background-color: rgba(0, 102, 204, 0.1);
-    border: 1px solid #0066cc;
-    box-shadow: 0 0 0 1px #0066cc;
-    color: #0066cc;
-    font-weight: 500;
-    padding: 0.75rem;
-    min-height: 3rem;
-    transition: all 0.2s ease;
-}
-
-[data-testid="baseButton-primary"]:hover {
-    background-color: rgba(0, 102, 204, 0.2);
-}
-
-textarea {
-    font-size: 1.1em;
-    line-height: 1.5;
-    padding: 0.5em;
-    height: 150px;
-    background-color: #ffffff;
-    border: 1px solid #dee2e6;
-    color: #2c3338;
-}
-</style>
-""", unsafe_allow_html=True)
-
-def handle_topic_submission(topic: str, iterations: int):
-    """Handle topic submission and validation."""
-    if validate_topic(topic):
-        state = AppState.load_state()
-        state.last_topic = topic
-        state.topic = sanitize_topic(topic)
-        state.iterations = iterations
-        state.stage = 'insights'
-        state.save_state()
-        st.rerun()
-
-def handle_focus_continue(selected: List[str]):
-    """Handle focus area continue action."""
-    state = AppState.load_state()
-    state.focus_container_expanded = False
-    state.selected_focus_areas = selected
-    state.stage = 'analysis'
-    state.save_state()
-    st.rerun()
-
-def handle_focus_skip():
-    """Handle focus area skip action."""
-    state = AppState.load_state()
-    state.focus_container_expanded = False
-    state.selected_focus_areas = []
-    state.stage = 'analysis'
-    state.save_state()
-    st.rerun()
-
-def process_stage():
-    """Process the current stage of research."""
+@safe_api_call(retries=3)
+@rate_limit_decorator(calls=API_RATE_LIMIT['calls'], period=API_RATE_LIMIT['period'])
+def initialize_model():
+    """Initialize the Gemini model with error handling."""
     try:
         model = genai.GenerativeModel(GEMINI_MODEL)
-        state = AppState.load_state()
-        
-        # Always show logo
-        display_logo()
-        
-        # Always show input form
-        input_form(state, handle_topic_submission)
-        
-        # Display insights if available
-        if state.insights:
-            display_insights(state.insights)
-        
-        # Process stages
-        if state.stage == 'insights':
-            with st.spinner('Generating initial insights...'):
-                pre_analysis = PreAnalysisAgent(model)
-                insights = pre_analysis.generate_insights(state.topic)
-                if insights:
-                    state.insights = insights
-                    focus_areas = pre_analysis.generate_focus_areas(state.topic)
-                    if focus_areas:
-                        state.focus_areas = focus_areas
-                        state.stage = 'focus'
-                        state.save_state()
-                        st.rerun()
-        
-        # Always show focus areas if available
-        if state.focus_areas:
-            display_focus_areas(state, handle_focus_continue, handle_focus_skip)
-        
-        # Display analysis results if available
-        if state.analysis_results:
-            for index, analysis in enumerate(state.analysis_results):
-                display_research_analysis(analysis, index)
-        
-        # Process analysis stage
-        if state.stage == 'analysis':
-            with st.spinner('Conducting research analysis...'):
-                analyst = ResearchAnalyst(model)
-                iterations_remaining = state.iterations - len(state.analysis_results)
-                
-                if iterations_remaining > 0:
-                    previous = state.analysis_results[-1]['content'] if state.analysis_results else None
-                    analysis = analyst.analyze(
-                        state.topic,
-                        state.selected_focus_areas,
-                        previous
-                    )
-                    
-                    if analysis:
-                        state.analysis_results.append(analysis)
-                        state.save_state()
-                        st.rerun()
-                else:
-                    state.stage = 'synthesis'
-                    state.save_state()
-                    st.rerun()
-        
-        # Process synthesis stage
-        elif state.stage == 'synthesis':
-            if not state.synthesis:
-                with st.spinner('Generating final synthesis...'):
-                    synthesis_expert = SynthesisExpert(model)
-                    synthesis = synthesis_expert.synthesize(
-                        topic=state.topic,
-                        focus_areas=state.selected_focus_areas,
-                        analyses=state.analysis_results
-                    )
-                    if synthesis:
-                        state.synthesis = synthesis
-                        state.stage = "complete"
-                        state.save_state()
-                        display_synthesis(synthesis)
-                    else:
-                        logger.error("Failed to generate synthesis")
-                        st.error("Failed to generate synthesis. Please try again.")
-            else:
-                display_synthesis(state.synthesis)
-            
-            if st.button("Start New Research", type="primary"):
-                state.soft_reset()
-                st.rerun()
-    
-    except QuotaExceededError:
-        st.error("API quota exceeded. Please try again later.")
+        return model
     except Exception as e:
-        logger.error(f"Error during analysis: {str(e)}")
-        st.error(f"An error occurred: {str(e)}")
+        raise APIError(f"Failed to initialize Gemini model: {str(e)}")
 
-def clean_content(content: str) -> str:
-    """Clean content by removing unwanted characters and formatting."""
-    # Remove trailing quotes and brackets
-    content = content.rstrip('"}]').rstrip("'}]")
-    # Remove standalone quotes and brackets
-    content = content.replace('"}', '').replace("'}", '').replace(']', '')
-    # Remove any empty lines at the end
-    content = content.rstrip()
-    return content
+def validate_topic(topic: str) -> tuple[bool, str]:
+    """Validate the research topic."""
+    if not topic or not topic.strip():
+        return False, "Please enter a research topic."
+    if len(topic) < MIN_TOPIC_LENGTH:
+        return False, f"Topic must be at least {MIN_TOPIC_LENGTH} characters."
+    if len(topic) > MAX_TOPIC_LENGTH:
+        return False, f"Topic must be no more than {MAX_TOPIC_LENGTH} characters."
+    return True, ""
 
-def display_synthesis(synthesis: Dict[str, str]) -> None:
-    """Display the final synthesis report."""
-    if not synthesis:
+def handle_topic_submission(topic: str, iterations: int) -> None:
+    """Handle topic submission with error handling."""
+    try:
+        # Validate topic
+        is_valid, error_message = validate_topic(topic)
+        if not is_valid:
+            st.error(error_message)
+            return
+            
+        state = st.session_state.app_state
+        state.last_topic = topic
+        state.iterations = iterations
+        state.stage = 'analysis'
+        
+        # Initialize model
+        model = initialize_model()
+        
+        # Generate initial insights
+        pre_analyst = PreAnalysisAgent(model)
+        with st.spinner("Generating initial insights..."):
+            insights = pre_analyst.generate_insights(topic)
+            if insights:
+                state.insights = insights
+                
+            focus_areas = pre_analyst.generate_focus_areas(topic)
+            if focus_areas:
+                state.focus_areas = focus_areas
+                
+        st.rerun()
+        
+    except APIError as e:
+        st.error(f"API Error: {str(e)}")
+    except Exception as e:
+        st.error(f"An unexpected error occurred: {str(e)}")
+
+def handle_focus_selection(selected_areas: List[str]) -> None:
+    """Handle focus area selection with validation."""
+    state = st.session_state.app_state
+    if len(selected_areas) > 5:
+        st.error("Please select no more than 5 focus areas.")
         return
         
-    # Store synthesis content in session state
-    if 'synthesis_content' not in st.session_state:
-        st.session_state['synthesis_content'] = None
-    
-    with st.expander("📊 Final Synthesis Report", expanded=True):
-        # Display title and subtitle
-        st.markdown(f"# {synthesis.get('title', '')}")
-        st.markdown(f"*{synthesis.get('subtitle', '')}*")
-        st.markdown("---")
+    state.selected_focus_areas = selected_areas
+    state.stage = 'research'
+    st.rerun()
+
+def conduct_research() -> None:
+    """Conduct progressive research analysis."""
+    try:
+        state = st.session_state.app_state
+        model = initialize_model()
+        analyst = ResearchAnalyst(model)
         
-        # Get the content
-        content = synthesis.get('content', '')
-        if content:
-            # Process content to remove highlighted sections and labels
-            lines = content.split('\n')
-            filtered_lines = []
-            for line in lines:
-                # Skip lines with background styling
-                if any(bg in line.lower() for bg in ['background-color:', 'rgb', 'rgba', '#']):
-                    continue
-                # Skip lines with subtitle variations
-                if any(sub in line for sub in ['Subtitle:', 'subtitle:', 'Subtitle: ', 'subtitle: ']):
-                    continue
-                # Skip lines that exactly match the subtitle
-                if line.strip() == synthesis.get('subtitle', '').strip():
-                    continue
-                # Skip section labels
-                if line.strip() in ['Introduction:', 'Conclusion:']:
-                    continue
-                # Remove any HTML-style background coloring
-                if '<span' in line.lower() and 'background' in line.lower():
-                    continue
-                # Remove any markdown-style highlighting
-                if line.strip().startswith('==') and line.strip().endswith('=='):
-                    continue
-                filtered_lines.append(line)
-            
-            # Join and clean the content
-            filtered_content = '\n'.join(filtered_lines)
-            # Remove any remaining highlight markers and clean the content
-            filtered_content = clean_content(filtered_content.replace('==', ''))
-            
-            # Store the filtered content in session state
-            if not st.session_state['synthesis_content']:
-                st.session_state['synthesis_content'] = filtered_content
-            
-            # Display the content from session state
-            st.markdown(st.session_state['synthesis_content'])
-        else:
-            st.warning("No content available for this synthesis.")
-    
-    # Create download button outside the expander
-    if st.session_state['synthesis_content']:
-        synthesis_text = f"""# {synthesis.get('title', '')}
-
-*{synthesis.get('subtitle', '')}*
-
----
-
-{st.session_state['synthesis_content']}
-"""
-        # Place download button below all sections
-        st.download_button(
-            label="Download Report",
-            data=synthesis_text,
-            file_name="synthesis_report.md",
-            mime="text/markdown",
-            key="synthesis_download"
-        )
-
-def display_research_analysis(analysis: Dict[str, str], index: int) -> None:
-    """Display a research analysis result."""
-    if not analysis:
-        return
+        progress_bar = st.progress(0)
+        status_text = st.empty()
         
-    # Create a brief summary from the title for the progress indicator
-    brief_title = analysis.get('title', '').split(':')[-1].strip() if ':' in analysis.get('title', '') else analysis.get('title', '')
-    
-    with st.expander(f"📚 Research Analysis #{index + 1}: {brief_title}", expanded=False):
-        # Display title and subtitle
-        st.markdown(f"# {analysis.get('title', '')}")
-        st.markdown(f"*{analysis.get('subtitle', '')}*")
-        st.markdown("---")
-        
-        # Get the content
-        content = analysis.get('content', '')
-        if content:
-            # Process content to remove highlighted sections and labels
-            lines = content.split('\n')
-            filtered_lines = []
-            for line in lines:
-                # Skip lines with background styling
-                if any(bg in line.lower() for bg in ['background-color:', 'rgb', 'rgba', '#']):
-                    continue
-                # Skip lines with subtitle variations
-                if any(sub in line for sub in ['Subtitle:', 'subtitle:', 'Subtitle: ', 'subtitle: ']):
-                    continue
-                # Skip lines that exactly match the subtitle
-                if line.strip() == analysis.get('subtitle', '').strip():
-                    continue
-                # Skip section labels
-                if line.strip() in ['Introduction:', 'Conclusion:']:
-                    continue
-                # Remove any HTML-style background coloring
-                if '<span' in line.lower() and 'background' in line.lower():
-                    continue
-                # Remove any markdown-style highlighting
-                if line.strip().startswith('==') and line.strip().endswith('=='):
-                    continue
-                filtered_lines.append(line)
+        analyses = []
+        for i in range(state.iterations):
+            iteration = i + 1
+            status_text.text(f"Research Iteration {iteration}/{state.iterations}")
             
-            # Join and clean the content
-            filtered_content = '\n'.join(filtered_lines)
-            # Remove any remaining highlight markers and clean the content
-            filtered_content = clean_content(filtered_content.replace('==', ''))
-            st.markdown(filtered_content)
-        else:
-            st.warning("No content available for this analysis.")
+            # Get progressive configuration
+            config = ProgressiveConfig.get_iteration_config(iteration)
+            model.generation_config = genai.types.GenerationConfig(**config)
+            
+            # Conduct analysis
+            analysis = analyst.analyze(
+                state.last_topic,
+                state.selected_focus_areas,
+                '\n'.join(str(a) for a in analyses) if analyses else None
+            )
+            
+            if analysis:
+                analyses.append(analysis)
+                
+            progress = (i + 1) / state.iterations
+            progress_bar.progress(progress)
+            
+        # Generate synthesis
+        if analyses:
+            synthesizer = SynthesisExpert(model)
+            synthesis = synthesizer.synthesize(
+                state.last_topic,
+                state.selected_focus_areas,
+                analyses
+            )
+            
+            if synthesis:
+                state.synthesis = synthesis
+                
+        state.stage = 'complete'
+        st.rerun()
+        
+    except APIError as e:
+        st.error(f"API Error: {str(e)}")
+        state.stage = 'input'
+    except Exception as e:
+        st.error(f"An unexpected error occurred: {str(e)}")
+        state.stage = 'input'
 
 def main():
     """Main application entry point."""
-    state = AppState.load_state()
-    process_stage()
+    initialize_state()
+    state = st.session_state.app_state
+    
+    # Display logo
+    display_logo()
+    
+    # Handle different application stages
+    if state.stage == 'input':
+        input_form(state, handle_topic_submission)
+        
+    elif state.stage == 'analysis':
+        input_form(state, handle_topic_submission)
+        display_insights(state.insights)
+        display_focus_areas(state, handle_focus_selection, lambda: handle_focus_selection([]))
+        
+    elif state.stage == 'research':
+        input_form(state, handle_topic_submission)
+        display_insights(state.insights)
+        conduct_research()
+        
+    elif state.stage == 'complete':
+        input_form(state, handle_topic_submission)
+        
+        if state.synthesis:
+            st.title(state.synthesis.get('title', 'Research Results'))
+            st.markdown(clean_markdown_content(state.synthesis.get('content', '')))
+            
+            # Download button for report
+            report_content = f"# {state.synthesis.get('title', 'Research Results')}\n\n"
+            report_content += state.synthesis.get('content', '')
+            
+            st.download_button(
+                "📥 Download Report",
+                report_content,
+                file_name="research_report.md",
+                mime="text/markdown"
+            )
 
 if __name__ == "__main__":
     main() 
