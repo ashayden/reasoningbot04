@@ -4,58 +4,71 @@ import logging
 import time
 from functools import wraps
 from typing import Any, Callable, Dict, Optional, TypeVar, List
-from google.api_core import retry
+from google.api_core import retry, exceptions
 from google.generativeai.types import GenerateContentResponse
+import google.generativeai.types as gemini_types
 
 logger = logging.getLogger(__name__)
 
 T = TypeVar('T')
 
-class APIError(Exception):
-    """Custom exception for API-related errors."""
-    def __init__(self, message: str, status_code: Optional[int] = None, response: Any = None):
+class GeminiAPIError(Exception):
+    """Custom exception for Gemini API-related errors that follows Google's guidelines."""
+    def __init__(self, message: str, error_type: Optional[str] = None):
+        self.error_type = error_type
         super().__init__(message)
-        self.status_code = status_code
-        self.response = response
 
 def safe_api_call(retries: int = 3, backoff: float = 2.0) -> Callable:
-    """Decorator for safe API calls with retry logic."""
+    """Decorator for safe Gemini API calls with compliant retry logic."""
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> T:
-            last_error = None
             for attempt in range(retries):
                 try:
                     result = func(*args, **kwargs)
                     return result
-                except Exception as e:
-                    last_error = e
+                except exceptions.GoogleAPIError as e:
+                    # Handle Google API specific errors
                     if attempt < retries - 1:
                         wait_time = backoff ** attempt
-                        logger.warning(f"API call failed (attempt {attempt + 1}/{retries}). Retrying in {wait_time}s...")
+                        logger.warning(f"Gemini API call failed (attempt {attempt + 1}/{retries}). Retrying in {wait_time}s...")
                         time.sleep(wait_time)
                     else:
-                        logger.error(f"API call failed after {retries} attempts: {str(e)}")
-                        raise APIError(f"API call failed: {str(e)}", response=last_error)
+                        logger.error(f"Gemini API call failed after {retries} attempts")
+                        raise GeminiAPIError(str(e), error_type="API_ERROR")
+                except Exception as e:
+                    # Handle other errors
+                    logger.error(f"Unexpected error in Gemini API call: {str(e)}")
+                    raise GeminiAPIError(str(e), error_type="UNEXPECTED_ERROR")
         return wrapper
     return decorator
 
 def parse_gemini_response(response: GenerateContentResponse) -> Dict[str, Any]:
-    """Safely parse Gemini API response with enhanced error handling."""
+    """Safely parse Gemini API response following Google's guidelines."""
     if not response:
-        raise APIError("Empty response from Gemini API")
+        raise GeminiAPIError("Empty response from Gemini API", error_type="EMPTY_RESPONSE")
         
     try:
-        # Extract text content
-        text = response.text.strip() if hasattr(response, 'text') else None
+        # Check response finish reason
+        if hasattr(response, 'prompt_feedback'):
+            feedback = response.prompt_feedback
+            if feedback and feedback.block_reason:
+                raise GeminiAPIError(
+                    f"Content blocked: {feedback.block_reason}",
+                    error_type="CONTENT_BLOCKED"
+                )
         
-        # Handle different response formats
+        # Extract text content
+        if not hasattr(response, 'text'):
+            raise GeminiAPIError("Invalid response format", error_type="INVALID_FORMAT")
+            
+        text = response.text.strip()
         if not text:
-            raise APIError("No text content in response")
+            raise GeminiAPIError("Empty text in response", error_type="EMPTY_CONTENT")
             
         # Clean up response text
-        text = text.replace('\\"', '"')  # Fix escaped quotes
-        text = text.replace('\\n', '\n')  # Fix escaped newlines
+        text = text.replace('\\"', '"')
+        text = text.replace('\\n', '\n')
         
         # Try multiple parsing approaches
         try:
@@ -73,23 +86,28 @@ def parse_gemini_response(response: GenerateContentResponse) -> Dict[str, Any]:
                 
         return result
         
+    except GeminiAPIError:
+        raise
     except Exception as e:
-        raise APIError(f"Failed to parse Gemini response: {str(e)}", response=response)
+        raise GeminiAPIError(f"Failed to parse Gemini response: {str(e)}", error_type="PARSE_ERROR")
 
 def rate_limit_decorator(calls: int = 60, period: float = 60.0) -> Callable:
-    """Rate limiting decorator with token bucket algorithm."""
+    """Rate limiting decorator compliant with Gemini API quotas."""
     bucket = TokenBucket(calls, period)
     
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> T:
-            bucket.consume(1)
-            return func(*args, **kwargs)
+            try:
+                bucket.consume(1)
+                return func(*args, **kwargs)
+            except Exception as e:
+                raise GeminiAPIError(f"Rate limit exceeded: {str(e)}", error_type="RATE_LIMIT")
         return wrapper
     return decorator
 
 class TokenBucket:
-    """Token bucket for rate limiting."""
+    """Token bucket for API rate limiting."""
     def __init__(self, tokens: int, period: float):
         self.tokens = tokens
         self.period = period

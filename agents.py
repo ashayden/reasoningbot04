@@ -6,7 +6,8 @@ import time
 
 import google.generativeai as genai
 import streamlit as st
-from google.generativeai.types import GenerationConfig
+from google.generativeai.types import GenerationConfig, GenerateContentResponse
+from google.api_core import exceptions
 
 from config import (
     PREANALYSIS_CONFIG,
@@ -16,7 +17,7 @@ from config import (
     ANALYSIS_TEMP_INCREMENT,
     ANALYSIS_MAX_TEMP
 )
-from utils import rate_limit_decorator
+from utils import rate_limit_decorator, GeminiAPIError
 
 logger = logging.getLogger(__name__)
 
@@ -27,36 +28,51 @@ class BaseAgent:
         self.model = model
     
     def _generate_with_backoff(self, prompt: str, max_retries: int = 3) -> Optional[str]:
-        """Generate content with exponential backoff for retries."""
-        retry_count = 0
-        while retry_count < max_retries:
+        """Generate content with compliant error handling and retries."""
+        for retry in range(max_retries):
             try:
                 response = self.model.generate_content(prompt)
+                
+                # Check for content filtering
+                if hasattr(response, 'prompt_feedback'):
+                    feedback = response.prompt_feedback
+                    if feedback and feedback.block_reason:
+                        logger.warning(f"Content blocked: {feedback.block_reason}")
+                        return None
+                
                 if response and response.text:
                     return response.text.strip()
-                retry_count += 1
+                    
+            except exceptions.GoogleAPIError as e:
+                logger.error(f"Gemini API error (attempt {retry + 1}): {str(e)}")
+                if retry < max_retries - 1:
+                    time.sleep(2 ** retry)  # Exponential backoff
+                else:
+                    raise GeminiAPIError(f"Gemini API error: {str(e)}", error_type="API_ERROR")
             except Exception as e:
-                logger.error(f"Generation error (attempt {retry_count + 1}): {str(e)}")
-                retry_count += 1
-                time.sleep(2 ** retry_count)  # Exponential backoff
+                logger.error(f"Unexpected error (attempt {retry + 1}): {str(e)}")
+                if retry < max_retries - 1:
+                    time.sleep(2 ** retry)
+                else:
+                    raise GeminiAPIError(f"Generation error: {str(e)}", error_type="GENERATION_ERROR")
         return None
 
     def generate_content(self, prompt: str, config: Optional[Dict] = None) -> Optional[str]:
         """Generate content with the specified configuration."""
         try:
             if config:
-                self.model.generation_config = genai.types.GenerationConfig(**config)
+                self.model.generation_config = GenerationConfig(**config)
             response = self._generate_with_backoff(prompt)
             if response:
-                # Clean up the response
-                response = response.replace('\\"', '"')  # Fix escaped quotes
-                response = response.replace('\\n', '\n')  # Fix escaped newlines
-                response = response.strip()
-                return response
+                # Clean up the response following Google's guidelines
+                response = response.replace('\\"', '"')
+                response = response.replace('\\n', '\n')
+                return response.strip()
             return None
+        except GeminiAPIError:
+            raise
         except Exception as e:
-            logger.error(f"Error generating content: {str(e)}")
-            return None
+            raise GeminiAPIError(f"Content generation error: {str(e)}", error_type="UNEXPECTED_ERROR")
 
 class PreAnalysisAgent(BaseAgent):
     """Agent responsible for initial analysis and insights."""
