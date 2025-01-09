@@ -13,7 +13,7 @@ def input_form(state: AppState, on_submit: Callable) -> None:
     """Display the main input form."""
     with st.form("topic_form", clear_on_submit=False):
         topic = st.text_area(
-            "What would you like to explore?",
+            "What do you want to explore?",
             value=state.last_topic,
             help="Enter your research topic or question.",
             placeholder="e.g., 'Examine the impact of artificial intelligence on healthcare...'"
