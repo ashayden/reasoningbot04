@@ -178,18 +178,24 @@ def main():
         input_form(state, handle_topic_submission)
         
         if state.synthesis:
-            st.title(state.synthesis.get('title', 'Research Results'))
-            st.markdown(clean_markdown_content(state.synthesis.get('content', '')))
+            # Store synthesis in session state to persist through downloads
+            if 'current_synthesis' not in st.session_state:
+                st.session_state.current_synthesis = state.synthesis
+            
+            synthesis = st.session_state.current_synthesis
+            st.title(synthesis.get('title', 'Research Results'))
+            st.markdown(clean_markdown_content(synthesis.get('content', '')))
             
             # Download button for report
-            report_content = f"# {state.synthesis.get('title', 'Research Results')}\n\n"
-            report_content += state.synthesis.get('content', '')
+            report_content = f"# {synthesis.get('title', 'Research Results')}\n\n"
+            report_content += synthesis.get('content', '')
             
             st.download_button(
                 "📥 Download Report",
                 report_content,
                 file_name="research_report.md",
-                mime="text/markdown"
+                mime="text/markdown",
+                key="download_report"  # Add unique key to prevent reuse
             )
 
 if __name__ == "__main__":

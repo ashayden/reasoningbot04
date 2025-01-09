@@ -345,7 +345,7 @@ class SynthesisExpert(BaseAgent):
         # Split content to isolate references section
         sections = content.split("References")
         if len(sections) < 2:
-            return content
+            return content.rstrip('"}')  # Remove any stray closing braces
             
         main_content, references = sections[0], sections[1]
         
@@ -379,8 +379,8 @@ class SynthesisExpert(BaseAgent):
             x.lower()  # Then alphabetically
         ))
         
-        # Combine content
-        formatted_content = main_content + "\n\n## References\n\n" + '\n'.join(formatted_refs)
+        # Combine content and clean up any stray characters
+        formatted_content = main_content.rstrip('"}') + "\n\n## References\n\n" + '\n'.join(formatted_refs)
         return formatted_content
 
     def synthesize(self, topic: str, focus_areas: Optional[List[str]], analyses: List[Dict[str, str]]) -> Optional[Dict[str, str]]:
