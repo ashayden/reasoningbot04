@@ -16,7 +16,7 @@ from config import (
 from state import AppState
 from utils import (
     safe_api_call, parse_gemini_response, rate_limit_decorator,
-    clean_markdown_content, APIError
+    clean_markdown_content, GeminiAPIError
 )
 
 # Initialize Streamlit page configuration
@@ -40,7 +40,7 @@ def initialize_model():
         model = genai.GenerativeModel(GEMINI_MODEL)
         return model
     except Exception as e:
-        raise APIError(f"Failed to initialize Gemini model: {str(e)}")
+        raise GeminiAPIError(f"Failed to initialize Gemini model: {str(e)}")
 
 def validate_topic(topic: str) -> tuple[bool, str]:
     """Validate the research topic."""
@@ -82,7 +82,7 @@ def handle_topic_submission(topic: str, iterations: int) -> None:
                 
         st.rerun()
         
-    except APIError as e:
+    except GeminiAPIError as e:
         st.error(f"API Error: {str(e)}")
     except Exception as e:
         st.error(f"An unexpected error occurred: {str(e)}")
@@ -145,7 +145,7 @@ def conduct_research() -> None:
         state.stage = 'complete'
         st.rerun()
         
-    except APIError as e:
+    except GeminiAPIError as e:
         st.error(f"API Error: {str(e)}")
         state.stage = 'input'
     except Exception as e:
